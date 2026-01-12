@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Base Variables (Light Mode Default) */
+  --color-bg-primary: #ffffff;
+  /* White */
+  --color-bg-secondary: #f8fafc;
+  /* Slate 50 */
+  --color-bg-card: #f1f5f9;
+  /* Slate 100 - Slightly darker for cards on white */
+
+  --color-text-primary: #1e293b;
+  /* Slate 800 */
+  --color-text-secondary: #64748b;
+  /* Slate 500 */
+  --color-text-muted: #94a3b8;
+  /* Slate 400 */
+
+  /* Pastel Accents for Stats/Dashboard (PDF Match) */
+  --color-pastel-blue: #e0f2fe;
+  /* Sky 100 */
+  --color-pastel-green: #dcfce7;
+  /* Emerald 100 */
+  --color-pastel-pink: #fae8ff;
+  /* Fuchsia 100 */
+  --color-pastel-purple: #f3e8ff;
+  /* Purple 100 */
+  --color-pastel-orange: #ffebd4;
+  /* Orange 100 Custom */
+
+  --color-accent: #8b5cf6;
+  /* Violet 500 */
+  --color-accent-hover: #7c3aed;
+  /* Violet 600 */
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Mode Overrides */
+.dark {
+  --color-bg-primary: #0f172a;
+  /* Slate 900 */
+  --color-bg-secondary: #1e293b;
+  /* Slate 800 */
+  --color-bg-card: #1e293b;
+  /* Slate 800 */
+
+  --color-text-primary: #f8fafc;
+  /* Slate 50 */
+  --color-text-secondary: #cbd5e1;
+  /* Slate 300 */
+  --color-text-muted: #94a3b8;
+  /* Slate 400 */
+
+  /* Slightly darker pastels for better contrast in dark mode */
+  --color-pastel-blue: #0c4a6e;
+  --color-pastel-green: #064e3b;
+  --color-pastel-pink: #701a75;
+  --color-pastel-pink: #701a75;
+  --color-pastel-purple: #581c87;
+  --color-pastel-orange: #7c2d12;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.025em;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+/* Utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Custom Hide Scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  body {
+    padding-bottom: 80px;
+  }
+}

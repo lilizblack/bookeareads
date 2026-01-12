@@ -1,0 +1,572 @@
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBooks } from '../context/BookContext';
+import { ArrowLeft, Heart, ScanBarcode, Upload, Image as ImageIcon, AlertTriangle, Book } from 'lucide-react';
+import { GENRES } from '../data/genres';
+import BarcodeScanner from '../components/BarcodeScanner';
+import { generateGenericCover } from '../utils/coverGenerator';
+import { getCurrencySymbol } from '../utils/currency';
+
+const AddBook = () => {
+    const navigate = useNavigate();
+    const { addBook, checkDuplicate } = useBooks();
+    const [showScanner, setShowScanner] = useState(false);
+    const [fetchingCover, setFetchingCover] = useState(false);
+    const [coverError, setCoverError] = useState('');
+    const [duplicateError, setDuplicateError] = useState(null); // { type: 'Title' | 'ISBN' }
+    const [errors, setErrors] = useState({});
+    const fileInputRef = useRef(null);
+
+    const [formData, setFormData] = useState({
+        title: '',
+        author: '',
+        cover: '',
+        status: 'want-to-read',
+        isOwned: false,
+        price: '',
+        boughtDate: '',
+        isFavorite: false,
+        genres: '',
+        format: 'Physical',
+        isWantToBuy: false,
+        isbn: '',
+        totalPages: '',
+        totalChapters: '',
+        progress: 0,
+        progressMode: 'pages',
+        startedAt: '',
+        finishedAt: '',
+        ownershipStatus: 'kept',
+        purchaseLocation: ''
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        // Validation
+        const newErrors = {};
+        if (!formData.title.trim()) newErrors.title = 'Title is required';
+        if (!formData.author.trim()) newErrors.author = 'Author is required';
+
+        const totalVal = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
+        if (!totalVal || totalVal <= 0) {
+            newErrors.pages = `${formData.format === 'Audiobook' ? 'Total Chapters' : 'Total Pages'} is required`;
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            // Scroll to top to see error if needed or just let them see the highlights
+            return;
+        }
+
+        setErrors({});
+
+        // Check for duplicates
+        const duplicate = checkDuplicate(formData.title, formData.isbn);
+        if (duplicate.exists) {
+            setDuplicateError(duplicate);
+            return;
+        }
+
+        const newBook = {
+            ...formData,
+            genres: [formData.genres], // Wrap single selection in array for consistency
+            cover: formData.cover || generateGenericCover(formData.title, formData.author),
+            progressMode: formData.format === 'Audiobook' ? 'chapters' : 'pages',
+            otherVersions: [], // Initialize empty array for additional formats
+            // Ensure dates are set based on status
+            startedAt: (formData.status === 'reading' || formData.status === 'read') ? (formData.startedAt || new Date().toISOString()) : null,
+            finishedAt: formData.status === 'read' ? (formData.finishedAt || new Date().toISOString()) : null
+        };
+
+        addBook(newBook);
+        navigate('/');
+    };
+
+    const handleScanSuccess = (decodedText) => {
+        setFormData(prev => ({ ...prev, isbn: decodedText }));
+        setShowScanner(false);
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, cover: reader.result }));
+                setCoverError('');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleFetchData = async () => {
+        if (!formData.isbn) {
+            setCoverError('Please enter an ISBN first');
+            return;
+        }
+
+        setFetchingCover(true);
+        setCoverError('');
+
+        try {
+            // 1. Fetch Metadata (Title, Author, Pages)
+            // Strip non-numeric and dashes/spaces just to be safe, though OpenLibrary is lenient, exact key matching matters
+            const cleanIsbn = formData.isbn.replace(/[^0-9X]/gi, '');
+
+            const metadataResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
+            const metadata = await metadataResponse.json();
+
+            // Safer way to get the book info: grab the first value or look up by cleaned key
+            const bookInfo = metadata[`ISBN:${cleanIsbn}`] || Object.values(metadata)[0];
+
+            if (bookInfo) {
+                setFormData(prev => ({
+                    ...prev,
+                    title: bookInfo.title || prev.title,
+                    author: bookInfo.authors?.[0]?.name || prev.author,
+                    totalPages: bookInfo.number_of_pages || prev.totalPages,
+                    isbn: cleanIsbn // Update input with cleaner ISBN
+                }));
+
+                // 2. Fetch High-Res Cover
+                const coverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
+                const img = new Image();
+                img.onload = () => {
+                    setFormData(prev => ({ ...prev, cover: coverUrl }));
+                    setFetchingCover(false);
+                };
+                img.onerror = () => {
+                    // Fallback to metadata cover if direct high-res fails
+                    if (bookInfo.cover?.large) {
+                        setFormData(prev => ({ ...prev, cover: bookInfo.cover.large }));
+                    } else if (bookInfo.cover?.medium) {
+                        setFormData(prev => ({ ...prev, cover: bookInfo.cover.medium }));
+                    } else {
+                        setCoverError('High-res cover not found, metadata updated.');
+                    }
+                    setFetchingCover(false);
+                };
+                img.src = coverUrl;
+            } else {
+                setCoverError('No book found for this ISBN');
+                setFetchingCover(false);
+            }
+        } catch (error) {
+            console.error(error);
+            setCoverError('Failed to fetch book data');
+            setFetchingCover(false);
+        }
+    };
+
+    return (
+        <div className="pb-10 pt-2">
+            {/* Duplicate Warning Modal */}
+            {duplicateError && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 mb-4">
+                            <AlertTriangle size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">Book Already Exists</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            A book with this {duplicateError.type === 'Title' ? 'title' : 'ISBN'} is already in your library. Please use a unique title or ISBN.
+                        </p>
+                        <button
+                            onClick={() => setDuplicateError(null)}
+                            className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold active:scale-95 transition-transform"
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {showScanner && (
+                <BarcodeScanner
+                    onScanSuccess={handleScanSuccess}
+                    onClose={() => setShowScanner(false)}
+                />
+            )}
+            <div className="flex items-center gap-4 mb-6">
+                <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-800 dark:text-white">
+                    <ArrowLeft size={24} />
+                </button>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Add Book</h1>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Cover Preview with Upload/Fetch Options */}
+                <div className="space-y-3">
+                    <div className="flex justify-center">
+                        <div className="w-32 aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-md">
+                            {formData.cover ? (
+                                <img src={formData.cover} alt="Book cover" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex flex-col gap-2 items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-900/50">
+                                    <Book size={48} strokeWidth={1.5} />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">No Cover</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-center">
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
+                        >
+                            <Upload size={14} />
+                            Upload
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleFetchData}
+                            disabled={!formData.isbn || fetchingCover}
+                            className="flex items-center gap-1 px-3 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ImageIcon size={14} />
+                            {fetchingCover ? 'Fetching...' : 'Fetch Book Data'}
+                        </button>
+                    </div>
+
+                    {coverError && (
+                        <p className="text-xs text-red-500 text-center">{coverError}</p>
+                    )}
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                    />
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                            Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.title ? 'ring-2 ring-red-500' : ''}`}
+                            placeholder="Enter book title"
+                            value={formData.title}
+                            onChange={e => {
+                                setFormData({ ...formData, title: e.target.value });
+                                if (errors.title) setErrors({ ...errors, title: null });
+                            }}
+                        />
+                        {errors.title && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.title}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                            Author <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.author ? 'ring-2 ring-red-500' : ''}`}
+                            placeholder="Enter author name"
+                            value={formData.author}
+                            onChange={e => {
+                                setFormData({ ...formData, author: e.target.value });
+                                if (errors.author) setErrors({ ...errors, author: null });
+                            }}
+                        />
+                        {errors.author && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.author}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">ISBN</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 pr-12 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white"
+                                placeholder="Enter ISBN or Scan"
+                                value={formData.isbn}
+                                onChange={e => setFormData({ ...formData, isbn: e.target.value })}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowScanner(true)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <ScanBarcode size={20} />
+                            </button>
+                        </div>
+                    </div>
+
+
+
+                    {/* Conditional: Total Pages (Physical/Ebook) or Total Chapters (Audiobook) */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                            {formData.format === 'Audiobook' ? 'Total Chapters' : 'Total Pages'} <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.pages ? 'ring-2 ring-red-500' : ''}`}
+                            placeholder="0"
+                            value={formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages}
+                            onChange={e => {
+                                const value = parseInt(e.target.value) || '';
+                                if (formData.format === 'Audiobook') {
+                                    setFormData({ ...formData, totalChapters: value });
+                                } else {
+                                    setFormData({ ...formData, totalPages: value });
+                                }
+                                if (errors.pages) setErrors({ ...errors, pages: null });
+                            }}
+                        />
+                        {errors.pages && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.pages}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Genre</label>
+                            <select
+                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white"
+                                value={formData.genres}
+                                onChange={e => setFormData({ ...formData, genres: e.target.value })}
+                            >
+                                <option value="" disabled>Select Genre</option>
+                                {GENRES.map(genre => (
+                                    <option key={genre} value={genre} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{genre}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                                Status <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white"
+                                value={formData.status}
+                                onChange={e => {
+                                    const newStatus = e.target.value;
+                                    let updates = { status: newStatus };
+
+                                    if (newStatus === 'read') {
+                                        // Auto-fill progress to 100%
+                                        const total = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
+                                        if (total) {
+                                            updates.progress = total;
+                                        }
+                                        // Auto-fill dates if empty
+                                        const today = new Date().toISOString().split('T')[0];
+                                        if (!formData.startedAt) updates.startedAt = today;
+                                        if (!formData.finishedAt) updates.finishedAt = today;
+                                    } else if (newStatus === 'reading') {
+                                        const today = new Date().toISOString().split('T')[0];
+                                        if (!formData.startedAt) updates.startedAt = today;
+                                    }
+
+                                    setFormData({ ...formData, ...updates });
+                                }}
+                            >
+                                <option value="want-to-read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Want to Read</option>
+                                <option value="reading" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Reading</option>
+                                <option value="read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Read</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Progress Tracking Section */}
+                    {(formData.status === 'reading' || formData.status === 'read') && (
+                        <div className="space-y-4 animate-fade-in bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    Current {formData.format === 'Audiobook' ? 'Chapter' : 'Page'}
+                                </label>
+                                <span className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase">
+                                    {Math.round(((formData.progress || 0) / (formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages || 1)) * 100)}% Complete
+                                </span>
+                            </div>
+
+                            <input
+                                type="number"
+                                className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white"
+                                placeholder="0"
+                                value={formData.progress || ''}
+                                onChange={e => setFormData({ ...formData, progress: parseInt(e.target.value) || 0 })}
+                            />
+
+                            {/* visual progress bar */}
+                            <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div
+                                    className="bg-violet-600 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, ((formData.progress || 0) / (formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages || 1)) * 100)}%` }}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Date Started</label>
+                                    <input
+                                        type="date"
+                                        className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs outline-none dark:text-white"
+                                        value={formData.startedAt}
+                                        onChange={e => setFormData({ ...formData, startedAt: e.target.value })}
+                                    />
+                                </div>
+                                {formData.status === 'read' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Date Finished</label>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs outline-none dark:text-white"
+                                            value={formData.finishedAt}
+                                            onChange={e => setFormData({ ...formData, finishedAt: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Type / Format Selector */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Format</label>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                            {['Physical', 'Ebook', 'Audiobook'].map(format => (
+                                <button
+                                    key={format}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, format })}
+                                    className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${formData.format === format
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white'
+                                        : 'text-slate-500 dark:text-slate-400'
+                                        }`}
+                                >
+                                    {format}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Toggles */}
+                    <div className="space-y-4 bg-slate-50 dark:bg-slate-900 rounded-xl p-4">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            {/* Favorite Button (Fixed Position - Start) */}
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, isFavorite: !formData.isFavorite })}
+                                className={`flex flex-col items-center justify-center gap-1 px-4 rounded-xl border h-20 min-w-[80px] transition-colors ${formData.isFavorite
+                                    ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"
+                                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+                                    }`}
+                            >
+                                <Heart size={20} fill={formData.isFavorite ? "currentColor" : "none"} />
+                                <span className="text-xs font-bold">Favorite</span>
+                            </button>
+
+                            {/* 3-Way Ownership Toggle */}
+                            <div
+                                className={`flex flex-col items-center justify-center gap-2 px-4 rounded-xl border cursor-pointer select-none transition-all h-20 min-w-[140px] ${formData.isOwned
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700'
+                                    : formData.isWantToBuy
+                                        ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700'
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                onClick={() => {
+                                    if (formData.isOwned) {
+                                        setFormData({ ...formData, isOwned: false, isWantToBuy: false });
+                                    } else if (formData.isWantToBuy) {
+                                        setFormData({ ...formData, isOwned: true, isWantToBuy: false });
+                                    } else {
+                                        setFormData({ ...formData, isOwned: false, isWantToBuy: true });
+                                    }
+                                }}
+                            >
+                                <span className={`font-bold text-sm transition-colors ${formData.isOwned
+                                    ? 'text-emerald-700 dark:text-emerald-400'
+                                    : formData.isWantToBuy
+                                        ? 'text-orange-700 dark:text-orange-400'
+                                        : 'text-slate-500 dark:text-slate-400'
+                                    }`}>
+                                    {formData.isOwned ? 'Owned' : formData.isWantToBuy ? 'Want' : 'Interested?'}
+                                </span>
+
+                                <div className={`w-10 h-5 rounded-full p-1 transition-colors relative shrink-0 ${formData.isOwned
+                                    ? 'bg-emerald-500'
+                                    : formData.isWantToBuy
+                                        ? 'bg-orange-500'
+                                        : 'bg-slate-300 dark:bg-slate-600'
+                                    }`}>
+                                    <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 absolute top-1 ${formData.isOwned
+                                        ? 'left-[22px]'
+                                        : formData.isWantToBuy
+                                            ? 'left-[14px]'
+                                            : 'left-[4px]'
+                                        }`} />
+                                </div>
+                            </div>
+
+                            {/* Conditional Fields for Owned */}
+                            {formData.isOwned && (
+                                <>
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[120px]">
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">Spent</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-sm font-bold text-slate-500">{getCurrencySymbol()}</span>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                className="w-16 bg-transparent text-sm font-bold text-emerald-600 dark:text-emerald-400 outline-none"
+                                                value={formData.price}
+                                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                                            />
+                                        </div>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-transparent text-xs text-slate-400 outline-none"
+                                            value={formData.boughtDate}
+                                            onChange={e => setFormData({ ...formData, boughtDate: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">Status</span>
+                                        <select
+                                            className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                            value={formData.ownershipStatus}
+                                            onChange={e => setFormData({ ...formData, ownershipStatus: e.target.value })}
+                                        >
+                                            <option value="kept">Kept Copy</option>
+                                            <option value="sold">Sold</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">Bought At</span>
+                                        <select
+                                            className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                            value={formData.purchaseLocation}
+                                            onChange={e => setFormData({ ...formData, purchaseLocation: e.target.value })}
+                                        >
+                                            <option value="" disabled>Select</option>
+                                            <option value="Online">Online</option>
+                                            <option value="Local Bookstore">Local Bookstore</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-xl mt-6 active:scale-95 transition-transform"
+                >
+                    Save Book
+                </button>
+            </form>
+        </div>
+    );
+};
+
+export default AddBook;
