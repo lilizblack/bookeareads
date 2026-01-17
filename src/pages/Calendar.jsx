@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useBooks } from '../context/BookContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, addDays } from 'date-fns';
-import { Check, X, Target, DollarSign, BookOpen, Library, PauseCircle, XCircle, Star, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, Target, DollarSign, BookOpen, Clock, Library, PauseCircle, XCircle, Star, Heart, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import ChilliIcon from '../components/ChilliIcon';
 import StatsCard from '../components/StatsCard';
 import CoverImage from '../components/CoverImage';
@@ -10,9 +10,11 @@ import { formatCurrency } from '../utils/currency';
 import Header from '../components/Header';
 
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const Calendar = () => {
     const { books, getYearlyStats, getStreak, readingGoal, setReadingGoal } = useBooks();
+    const { themePreset } = useTheme();
     const stats = getYearlyStats();
     const streak = getStreak();
     const navigate = useNavigate();
@@ -90,6 +92,26 @@ const Calendar = () => {
     const monthlyFormatData = Object.entries(formatCounts)
         .map(([name, value]) => ({ name, value }));
 
+    // Monthly Purchase Location distribution (for owned books)
+    const locationCounts = {};
+    books.filter(b => {
+        if (!b.isOwned || !b.purchaseLocation) return false;
+        if (b.boughtDate) {
+            const boughtDate = new Date(b.boughtDate);
+            return boughtDate.getFullYear() === currentYear_num && boughtDate.getMonth() === currentMonth_num;
+        }
+        if (b.addedAt) {
+            const addedDate = new Date(b.addedAt);
+            return addedDate.getFullYear() === currentYear_num && addedDate.getMonth() === currentMonth_num;
+        }
+        return false;
+    }).forEach(b => {
+        const loc = b.purchaseLocation;
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+    });
+    const monthlyLocationData = Object.entries(locationCounts)
+        .map(([name, value]) => ({ name, value }));
+
     // Monthly Spend Calculation
     const monthlySpent = readBooksThisMonth.reduce((acc, b) => acc + (b.isOwned ? (parseFloat(b.price) || 0) : 0), 0);
 
@@ -116,6 +138,25 @@ const Calendar = () => {
 
         return total + Math.max(0, maxThisMonth - maxBeforeMonth);
     }, 0);
+
+    // Monthly Reading Time Calculation
+    const monthlyTimeRead = books.reduce((total, book) => {
+        const logs = book.readingLogs || [];
+        const thisMonthLogs = logs.filter(l => {
+            const date = new Date(l.date);
+            return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
+        });
+
+        const monthTotal = thisMonthLogs.reduce((acc, l) => acc + (l.minutesRead || 0), 0);
+        return total + monthTotal;
+    }, 0);
+
+    const formatTime = (minutes) => {
+        if (!minutes) return '0m';
+        const h = Math.floor(minutes / 60);
+        const m = Math.round(minutes % 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
 
     // Monthly Library Growth Stats
     const booksAddedThisMonth = books.filter(b => {
@@ -205,12 +246,19 @@ const Calendar = () => {
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Calendar</h1>
+                <button
+                    onClick={() => navigate('/annual')}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors text-xs font-black uppercase tracking-wider shadow-sm contrast-card"
+                >
+                    <TrendingUp size={14} />
+                    Report
+                </button>
             </div>
 
             {/* Top Section: Streak + Stats */}
             <div className="flex gap-4 mb-8">
                 {/* Streak Card (Vertical Blue) */}
-                <div className="w-1/4 bg-sky-200 dark:bg-sky-900 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm min-h-[120px]">
+                <div className="w-1/4 bg-sky-200 dark:bg-sky-900 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm min-h-[120px] contrast-card">
                     <div className="mb-2 bg-slate-900 text-white p-2 rounded-full">
                         <Check size={20} />
                     </div>
@@ -256,7 +304,7 @@ const Calendar = () => {
                     </button>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 relative overflow-hidden ring-1 ring-blue-100 dark:ring-blue-900/30">
+                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 relative overflow-hidden ring-1 ring-blue-100 dark:ring-blue-900/30 contrast-card">
                     {/* Monthly Progress Bar */}
                     <div className="absolute left-0 top-0 bottom-0 bg-blue-500/10 dark:bg-blue-500/20 transition-all duration-1000 ease-out" style={{ width: `${Math.min((stats.readThisMonth / readingGoal.monthly) * 100, 100)}%` }} />
 
@@ -280,7 +328,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Yearly Summary */}
-                <div className="mt-3 bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10">
+                <div className="mt-3 bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10 contrast-card">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yearly Progress</span>
                     <div className="flex items-baseline gap-1">
                         <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
@@ -292,7 +340,7 @@ const Calendar = () => {
             <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Books this Month</h2>
 
             {/* Calendar Grid */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 contrast-card">
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -413,7 +461,7 @@ const Calendar = () => {
             </div>
 
             {/* Weekly Progress Tracker */}
-            <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 contrast-card">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">This Week's Progress</h3>
                 <div className="grid grid-cols-7 gap-2">
                     {(() => {
@@ -485,23 +533,28 @@ const Calendar = () => {
 
             {/* Monthly Analytics Section */}
             <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-8 mb-4">Monthly Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
                 <ChartCard
                     title="Monthly Top Genres"
                     data={monthlyTopGenres}
-                    colors={['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
                 />
                 <ChartCard
                     title="Monthly Book Formats"
                     data={monthlyFormatData}
-                    colors={['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
+                />
+                <ChartCard
+                    title="Monthly Purchase Locations"
+                    data={monthlyLocationData}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
                 />
             </div>
 
             {/* Monthly Stats Summary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {/* Monthly Spend Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-emerald-100 dark:bg-emerald-900/30 p-3 rounded-xl">
                             <DollarSign className="text-emerald-600 dark:text-emerald-400" size={24} />
@@ -515,8 +568,23 @@ const Calendar = () => {
                     </div>
                 </div>
 
+                {/* Monthly Time Read Card */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-violet-100 dark:bg-violet-900/30 p-3 rounded-xl">
+                            <Clock className="text-violet-600 dark:text-violet-400" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Time Read</h3>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
+                                {formatTime(monthlyTimeRead)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Monthly Pages Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-xl">
                             <BookOpen className="text-blue-600 dark:text-blue-400" size={24} />
@@ -531,7 +599,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Monthly Spicy Books Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-xl">
                             <ChilliIcon size={24} className="text-red-500 fill-current" />
@@ -546,7 +614,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Monthly Paused Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-xl">
                             <PauseCircle className="text-amber-600 dark:text-amber-400" size={24} />
@@ -561,7 +629,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Monthly DNF Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl">
                             <XCircle className="text-slate-600 dark:text-slate-400" size={24} />
@@ -576,7 +644,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Worst Review Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
                     <div className="flex items-center gap-4">
                         <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-xl">
                             <Star className="text-red-600 dark:text-red-400" size={24} />
@@ -606,7 +674,7 @@ const Calendar = () => {
                 </div>
 
                 {/* Monthly Library Growth Card */}
-                <div className="bg-slate-900 dark:bg-slate-800 p-6 rounded-2xl border border-slate-700 dark:border-slate-700 col-span-1 md:col-span-3 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden">
+                <div className="bg-slate-900 dark:bg-slate-800 p-6 rounded-2xl border border-slate-700 dark:border-slate-700 col-span-1 md:col-span-3 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden contrast-card">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <Library size={80} />
                     </div>

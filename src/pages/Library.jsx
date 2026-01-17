@@ -7,7 +7,7 @@ import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGri
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const Library = () => {
-    const { books, loading, bulkDeleteBooks } = useBooks();
+    const { books, loading, bulkDeleteBooks, activeTimer, startTimer, stopTimer, updateBook, logReading } = useBooks();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -23,6 +23,10 @@ const Library = () => {
 
     // Filter States
     const [statusFilter, setStatusFilter] = useState('All');
+    const [pendingStartBook, setPendingStartBook] = useState(null);
+    const [selectedBook, setSelectedBook] = useState(null);
+    const [newProgress, setNewProgress] = useState(0);
+    const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
     // useEffect(() => {
     //     if (location.state?.statusFilter) {
@@ -35,6 +39,31 @@ const Library = () => {
     const [viewMode, setViewMode] = useState('list');
     const [sortBy, setSortBy] = useState('Recently Added');
 
+    useEffect(() => {
+        const handleStartReadingRequest = (e) => {
+            setPendingStartBook(e.detail.book);
+        };
+        const handleStopTimerEvent = (e) => {
+            const book = e.detail.book;
+            if (activeTimer && activeTimer.bookId === book.id) {
+                const start = new Date(activeTimer.startTime);
+                const now = new Date();
+                const diffMs = now - start;
+                const minutes = (now - start) / 60000;
+                setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
+                setSelectedBook(book);
+                setNewProgress(book.progress || 0);
+            }
+        };
+
+        window.addEventListener('start-reading-request', handleStartReadingRequest);
+        window.addEventListener('stop-timer', handleStopTimerEvent);
+        return () => {
+            window.removeEventListener('start-reading-request', handleStartReadingRequest);
+            window.removeEventListener('stop-timer', handleStopTimerEvent);
+        };
+    }, [activeTimer]);
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -43,7 +72,7 @@ const Library = () => {
         );
     }
 
-    const statuses = ['All', 'Reading', 'Read', 'Want to Read', 'Paused', 'DNF', 'Owned', 'To Buy', 'Spicy', 'Worst Review'];
+    const statuses = ['All', 'Reading', 'Read', 'Want to Read', 'Paused', 'DNF', 'Owned', 'Sold', 'To Buy', 'Spicy', 'Worst Review'];
     const formats = ['All', 'Physical', 'Ebook', 'Audiobook'];
     const sorts = ['Alphabetical', 'Recently Added', 'Recently Bought'];
 
@@ -51,8 +80,9 @@ const Library = () => {
     let filteredBooks = books.filter(book => {
         let statusMatch = true;
         if (statusFilter !== 'All') {
-            if (statusFilter === 'To Buy') statusMatch = book.toBuy;
+            if (statusFilter === 'To Buy') statusMatch = book.isWantToBuy;
             else if (statusFilter === 'Owned') statusMatch = book.isOwned;
+            else if (statusFilter === 'Sold') statusMatch = book.ownershipStatus === 'sold';
             else if (statusFilter === 'Reading') statusMatch = book.status === 'reading';
             else if (statusFilter === 'Read') statusMatch = book.status === 'read';
             else if (statusFilter === 'Want to Read') statusMatch = book.status === 'want-to-read';
@@ -105,6 +135,31 @@ const Library = () => {
         setSelectedIds([]);
         setIsSelectMode(false);
         setShowDeleteModal(false);
+    };
+
+    const confirmStartReading = () => {
+        if (pendingStartBook) {
+            updateBook(pendingStartBook.id, {
+                status: 'reading',
+                startedAt: new Date().toISOString()
+            });
+            startTimer(pendingStartBook.id);
+            setPendingStartBook(null);
+        }
+    };
+
+    const saveProgress = () => {
+        if (selectedBook) {
+            const oldProgress = selectedBook.progress || 0;
+            const sessionProgress = Math.max(0, newProgress - oldProgress);
+
+            logReading(selectedBook.id, newProgress);
+            if (elapsedMinutes > 0) {
+                stopTimer(selectedBook.id, elapsedMinutes, sessionProgress);
+                setElapsedMinutes(0);
+            }
+            setSelectedBook(null);
+        }
     };
 
     return (
@@ -217,6 +272,70 @@ const Library = () => {
                 isDangerous={true}
                 confirmText="Delete"
             />
+
+            {/* Log Progress Modal Overlay */}
+            {selectedBook && (
+                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in slide-in-from-bottom flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold dark:text-white">Log Progress</h3>
+                            <button onClick={() => setSelectedBook(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {elapsedMinutes > 0 && (
+                            <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 text-center animate-fade-in">
+                                Reading Session: {elapsedMinutes} min
+                            </div>
+                        )}
+
+                        <div className="mb-8 overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800">
+                            <label className="text-[10px] font-bold uppercase text-slate-400 mb-2 block tracking-widest text-center">Current Progress</label>
+                            <input
+                                type="number"
+                                className="w-full text-center text-5xl font-black bg-transparent outline-none p-2 dark:text-white"
+                                value={newProgress}
+                                onChange={e => setNewProgress(Number(e.target.value))}
+                                autoFocus
+                            />
+                            <div className="text-[10px] font-bold text-slate-400 text-center mt-2">
+                                {selectedBook.format === 'Audiobook' || selectedBook.progressMode === 'chapters' ? 'CH' : 'PAGE'}
+                            </div>
+                        </div>
+
+                        <button onClick={saveProgress} className="w-full py-5 bg-gradient-to-r from-violet-600 to-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-violet-500/20 active:scale-95 transition-all">
+                            Update Progress
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Start Reading Modal Overlay */}
+            {pendingStartBook && (
+                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">Start Reading?</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            Do you want to start reading <strong>{pendingStartBook.title}</strong>?
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={confirmStartReading}
+                                className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition-all"
+                            >
+                                Yes, Start
+                            </button>
+                            <button
+                                onClick={() => setPendingStartBook(null)}
+                                className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold active:scale-95 transition-all"
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Filter Menu */}
             {filterOpen && (

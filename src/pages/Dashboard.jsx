@@ -7,13 +7,13 @@ import StatsCard from '../components/StatsCard';
 import CoverImage from '../components/CoverImage';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
-import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check } from 'lucide-react';
+import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer } from 'lucide-react';
 import { getBookProgressPercentage } from '../utils/bookUtils';
 
 const Dashboard = () => {
-    const { loading, readingBooks, getYearlyStats, wantToReadBooks, logReading, readingGoal, setReadingGoal, userProfile } = useBooks();
+    const { loading, readingBooks, getYearlyStats, wantToReadBooks, logReading, readingGoal, setReadingGoal, userProfile, activeTimer, startTimer, stopTimer, updateBook } = useBooks();
     const { user } = useAuth();
-    const { theme, toggleTheme } = useTheme();
+    const { theme, toggleTheme, themePreset } = useTheme();
     const navigate = useNavigate();
     const stats = getYearlyStats();
 
@@ -22,8 +22,35 @@ const Dashboard = () => {
     const [newProgress, setNewProgress] = useState(0);
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [tempGoals, setTempGoals] = useState({ yearly: readingGoal.yearly, monthly: readingGoal.monthly });
+    const [pendingStartBook, setPendingStartBook] = useState(null);
+    const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
     const scrollRef = useRef(null);
+
+    React.useEffect(() => {
+        const handleStartReadingRequest = (e) => {
+            setPendingStartBook(e.detail.book);
+        };
+        const handleStopTimerEvent = (e) => {
+            const book = e.detail.book;
+            if (activeTimer && activeTimer.bookId === book.id) {
+                const start = new Date(activeTimer.startTime);
+                const now = new Date();
+                const diffMs = now - start;
+                const minutes = (now - start) / 60000;
+                setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
+                setSelectedBook(book);
+                setNewProgress(book.progress || 0);
+            }
+        };
+
+        window.addEventListener('start-reading-request', handleStartReadingRequest);
+        window.addEventListener('stop-timer', handleStopTimerEvent);
+        return () => {
+            window.removeEventListener('start-reading-request', handleStartReadingRequest);
+            window.removeEventListener('stop-timer', handleStopTimerEvent);
+        };
+    }, [activeTimer]);
 
     const scroll = (direction) => {
         if (scrollRef.current) {
@@ -53,7 +80,14 @@ const Dashboard = () => {
 
     const saveProgress = () => {
         if (selectedBook) {
+            const oldProgress = selectedBook.progress || 0;
+            const sessionProgress = Math.max(0, newProgress - oldProgress);
+
             logReading(selectedBook.id, newProgress);
+            if (elapsedMinutes > 0) {
+                stopTimer(selectedBook.id, elapsedMinutes, sessionProgress);
+                setElapsedMinutes(0);
+            }
             setSelectedBook(null);
         }
     };
@@ -67,6 +101,17 @@ const Dashboard = () => {
     const saveGoals = () => {
         setReadingGoal(tempGoals);
         setIsGoalModalOpen(false);
+    };
+
+    const confirmStartReading = () => {
+        if (pendingStartBook) {
+            updateBook(pendingStartBook.id, {
+                status: 'reading',
+                startedAt: new Date().toISOString()
+            });
+            startTimer(pendingStartBook.id);
+            setPendingStartBook(null);
+        }
     };
 
     return (
@@ -145,6 +190,12 @@ const Dashboard = () => {
                             </div>
                         </div>
 
+                        {elapsedMinutes > 0 && (
+                            <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 text-center animate-fade-in">
+                                Reading Session: {elapsedMinutes} min
+                            </div>
+                        )}
+
                         <div className="mb-8">
                             <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">
                                 {(selectedBook.progressMode === 'chapters' || selectedBook.format === 'Audiobook')
@@ -167,6 +218,31 @@ const Dashboard = () => {
                 </div>
             )}
 
+            {/* Start Reading Modal Overlay */}
+            {pendingStartBook && (
+                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">Start Reading?</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            Do you want to start reading <strong>{pendingStartBook.title}</strong>?
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={confirmStartReading}
+                                className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition-all"
+                            >
+                                Yes, Start
+                            </button>
+                            <button
+                                onClick={() => setPendingStartBook(null)}
+                                className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold active:scale-95 transition-all"
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <Header />
@@ -212,14 +288,14 @@ const Dashboard = () => {
             <div className="mb-8">
                 <div className="flex justify-between items-center mb-2">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white">Goals This Month</h2>
-                    <button onClick={openGoalModal} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 -mr-3 active:scale-95">
+                    <button onClick={openGoalModal} className={`text-sm font-bold ${themePreset === 'paper-ink' ? 'text-slate-900' : 'text-blue-500 hover:text-blue-600'} transition-colors px-3 py-2 -mr-3 active:scale-95`}>
                         Set Goals <ArrowRight size={14} className="ml-1 inline" />
                     </button>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 relative overflow-hidden ring-1 ring-blue-100 dark:ring-blue-900/30">
+                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 relative overflow-hidden ring-1 ring-blue-100 dark:ring-blue-900/30 contrast-card">
                     {/* Monthly Progress Bar */}
-                    <div className="absolute left-0 top-0 bottom-0 bg-blue-500/10 dark:bg-blue-500/20 transition-all duration-1000 ease-out" style={{ width: `${Math.min((stats.readThisMonth / readingGoal.monthly) * 100, 100)}%` }} />
+                    <div className={`absolute left-0 top-0 bottom-0 ${themePreset === 'paper-ink' ? 'bg-slate-900' : 'bg-blue-500/10 dark:bg-blue-500/20'} transition-all duration-1000 ease-out`} style={{ width: `${Math.min((stats.readThisMonth / readingGoal.monthly) * 100, 100)}%` }} />
 
                     <div className="flex items-center justify-between relative z-10">
                         <div className="flex items-baseline gap-2">
@@ -249,7 +325,7 @@ const Dashboard = () => {
                         <BarChart2 size={18} />
                         Annual Report
                     </button>
-                    <div className="bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between flex-[1.5] border border-slate-200 dark:border-white/10">
+                    <div className="bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between flex-[1.5] border border-slate-200 dark:border-white/10 contrast-card">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yearly Progress</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
@@ -266,7 +342,7 @@ const Dashboard = () => {
                     <div className="flex gap-4 items-center">
                         <button
                             onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
-                            className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 active:scale-95"
+                            className={`text-sm font-bold ${themePreset === 'paper-ink' ? 'text-slate-900' : 'text-blue-500 hover:text-blue-600'} transition-colors px-3 py-2 active:scale-95`}
                         >
                             See all <ArrowRight size={14} className="ml-1 inline" />
                         </button>
@@ -287,7 +363,7 @@ const Dashboard = () => {
                             <div
                                 key={book.id}
                                 onClick={() => handleBookClick(book)}
-                                className="flex-none w-[280px] snap-start bg-sky-400 dark:bg-sky-600 rounded-2xl p-4 text-white relative overflow-hidden shadow-lg shadow-sky-200 dark:shadow-sky-900/20 active:scale-98 transition-transform"
+                                className="flex-none w-[280px] snap-start bg-sky-400 dark:bg-sky-600 rounded-2xl p-4 text-white relative overflow-hidden shadow-lg shadow-sky-200 dark:shadow-sky-900/20 active:scale-98 transition-transform contrast-card"
                             >
                                 {/* Plus Button for Logging (Top Right) */}
                                 <button
@@ -295,6 +371,22 @@ const Dashboard = () => {
                                     className="absolute top-4 right-4 w-9 h-9 bg-white/20 backdrop-blur rounded-full flex items-center justify-center hover:bg-white/30 transition-colors z-20"
                                 >
                                     <Plus size={20} color="white" />
+                                </button>
+
+                                {/* Timer Button (Top Left) */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (activeTimer?.bookId === book.id) {
+                                            window.dispatchEvent(new CustomEvent('stop-timer', { detail: { book } }));
+                                        } else {
+                                            startTimer(book.id);
+                                        }
+                                    }}
+                                    className={`absolute top-4 left-4 w-9 h-9 backdrop-blur rounded-full flex items-center justify-center transition-colors z-20 ${activeTimer?.bookId === book.id ? 'bg-red-500 text-white animate-pulse' : 'bg-white/20 hover:bg-white/30 text-white'
+                                        }`}
+                                >
+                                    <Timer size={20} />
                                 </button>
 
                                 <div className="w-20 aspect-[2/3] rounded-lg shadow-md mb-4 bg-slate-800 overflow-hidden">
@@ -309,8 +401,8 @@ const Dashboard = () => {
                                 <h3 className="font-bold text-base leading-tight mb-1 truncate">{book.title}</h3>
                                 <p className="text-white/80 text-xs mb-4 truncate">{book.author}</p>
 
-                                <div className="bg-white/20 h-2 rounded-full overflow-hidden">
-                                    <div className="bg-white h-full rounded-full" style={{ width: `${getBookProgressPercentage(book)}%` }} />
+                                <div className={`h-2 rounded-full overflow-hidden ${themePreset === 'paper-ink' ? 'bg-slate-200' : 'bg-white/20'}`}>
+                                    <div className={`h-full rounded-full ${themePreset === 'paper-ink' ? 'bg-slate-900' : 'bg-white'}`} style={{ width: `${getBookProgressPercentage(book)}%` }} />
                                 </div>
                                 <div className="text-right text-[10px] font-bold mt-1">{getBookProgressPercentage(book)}%</div>
                             </div>

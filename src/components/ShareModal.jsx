@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Share2, Star } from 'lucide-react';
 import CoverImage from './CoverImage';
+import ChilliIcon from './ChilliIcon';
 
 const ShareModal = ({ book, onClose }) => {
     const cardRef = useRef(null);
@@ -97,6 +98,24 @@ const ShareModal = ({ book, onClose }) => {
                                 />
                             ))}
                         </div>
+
+                        {/* Spice Rating */}
+                        {book.spiceRating > 0 && (
+                            <div className="flex items-center justify-center gap-1 mt-2">
+                                {[1, 2, 3, 4, 5].map((i) => {
+                                    const filled = book.spiceRating >= i;
+                                    const half = book.spiceRating >= i - 0.5 && book.spiceRating < i;
+                                    return (
+                                        <ChilliIcon
+                                            key={i}
+                                            size={16}
+                                            fillPercentage={filled ? 100 : half ? 50 : 0}
+                                            className={filled || half ? "text-red-400 drop-shadow-sm" : "text-white/30"}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer Branding */}

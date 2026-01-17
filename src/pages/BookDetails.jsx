@@ -4,16 +4,19 @@ import { useBooks } from '../context/BookContext';
 import { format, parseISO } from 'date-fns';
 import Rating from '../components/Rating';
 import SpiceRating from '../components/SpiceRating';
-import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer } from 'lucide-react';
+import { getReadingSpeed, getEstimatedTimeLeft } from '../utils/bookUtils';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
 import CoverImage from '../components/CoverImage';
+import ShareModal from '../components/ShareModal';
 import { getCurrencySymbol } from '../utils/currency';
+import { Share2 } from 'lucide-react';
 
 const BookDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { books, updateBook, deleteBook, checkDuplicate, logReading } = useBooks();
+    const { books, updateBook, deleteBook, checkDuplicate, logReading, activeTimer, startTimer, stopTimer, globalSpeed } = useBooks();
 
     const [book, setBook] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -29,7 +32,9 @@ const BookDetails = () => {
     const [showDateInput, setShowDateInput] = useState(false);
     const [showLogModal, setShowLogModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
     const [newProgress, setNewProgress] = useState(0);
+    const [elapsedMinutes, setElapsedMinutes] = useState(0);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -69,7 +74,11 @@ const BookDetails = () => {
 
     const handleChange = (field, value) => {
         if (isEditing) {
-            setEditData(prev => ({ ...prev, [field]: value }));
+            const updates = { [field]: value };
+            if (field === 'status' && value === 'want-to-read') {
+                updates.progress = 0;
+            }
+            setEditData(prev => ({ ...prev, ...updates }));
         } else {
             // Intercept "Reading" status change
             if (field === 'status' && value === 'reading' && book.status !== 'reading') {
@@ -87,6 +96,8 @@ const BookDetails = () => {
                 } else if (book.totalChapters) {
                     updates.progress = book.totalChapters;
                 }
+            } else if (field === 'status' && value === 'want-to-read') {
+                updates.progress = 0;
             }
             updateBook(book.id, updates);
         }
@@ -178,25 +189,28 @@ const BookDetails = () => {
 
     // Always calculate percentage from actual pages/chapters read
     const getPercentage = () => {
-        const currentProgress = book.progress || 0;
+        const currentBook = isEditing ? editData : book;
+        if (currentBook.status === 'want-to-read') return 0;
+        const currentProgress = currentBook.progress || 0;
         // Primary: Use totalPages if available
-        if (book.totalPages > 0) {
-            return Math.round((currentProgress / book.totalPages) * 100);
+        if (currentBook.totalPages > 0) {
+            return Math.round((currentProgress / currentBook.totalPages) * 100);
         }
         // Fallback: Use totalChapters
-        if (book.totalChapters > 0) {
-            return Math.round((currentProgress / book.totalChapters) * 100);
+        if (currentBook.totalChapters > 0) {
+            return Math.round((currentProgress / currentBook.totalChapters) * 100);
         }
         // If no totals set, assume progress is a percentage
-        return Math.min(currentProgress, 100);
+        return Math.min(Number(currentProgress) || 0, 100);
     };
 
     // Get the label text for the bookmark based on progressMode
     const getBookmarkLabel = () => {
-        if (book.progressMode === 'chapters') {
-            return `Ch ${book.progress || 0}`;
-        } else if (book.progressMode === 'pages') {
-            return `${book.progress || 0}p`;
+        const currentBook = isEditing ? editData : book;
+        if (currentBook.progressMode === 'chapters') {
+            return `Ch ${currentBook.progress || 0}`;
+        } else if (currentBook.progressMode === 'pages') {
+            return `${currentBook.progress || 0}p`;
         } else {
             return `${getPercentage()}%`;
         }
@@ -355,7 +369,14 @@ const BookDetails = () => {
 
                             <button
                                 onClick={() => {
+                                    const oldProgress = book.progress || 0;
+                                    const sessionProgress = Math.max(0, newProgress - oldProgress);
+
                                     logReading(book.id, newProgress);
+                                    if (elapsedMinutes > 0) {
+                                        stopTimer(book.id, elapsedMinutes, sessionProgress);
+                                        setElapsedMinutes(0);
+                                    }
                                     setShowLogModal(false);
                                 }}
                                 className="w-full py-4 bg-gradient-to-r from-violet-600 to-blue-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/30 active:scale-95 transition-all z-10"
@@ -396,6 +417,51 @@ const BookDetails = () => {
                     </button>
                 )}
             </div>
+
+            {/* Timer Control Bar (Visible when reading/want) */}
+            {(book.status === 'reading' || book.status === 'want-to-read') && (
+                <div className={`mt-4 p-4 rounded-2xl flex items-center justify-between transition-all ${activeTimer?.bookId === book.id
+                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900 animate-pulse'
+                    : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800'
+                    }`}>
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl ${activeTimer?.bookId === book.id ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-400 shadow-sm'}`}>
+                            <Timer size={20} className={activeTimer?.bookId === book.id ? 'animate-spin-slow' : ''} />
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Reading Timer</span>
+                            <h4 className="text-sm font-bold dark:text-white">
+                                {activeTimer?.bookId === book.id ? 'Session in progress...' : 'Start tracking time'}
+                            </h4>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            if (activeTimer?.bookId === book.id) {
+                                const start = new Date(activeTimer.startTime);
+                                const now = new Date();
+                                const minutes = (now - start) / 60000;
+                                setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
+                                setNewProgress(book.progress || 0);
+                                setShowLogModal(true);
+                            } else {
+                                if (book.status === 'reading') {
+                                    startTimer(book.id);
+                                } else {
+                                    setShowStartModal(true);
+                                }
+                            }
+                        }}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all active:scale-95 shadow-lg ${activeTimer?.bookId === book.id
+                            ? 'bg-red-500 text-white shadow-red-500/30'
+                            : 'bg-blue-600 text-white shadow-blue-500/30'
+                            }`}
+                    >
+                        {activeTimer?.bookId === book.id ? 'Stop & Log' : 'Start Timer'}
+                    </button>
+                </div>
+            )}
 
             {/* Cover and Metadata */}
             <div className="space-y-6 my-6">
@@ -606,6 +672,24 @@ const BookDetails = () => {
                     )}
                 </div>
 
+                {/* Reading Stats (Speed & Estimation) */}
+                {book.status === 'reading' && (
+                    <div className="flex gap-2 mb-6 animate-fade-in">
+                        <div className="flex-1 p-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded-xl flex flex-col items-center justify-center">
+                            <span className="text-[10px] uppercase text-violet-400 font-bold mb-1 tracking-widest text-center">Avg Speed</span>
+                            <div className="text-sm font-black text-violet-700 dark:text-violet-300">
+                                {getReadingSpeed(book, globalSpeed)} <span className="text-[10px] opacity-70">{book.progressMode === 'chapters' ? 'CH' : 'P'}/m</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl flex flex-col items-center justify-center">
+                            <span className="text-[10px] uppercase text-blue-400 font-bold mb-1 tracking-widest text-center">Time Left</span>
+                            <div className="text-sm font-black text-blue-700 dark:text-blue-300">
+                                {getEstimatedTimeLeft(book, globalSpeed)} <span className="text-[10px] opacity-70">mins</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Info Grid (Selectors) */}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-6 mb-6">
                     {/* Genre */}
@@ -732,13 +816,14 @@ const BookDetails = () => {
                             value={(isEditing ? editData.progress : book.progress) || 0}
                             onChange={e => handleChange('progress', parseInt(e.target.value))}
                             onClick={() => {
-                                if (!isEditing) {
+                                const status = isEditing ? editData.status : book.status;
+                                if (!isEditing && status !== 'want-to-read') {
                                     setNewProgress(book.progress || 0);
                                     setShowLogModal(true);
                                 }
                             }}
-                            readOnly={!isEditing}
-                            className={`bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 ${!isEditing ? 'cursor-pointer hover:text-blue-500 transition-colors' : ''}`}
+                            readOnly={!isEditing || (isEditing ? editData.status : book.status) === 'want-to-read'}
+                            className={`bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 ${!isEditing && book.status !== 'want-to-read' ? 'cursor-pointer hover:text-blue-500 transition-colors' : ''} ${(isEditing ? editData.status : book.status) === 'want-to-read' ? 'opacity-30 cursor-not-allowed' : ''}`}
                             placeholder="0"
                         />
                     </div>
@@ -797,6 +882,18 @@ const BookDetails = () => {
                     className="w-full h-24 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm mb-6 outline-none dark:text-slate-200 resize-none"
                     placeholder="Enter description..."
                 />
+
+                {!isEditing && book.status === 'read' && (
+                    <div className="mb-8">
+                        <button
+                            onClick={() => setShowShareModal(true)}
+                            className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                        >
+                            <Share2 size={20} className="group-hover:rotate-12 transition-transform" />
+                            Share Achievement
+                        </button>
+                    </div>
+                )}
 
                 <div className="space-y-4">
                     <h3 className="font-bold text-slate-900 dark:text-white">Your Review</h3>
@@ -877,6 +974,14 @@ const BookDetails = () => {
                 </div>
             )}
 
+
+            {/* Share Modal */}
+            {showShareModal && (
+                <ShareModal
+                    book={book}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
         </div>
     );
 };

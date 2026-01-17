@@ -4,8 +4,11 @@ import { useBooks } from '../context/BookContext';
 import { ArrowLeft, Heart, ScanBarcode, Upload, Image as ImageIcon, AlertTriangle, Book } from 'lucide-react';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
+import SpiceRating from '../components/SpiceRating';
 import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
+import ChilliIcon from '../components/ChilliIcon';
+import { fetchBookByISBN } from '../utils/bookApi';
 
 const AddBook = () => {
     const navigate = useNavigate();
@@ -27,7 +30,7 @@ const AddBook = () => {
         boughtDate: '',
         isFavorite: false,
         genres: '',
-        format: 'Physical',
+        format: '', // Changed to empty to force choice
         isWantToBuy: false,
         isbn: '',
         totalPages: '',
@@ -37,7 +40,10 @@ const AddBook = () => {
         startedAt: '',
         finishedAt: '',
         ownershipStatus: 'kept',
-        purchaseLocation: ''
+        purchaseLocation: '',
+        otherVersions: [],
+        hasSpice: false,
+        spiceRating: 0
     });
 
     const handleSubmit = (e) => {
@@ -52,6 +58,9 @@ const AddBook = () => {
         if (!totalVal || totalVal <= 0) {
             newErrors.pages = `${formData.format === 'Audiobook' ? 'Total Chapters' : 'Total Pages'} is required`;
         }
+
+        if (!formData.genres) newErrors.genres = 'Genre is required';
+        if (!formData.format) newErrors.format = 'Format is required';
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -73,7 +82,7 @@ const AddBook = () => {
             genres: [formData.genres], // Wrap single selection in array for consistency
             cover: formData.cover || generateGenericCover(formData.title, formData.author),
             progressMode: formData.format === 'Audiobook' ? 'chapters' : 'pages',
-            otherVersions: [], // Initialize empty array for additional formats
+            otherVersions: formData.otherVersions || [],
             // Ensure dates are set based on status
             startedAt: (formData.status === 'reading' || formData.status === 'read') ? (formData.startedAt || new Date().toISOString()) : null,
             finishedAt: formData.status === 'read' ? (formData.finishedAt || new Date().toISOString()) : null
@@ -83,9 +92,25 @@ const AddBook = () => {
         navigate('/');
     };
 
-    const handleScanSuccess = (decodedText) => {
+    const handleScanSuccess = async (decodedText) => {
         setFormData(prev => ({ ...prev, isbn: decodedText }));
         setShowScanner(false);
+
+        // Auto-fetch book data after scanning
+        setFetchingCover(true);
+        const result = await fetchBookByISBN(decodedText);
+
+        if (result.success) {
+            setFormData(prev => ({
+                ...prev,
+                ...result.data,
+                genres: result.data.genres || prev.genres
+            }));
+            setCoverError('');
+        } else {
+            setCoverError(result.error);
+        }
+        setFetchingCover(false);
     };
 
     const handleImageUpload = (e) => {
@@ -109,54 +134,21 @@ const AddBook = () => {
         setFetchingCover(true);
         setCoverError('');
 
-        try {
-            // 1. Fetch Metadata (Title, Author, Pages)
-            // Strip non-numeric and dashes/spaces just to be safe, though OpenLibrary is lenient, exact key matching matters
-            const cleanIsbn = formData.isbn.replace(/[^0-9X]/gi, '');
+        const result = await fetchBookByISBN(formData.isbn);
 
-            const metadataResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
-            const metadata = await metadataResponse.json();
-
-            // Safer way to get the book info: grab the first value or look up by cleaned key
-            const bookInfo = metadata[`ISBN:${cleanIsbn}`] || Object.values(metadata)[0];
-
-            if (bookInfo) {
-                setFormData(prev => ({
-                    ...prev,
-                    title: bookInfo.title || prev.title,
-                    author: bookInfo.authors?.[0]?.name || prev.author,
-                    totalPages: bookInfo.number_of_pages || prev.totalPages,
-                    isbn: cleanIsbn // Update input with cleaner ISBN
-                }));
-
-                // 2. Fetch High-Res Cover
-                const coverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
-                const img = new Image();
-                img.onload = () => {
-                    setFormData(prev => ({ ...prev, cover: coverUrl }));
-                    setFetchingCover(false);
-                };
-                img.onerror = () => {
-                    // Fallback to metadata cover if direct high-res fails
-                    if (bookInfo.cover?.large) {
-                        setFormData(prev => ({ ...prev, cover: bookInfo.cover.large }));
-                    } else if (bookInfo.cover?.medium) {
-                        setFormData(prev => ({ ...prev, cover: bookInfo.cover.medium }));
-                    } else {
-                        setCoverError('High-res cover not found, metadata updated.');
-                    }
-                    setFetchingCover(false);
-                };
-                img.src = coverUrl;
-            } else {
-                setCoverError('No book found for this ISBN');
-                setFetchingCover(false);
-            }
-        } catch (error) {
-            console.error(error);
-            setCoverError('Failed to fetch book data');
-            setFetchingCover(false);
+        if (result.success) {
+            setFormData(prev => ({
+                ...prev,
+                ...result.data,
+                // Keep existing genre if API doesn't return one
+                genres: result.data.genres || prev.genres
+            }));
+            setCoverError('');
+        } else {
+            setCoverError(result.error);
         }
+
+        setFetchingCover(false);
     };
 
     return (
@@ -326,17 +318,23 @@ const AddBook = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Genre</label>
+                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                                Genre <span className="text-red-500">*</span>
+                            </label>
                             <select
-                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white"
+                                className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white ${errors.genres ? 'ring-2 ring-red-500' : ''}`}
                                 value={formData.genres}
-                                onChange={e => setFormData({ ...formData, genres: e.target.value })}
+                                onChange={e => {
+                                    setFormData({ ...formData, genres: e.target.value });
+                                    if (errors.genres) setErrors({ ...errors, genres: null });
+                                }}
                             >
                                 <option value="" disabled>Select Genre</option>
                                 {GENRES.map(genre => (
                                     <option key={genre} value={genre} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{genre}</option>
                                 ))}
                             </select>
+                            {errors.genres && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.genres}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
@@ -362,6 +360,8 @@ const AddBook = () => {
                                     } else if (newStatus === 'reading') {
                                         const today = new Date().toISOString().split('T')[0];
                                         if (!formData.startedAt) updates.startedAt = today;
+                                    } else if (newStatus === 'want-to-read') {
+                                        updates.progress = 0;
                                     }
 
                                     setFormData({ ...formData, ...updates });
@@ -429,13 +429,18 @@ const AddBook = () => {
 
                     {/* Type / Format Selector */}
                     <div>
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Format</label>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
+                            Format <span className="text-red-500">*</span>
+                        </label>
+                        <div className={`flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg ${errors.format ? 'ring-2 ring-red-500' : ''}`}>
                             {['Physical', 'Ebook', 'Audiobook'].map(format => (
                                 <button
                                     key={format}
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, format })}
+                                    onClick={() => {
+                                        setFormData({ ...formData, format });
+                                        if (errors.format) setErrors({ ...errors, format: null });
+                                    }}
                                     className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${formData.format === format
                                         ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white'
                                         : 'text-slate-500 dark:text-slate-400'
@@ -443,6 +448,34 @@ const AddBook = () => {
                                 >
                                     {format}
                                 </button>
+                            ))}
+                        </div>
+                        {errors.format && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.format}</p>}
+                    </div>
+
+                    {/* Other Versions Question */}
+                    <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">Do you own another version?</span>
+                        <div className="flex flex-wrap gap-2">
+                            {['Audiobook', 'Physical', 'Ebook'].map(version => (
+                                <label key={version} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={(formData.otherVersions || []).includes(version)}
+                                        onChange={(e) => {
+                                            const currentVersions = formData.otherVersions || [];
+                                            let newVersions;
+                                            if (e.target.checked) {
+                                                newVersions = [...currentVersions, version];
+                                            } else {
+                                                newVersions = currentVersions.filter(v => v !== version);
+                                            }
+                                            setFormData({ ...formData, otherVersions: newVersions });
+                                        }}
+                                        className="accent-violet-600"
+                                    />
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{version}</span>
+                                </label>
                             ))}
                         </div>
                     </div>
@@ -553,6 +586,33 @@ const AddBook = () => {
                                         </select>
                                     </div>
                                 </>
+                            )}
+                        </div>
+
+                        {/* Spicy Content Toggle & Rating */}
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <ChilliIcon size={20} className={formData.hasSpice ? "text-red-500" : "text-slate-400"} />
+                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Spicy Content?</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, hasSpice: !formData.hasSpice, spiceRating: !formData.hasSpice ? formData.spiceRating : 0 })}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative ${formData.hasSpice ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 absolute top-1 ${formData.hasSpice ? 'left-[26px]' : 'left-[4px]'}`} />
+                                </button>
+                            </div>
+
+                            {formData.hasSpice && (
+                                <div className="flex items-center gap-4 py-2 px-3 bg-white dark:bg-slate-800 rounded-xl border border-red-100 dark:border-red-900/30 animate-fade-in shadow-sm">
+                                    <span className="text-[10px] font-black uppercase text-slate-400 min-w-[50px]">Intensity:</span>
+                                    <SpiceRating
+                                        value={formData.spiceRating}
+                                        onChange={v => setFormData({ ...formData, spiceRating: v })}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>

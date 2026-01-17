@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Download, Upload, User } from 'lucide-react';
 import logo from '../assets/logo.png';
+import logoDark from '../assets/logo-dark.png';
 
 const Header = () => {
     const { exportData, importData, userProfile } = useBooks(); // Added userProfile
@@ -29,7 +30,8 @@ const Header = () => {
     return (
         <header className="flex justify-between items-center mb-6 pt-2">
             <div className="flex items-center gap-4">
-                <img src={logo} alt="Bookea Reads Logo" className="h-12 object-contain" />
+                <img src={logo} alt="Bookea Reads Logo" className="h-16 object-contain dark:hidden" />
+                <img src={logoDark} alt="Bookea Reads Logo" className="h-16 object-contain hidden dark:block" />
             </div>
 
             <div className="flex items-center gap-2">

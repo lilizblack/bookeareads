@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { Heart, Star, StarHalf } from 'lucide-react';
+import { Heart, Star, StarHalf, Timer } from 'lucide-react';
 import ChilliIcon from './ChilliIcon';
 import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import { getBookProgressPercentage, getSpineColor } from '../utils/bookUtils';
+import { useBooks } from '../context/BookContext';
+import { useTheme } from '../context/ThemeContext';
 
 const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selected = false, onSelect }) => {
+    const { activeTimer, startTimer, stopTimer } = useBooks();
+    const isActive = activeTimer?.bookId === book.id;
     const [imgError, setImgError] = useState(false);
 
     const handleCardClick = (e) => {
@@ -14,6 +18,19 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
             onSelect && onSelect(book.id);
         } else {
             onClick && onClick(book);
+        }
+    };
+
+    const handleTimerClick = (e) => {
+        e.stopPropagation();
+        if (isActive) {
+            window.dispatchEvent(new CustomEvent('stop-timer', { detail: { book } }));
+        } else {
+            if (book.status === 'reading') {
+                startTimer(book.id);
+            } else {
+                window.dispatchEvent(new CustomEvent('start-reading-request', { detail: { book } }));
+            }
         }
     };
 
@@ -49,6 +66,9 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                 className={`flex gap-4 p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border transition-all ${selected
                     ? 'border-violet-500 ring-1 ring-violet-500 bg-violet-50/50 dark:bg-violet-900/10'
                     : 'border-slate-100 dark:border-slate-700'} active:scale-95`}
+                style={{
+                    border: 'var(--theme-border, initial)'
+                }}
             >
                 {/* Selection Indicator */}
                 {selectable && (
@@ -65,6 +85,15 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                         <div className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-black/40 backdrop-blur rounded-full text-orange-600 shadow-sm z-10 animate-scale-in">
                             <ChilliIcon size={10} className="fill-current" />
                         </div>
+                    )}
+                    {(book.status === 'reading' || book.status === 'want-to-read') && (
+                        <button
+                            onClick={handleTimerClick}
+                            className={`absolute bottom-1 right-1 p-1 rounded-full backdrop-blur-md transition-all z-10 shadow-sm ${isActive ? 'bg-red-500 text-white animate-pulse' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:scale-110 active:scale-95'
+                                }`}
+                        >
+                            <Timer size={12} className={isActive ? 'animate-spin-slow' : ''} />
+                        </button>
                     )}
                 </div>
 
@@ -138,8 +167,12 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                             </div>
                         </div>
 
-                        {/* Owned Tag */}
-                        {book.isOwned && (
+                        {/* Owned / Sold Tag */}
+                        {book.ownershipStatus === 'sold' ? (
+                            <span className="inline-block text-[10px] px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full font-bold">
+                                Sold
+                            </span>
+                        ) : book.isOwned && (
                             <span className="inline-block text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold">
                                 Owned
                             </span>
@@ -190,6 +223,9 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
         return (
             <div
                 className={`relative group bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 w-full border ${selected ? 'border-violet-500 ring-1 ring-violet-500' : 'border-transparent'}`}
+                style={{
+                    border: 'var(--theme-border, initial)'
+                }}
                 onClick={handleCardClick}
             >
                 {selectable && (
@@ -226,6 +262,15 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                                 <ChilliIcon size={12} className="fill-current" />
                             </div>
                         )}
+                        {(book.status === 'reading' || book.status === 'want-to-read') && (
+                            <button
+                                onClick={handleTimerClick}
+                                className={`p-1.5 rounded-full backdrop-blur-md transition-all z-10 shadow-sm ${isActive ? 'bg-red-500 text-white animate-pulse' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:scale-110 active:scale-95'
+                                    }`}
+                            >
+                                <Timer size={12} className={isActive ? 'animate-spin-slow' : ''} />
+                            </button>
+                        )}
                     </div>
 
                     {/* Gradient Overlay for Text Readability */}
@@ -242,18 +287,21 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
 
     // Spine Variant
     if (variant === 'spine') {
-        const spineColor = getSpineColor(book.title || book.id);
-        const heightVariation = 160 + (parseInt(String(book.id).slice(-2)) || 50) % 40; // Variation between 160px and 200px based on ID
+        const { themePreset } = useTheme();
+        const spineColor = getSpineColor(book.title || book.id, themePreset);
+        const heightVariation = 160 + (parseInt(String(book.id).slice(-2)) || 50) % 40;
         return (
             // Wrapper to enforce consistent row height for the "shelf" background effect
             <div className="h-[200px] flex items-end border-b-[12px] border-stone-300 dark:border-stone-700 w-[42px]" onClick={handleCardClick}>
                 <div
-                    className={`relative group rounded-sm shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer flex flex-col items-center py-3 px-1 select-none ${spineColor} ${selected ? 'ring-2 ring-violet-500' : ''}`}
+                    className={`relative shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer flex flex-col items-center py-3 px-1 select-none ${spineColor} ${selected ? 'ring-2 ring-violet-500' : ''}`}
                     style={{
                         height: `${heightVariation}px`,
                         width: '42px',
-                        borderLeft: '1px solid rgba(255,255,255,0.2)', // Highlight
-                        borderRight: '2px solid rgba(0,0,0,0.1)', // Shadow
+                        borderRadius: 'var(--radius-spine)',
+                        border: 'var(--theme-border, initial)',
+                        borderLeft: 'var(--theme-border, 1px solid rgba(255,255,255,0.2))', // Highlight or theme border
+                        borderRight: 'var(--theme-border, 2px solid rgba(0,0,0,0.1))', // Shadow or theme border
                     }}
                 >
                     {/* Favorite Icon (Top) */}
@@ -293,6 +341,9 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
         <div
             className={`relative group bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 w-full border ${selected ? 'border-violet-500 ring-1 ring-violet-500' : 'border-transparent'}`}
             onClick={handleCardClick}
+            style={{
+                border: 'var(--theme-border, initial)'
+            }}
         >
             {selectable && (
                 <div className="absolute top-2 left-2 z-10 w-6 h-6 rounded-full bg-white/90 dark:bg-slate-800/90 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center">
@@ -358,9 +409,13 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                     </div>
                 )}
 
-                {/* Format Badge */}
                 {/* Format Badges */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                    {book.ownershipStatus === 'sold' && (
+                        <div className="px-2 py-0.5 bg-red-100/90 dark:bg-red-900/90 backdrop-blur rounded text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-sm">
+                            Sold
+                        </div>
+                    )}
                     {book.format && (
                         <div className="px-2 py-0.5 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur rounded text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
                             {book.format}
@@ -372,6 +427,17 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                         </div>
                     ))}
                 </div>
+
+                {/* Timer Icon */}
+                {(book.status === 'reading' || book.status === 'want-to-read') && (
+                    <button
+                        onClick={handleTimerClick}
+                        className={`absolute bottom-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all z-10 shadow-lg ${isActive ? 'bg-red-500 text-white animate-pulse' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:scale-110 active:scale-95'
+                            }`}
+                    >
+                        <Timer size={16} className={isActive ? 'animate-spin-slow' : ''} />
+                    </button>
+                )}
             </div>
         </div>
     );

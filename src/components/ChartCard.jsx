@@ -7,7 +7,7 @@ const ChartCard = ({ title, data, colors }) => {
     let currentOffset = 0;
 
     return (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 contrast-card">
             <h3 className="text-sm font-bold text-slate-400 uppercase mb-6">{title}</h3>
 
             <div className="flex items-center gap-8">

@@ -6,7 +6,7 @@ import { useBooks } from '../context/BookContext';
 import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X } from 'lucide-react';
 
 const Settings = () => {
-    const { toggleTheme, theme } = useTheme();
+    const { toggleTheme, theme, themePreset, setThemePreset } = useTheme();
     const { user, signOut } = useAuth();
     const { syncLocalToCloud, books, exportData, importData, userProfile, updateUserProfile } = useBooks();
     const navigate = useNavigate();
@@ -17,17 +17,11 @@ const Settings = () => {
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [feedbackType, setFeedbackType] = useState('feedback'); // 'feedback' or 'bug'
     const [feedbackMessage, setFeedbackMessage] = useState('');
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // Profile Edit State
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [tempProfile, setTempProfile] = useState({ name: '', avatar: '' });
-
-    const handleSync = async () => {
-        if (confirm(`Do you want to upload your ${books.length} local books to your cloud account?`)) {
-            await syncLocalToCloud();
-            alert('Sync complete!');
-        }
-    };
 
     const handleFeedback = (type) => {
         setFeedbackType(type);
@@ -42,21 +36,58 @@ const Settings = () => {
         setShowFeedbackModal(false);
     };
 
+    const handleSync = async () => {
+        setIsSyncing(true);
+        try {
+            const result = await syncLocalToCloud();
+            if (result.success) {
+                alert('✅ Sync Complete!\n\n' + result.message);
+            } else {
+                alert('❌ Sync Failed\n\n' + result.message);
+            }
+        } catch (error) {
+            alert('❌ Sync Error\n\n' + error.message);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     // Data Management
     const handleExport = () => exportData();
     const handleImportClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (event) => {
+        console.log('📁 File input changed');
         const file = event.target.files[0];
-        if (!file) return;
-        if (confirm('Importing data will overwrite your current library. Are you sure?')) {
-            try {
-                const result = await importData(file);
-                alert(`Successfully imported ${result.bookCount} books!`);
-            } catch (error) {
-                alert('Failed: ' + error.message);
-            }
+
+        if (!file) {
+            console.log('❌ No file selected');
+            return;
         }
+
+        console.log('📄 File selected:', file.name, file.type, file.size, 'bytes');
+
+        const userConfirmed = confirm('Importing data will overwrite your current library. Are you sure?');
+        console.log('User confirmation:', userConfirmed);
+
+        if (userConfirmed) {
+            try {
+                console.log('🔄 Starting import...');
+                const result = await importData(file);
+                console.log('✅ Import result:', result);
+                alert(`Successfully imported ${result.bookCount} books!`);
+
+                // Force navigation to library to show imported books
+                window.location.href = '/library';
+            } catch (error) {
+                console.error('❌ Import error:', error);
+                alert('Failed to import: ' + error.message);
+            }
+        } else {
+            console.log('⚠️ User cancelled import');
+        }
+
+        // Reset file input
         event.target.value = '';
     };
 
@@ -92,9 +123,28 @@ const Settings = () => {
                 {
                     icon: <Moon size={20} />,
                     label: 'Dark Mode',
-                    action: toggleTheme,
+                    action: themePreset === 'default' ? toggleTheme : undefined,
                     isToggle: true,
-                    value: theme === 'dark'
+                    value: theme === 'dark',
+                    disabled: themePreset !== 'default',
+                    description: themePreset !== 'default' ? 'Only available in Default theme' : null
+                },
+                {
+                    icon: <Edit2 size={20} />,
+                    label: 'Theme Preset',
+                    value: (
+                        <select
+                            value={themePreset}
+                            onChange={(e) => setThemePreset(e.target.value)}
+                            className="bg-transparent border-none text-slate-500 dark:text-slate-400 font-medium outline-none cursor-pointer text-right"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <option value="default">Default</option>
+                            <option value="cozy-lofi">Cozy Lofi</option>
+                            <option value="paper-ink">Paper & Ink</option>
+                        </select>
+                    ),
+                    noChevron: true
                 },
                 { icon: <Globe size={20} />, label: 'Language', value: 'English' },
                 { icon: <CreditCard size={20} />, label: 'Currency', value: 'USD ($)' },
@@ -157,15 +207,19 @@ const Settings = () => {
                             {section.items.map((item, i) => (
                                 <div
                                     key={i}
-                                    onClick={item.action}
+                                    onClick={!item.disabled ? item.action : undefined}
                                     className={`
-                                    flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors
+                                    flex items-center justify-between p-4 transition-colors
+                                    ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'}
                                     ${i !== section.items.length - 1 ? 'border-b border-slate-100 dark:border-slate-800' : ''}
                                   `}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={item.className || "text-slate-400"}>{item.icon}</div>
-                                        <span className={`font-medium ${item.className || "text-slate-700 dark:text-slate-200"}`}>{item.label}</span>
+                                        <div>
+                                            <span className={`font-medium ${item.className || "text-slate-700 dark:text-slate-200"}`}>{item.label}</span>
+                                            {item.description && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider mt-0.5">{item.description}</p>}
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {item.value !== undefined && <span className="text-slate-400 text-sm">{item.value === true ? 'On' : item.value === false ? 'Off' : item.value}</span>}
@@ -173,7 +227,7 @@ const Settings = () => {
                                             <div className={`w-10 h-6 rounded-full relative transition-colors ${item.value ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                                 <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${item.value ? 'left-5' : 'left-1'}`} />
                                             </div>
-                                        ) : (
+                                        ) : !item.noChevron && (
                                             <ChevronRight size={16} className="text-slate-300" />
                                         )}
                                     </div>
@@ -187,9 +241,20 @@ const Settings = () => {
                 <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
                     {user ? (
                         <>
-                            <div onClick={handleSync} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 border-b border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center gap-3 text-blue-500"><UploadCloud size={20} /><span className="font-medium text-slate-700 dark:text-slate-200">Sync to Cloud</span></div>
-                                <ChevronRight size={16} className="text-slate-300" />
+                            <div
+                                onClick={isSyncing ? undefined : handleSync}
+                                className={`flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 ${isSyncing
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3 text-blue-500">
+                                    <UploadCloud size={20} className={isSyncing ? 'animate-pulse' : ''} />
+                                    <span className="font-medium text-slate-700 dark:text-slate-200">
+                                        {isSyncing ? 'Syncing...' : 'Sync to Cloud'}
+                                    </span>
+                                </div>
+                                {!isSyncing && <ChevronRight size={16} className="text-slate-300" />}
                             </div>
                             <div onClick={() => signOut()} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
                                 <div className="flex items-center gap-3 text-red-500"><LogOut size={20} /><span className="font-medium">Sign Out</span></div>
@@ -205,7 +270,9 @@ const Settings = () => {
                 </div>
             </div>
 
-            <div className="text-center mt-8 text-xs text-slate-400">Ver 3.2.0 (Local Storage Only)</div>
+            <div className="text-center mt-8 text-xs text-slate-400">
+                Ver 3.2.0 {user ? '(Cloud Sync Enabled ☁️)' : '(Local Storage Only)'}
+            </div>
 
             {/* Hidden Inputs */}
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />

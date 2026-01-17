@@ -1,43 +1,92 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { syncLocalDataToSupabase } from '../utils/syncUtils';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+    return useContext(AuthContext);
 };
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    // Persist "offline mode" to allow viewing data after logout
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
 
     useEffect(() => {
-        // Get initial session
+        if (!supabase) {
+            setLoading(false);
+            return;
+        }
+
+        // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+
+            if (_event === 'SIGNED_IN') {
+                setIsOfflineMode(false);
+                if (session?.user) {
+                    // Trigger Data Sync (Merge)
+                    await syncLocalDataToSupabase(session.user.id);
+                }
+            } else if (_event === 'SIGNED_OUT') {
+                // Critical: Enable Read-Only Mode
+                setIsOfflineMode(true);
+            }
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    const signUp = (email, password) => supabase.auth.signUp({ email, password });
-    const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password });
-    const signOut = () => supabase.auth.signOut();
+    const signUp = async (email, password) => {
+        if (!supabase) throw new Error('Supabase not configured');
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const signIn = async (email, password) => {
+        if (!supabase) throw new Error('Supabase not configured');
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const signOut = async () => {
+        if (!supabase) return;
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+    };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
-            {!loading && children}
+        <AuthContext.Provider value={{
+            user,
+            session,
+            loading,
+            isOfflineMode, // Publicly exposed
+            signUp,
+            signIn,
+            signOut
+        }}>
+            {children}
         </AuthContext.Provider>
     );
 };
