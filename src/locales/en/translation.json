@@ -1,0 +1,177 @@
+{
+    "nav": {
+        "dashboard": "Dashboard",
+        "library": "Library",
+        "calendar": "Calendar",
+        "settings": "Settings",
+        "addBook": "Add Book",
+        "annual": "Annual Report",
+        "favorites": "Favorites",
+        "notes": "Notes"
+    },
+    "book": {
+        "status": {
+            "reading": "Reading",
+            "completed": "Completed",
+            "wantToRead": "Want to Read",
+            "paused": "Paused",
+            "dnf": "Did Not Finish",
+            "owned": "Owned"
+        },
+        "fields": {
+            "title": "Title",
+            "author": "Author",
+            "pages": "Pages",
+            "chapters": "Chapters",
+            "progress": "Progress",
+            "rating": "Rating",
+            "spiceRating": "Spice Rating",
+            "genres": "Genres",
+            "format": "Format",
+            "price": "Price",
+            "review": "Review",
+            "notes": "Notes",
+            "isbn": "ISBN"
+        },
+        "formats": {
+            "physical": "Physical",
+            "ebook": "E-book",
+            "audiobook": "Audiobook"
+        }
+    },
+    "actions": {
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete",
+        "save": "Save",
+        "cancel": "Cancel",
+        "close": "Close",
+        "confirm": "Confirm",
+        "back": "Back",
+        "next": "Next",
+        "search": "Search",
+        "filter": "Filter",
+        "sort": "Sort",
+        "export": "Export",
+        "import": "Import",
+        "install": "Install",
+        "dismiss": "Dismiss"
+    },
+    "auth": {
+        "login": "Login",
+        "signup": "Sign Up",
+        "logout": "Logout",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm Password",
+        "forgotPassword": "Forgot Password?",
+        "noAccount": "Don't have an account?",
+        "hasAccount": "Already have an account?",
+        "offlineMode": "Offline Mode"
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "currentlyReading": "Currently Reading",
+        "readingGoal": "Reading Goal",
+        "stats": "Statistics",
+        "booksRead": "Books Read",
+        "pagesRead": "Pages Read",
+        "readingStreak": "Reading Streak",
+        "avgRating": "Average Rating",
+        "timeLeft": "Time Left",
+        "avgSpeed": "Avg Speed"
+    },
+    "library": {
+        "title": "Library",
+        "viewMode": {
+            "grid": "Grid View",
+            "list": "List View",
+            "spine": "Spine View"
+        },
+        "filterBy": "Filter by",
+        "sortBy": "Sort by",
+        "all": "All Books",
+        "noBooks": "No books found",
+        "addFirst": "Add your first book to get started!"
+    },
+    "calendar": {
+        "title": "Calendar",
+        "today": "Today",
+        "thisWeek": "This Week",
+        "thisMonth": "This Month",
+        "thisYear": "This Year",
+        "readingActivity": "Reading Activity",
+        "sessionsCompleted": "Sessions Completed"
+    },
+    "settings": {
+        "title": "Settings",
+        "preferences": "Preferences",
+        "theme": "Theme",
+        "language": "Language",
+        "dataManagement": "Data Management",
+        "exportData": "Export Data",
+        "importData": "Import Data",
+        "account": "Account",
+        "darkMode": "Dark Mode",
+        "lightMode": "Light Mode",
+        "themePreset": "Theme Preset",
+        "default": "Default",
+        "cozyLofi": "Cozy Lofi",
+        "paperInk": "Paper & Ink"
+    },
+    "addBook": {
+        "title": "Add Book",
+        "scanBarcode": "Scan Barcode",
+        "manualEntry": "Manual Entry",
+        "searchByISBN": "Search by ISBN",
+        "bookDetails": "Book Details",
+        "readingInfo": "Reading Information",
+        "additionalInfo": "Additional Information"
+    },
+    "annual": {
+        "title": "Annual Report",
+        "year": "Year",
+        "summary": "Summary",
+        "topGenres": "Top Genres",
+        "monthlyBreakdown": "Monthly Breakdown",
+        "readingGoals": "Reading Goals"
+    },
+    "messages": {
+        "success": {
+            "bookAdded": "Book added successfully!",
+            "bookUpdated": "Book updated successfully!",
+            "bookDeleted": "Book deleted successfully!",
+            "dataSaved": "Data saved successfully!",
+            "dataExported": "Data exported successfully!",
+            "dataImported": "Data imported successfully!"
+        },
+        "error": {
+            "generic": "Something went wrong. Please try again.",
+            "networkError": "Network error. Please check your connection.",
+            "notFound": "Not found",
+            "invalidData": "Invalid data format",
+            "supabaseNotConfigured": "Supabase not configured. Running in offline mode."
+        },
+        "confirm": {
+            "deleteBook": "Are you sure you want to delete this book?",
+            "importData": "Importing data will overwrite your current library. Are you sure?"
+        }
+    },
+    "pwa": {
+        "installTitle": "Install Bookea Reads",
+        "installMessage": "Install our app for quick access and offline reading!",
+        "installButton": "Install App"
+    },
+    "common": {
+        "loading": "Loading...",
+        "noData": "No data available",
+        "page": "Page",
+        "of": "of",
+        "total": "Total",
+        "days": "days",
+        "hours": "hours",
+        "minutes": "minutes",
+        "min": "min",
+        "avg": "avg"
+    }
+}

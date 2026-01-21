@@ -1,0 +1,177 @@
+{
+    "nav": {
+        "dashboard": "Panel",
+        "library": "Biblioteca",
+        "calendar": "Calendario",
+        "settings": "Configuración",
+        "addBook": "Agregar Libro",
+        "annual": "Reporte Anual",
+        "favorites": "Favoritos",
+        "notes": "Notas"
+    },
+    "book": {
+        "status": {
+            "reading": "Leyendo",
+            "completed": "Completado",
+            "wantToRead": "Quiero Leer",
+            "paused": "Pausado",
+            "dnf": "No Terminado",
+            "owned": "Tengo"
+        },
+        "fields": {
+            "title": "Título",
+            "author": "Autor",
+            "pages": "Páginas",
+            "chapters": "Capítulos",
+            "progress": "Progreso",
+            "rating": "Calificación",
+            "spiceRating": "Nivel de Picante",
+            "genres": "Géneros",
+            "format": "Formato",
+            "price": "Precio",
+            "review": "Reseña",
+            "notes": "Notas",
+            "isbn": "ISBN"
+        },
+        "formats": {
+            "physical": "Físico",
+            "ebook": "Libro Electrónico",
+            "audiobook": "Audiolibro"
+        }
+    },
+    "actions": {
+        "add": "Agregar",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "close": "Cerrar",
+        "confirm": "Confirmar",
+        "back": "Atrás",
+        "next": "Siguiente",
+        "search": "Buscar",
+        "filter": "Filtrar",
+        "sort": "Ordenar",
+        "export": "Exportar",
+        "import": "Importar",
+        "install": "Instalar",
+        "dismiss": "Descartar"
+    },
+    "auth": {
+        "login": "Iniciar Sesión",
+        "signup": "Registrarse",
+        "logout": "Cerrar Sesión",
+        "email": "Correo Electrónico",
+        "password": "Contraseña",
+        "confirmPassword": "Confirmar Contraseña",
+        "forgotPassword": "¿Olvidaste tu contraseña?",
+        "noAccount": "¿No tienes una cuenta?",
+        "hasAccount": "¿Ya tienes una cuenta?",
+        "offlineMode": "Modo Sin Conexión"
+    },
+    "dashboard": {
+        "title": "Panel",
+        "currentlyReading": "Leyendo Actualmente",
+        "readingGoal": "Meta de Lectura",
+        "stats": "Estadísticas",
+        "booksRead": "Libros Leídos",
+        "pagesRead": "Páginas Leídas",
+        "readingStreak": "Racha de Lectura",
+        "avgRating": "Calificación Promedio",
+        "timeLeft": "Tiempo Restante",
+        "avgSpeed": "Velocidad Promedio"
+    },
+    "library": {
+        "title": "Biblioteca",
+        "viewMode": {
+            "grid": "Vista de Cuadrícula",
+            "list": "Vista de Lista",
+            "spine": "Vista de Lomo"
+        },
+        "filterBy": "Filtrar por",
+        "sortBy": "Ordenar por",
+        "all": "Todos los Libros",
+        "noBooks": "No se encontraron libros",
+        "addFirst": "¡Agrega tu primer libro para comenzar!"
+    },
+    "calendar": {
+        "title": "Calendario",
+        "today": "Hoy",
+        "thisWeek": "Esta Semana",
+        "thisMonth": "Este Mes",
+        "thisYear": "Este Año",
+        "readingActivity": "Actividad de Lectura",
+        "sessionsCompleted": "Sesiones Completadas"
+    },
+    "settings": {
+        "title": "Configuración",
+        "preferences": "Preferencias",
+        "theme": "Tema",
+        "language": "Idioma",
+        "dataManagement": "Gestión de Datos",
+        "exportData": "Exportar Datos",
+        "importData": "Importar Datos",
+        "account": "Cuenta",
+        "darkMode": "Modo Oscuro",
+        "lightMode": "Modo Claro",
+        "themePreset": "Tema Predefinido",
+        "default": "Predeterminado",
+        "cozyLofi": "Acogedor Lofi",
+        "paperInk": "Papel y Tinta"
+    },
+    "addBook": {
+        "title": "Agregar Libro",
+        "scanBarcode": "Escanear Código de Barras",
+        "manualEntry": "Entrada Manual",
+        "searchByISBN": "Buscar por ISBN",
+        "bookDetails": "Detalles del Libro",
+        "readingInfo": "Información de Lectura",
+        "additionalInfo": "Información Adicional"
+    },
+    "annual": {
+        "title": "Reporte Anual",
+        "year": "Año",
+        "summary": "Resumen",
+        "topGenres": "Géneros Principales",
+        "monthlyBreakdown": "Desglose Mensual",
+        "readingGoals": "Metas de Lectura"
+    },
+    "messages": {
+        "success": {
+            "bookAdded": "¡Libro agregado exitosamente!",
+            "bookUpdated": "¡Libro actualizado exitosamente!",
+            "bookDeleted": "¡Libro eliminado exitosamente!",
+            "dataSaved": "¡Datos guardados exitosamente!",
+            "dataExported": "¡Datos exportados exitosamente!",
+            "dataImported": "¡Datos importados exitosamente!"
+        },
+        "error": {
+            "generic": "Algo salió mal. Por favor, intenta de nuevo.",
+            "networkError": "Error de red. Por favor, verifica tu conexión.",
+            "notFound": "No encontrado",
+            "invalidData": "Formato de datos inválido",
+            "supabaseNotConfigured": "Supabase no configurado. Ejecutando en modo sin conexión."
+        },
+        "confirm": {
+            "deleteBook": "¿Estás seguro de que quieres eliminar este libro?",
+            "importData": "Importar datos sobrescribirá tu biblioteca actual. ¿Estás seguro?"
+        }
+    },
+    "pwa": {
+        "installTitle": "Instalar Bookea Reads",
+        "installMessage": "¡Instala nuestra aplicación para acceso rápido y lectura sin conexión!",
+        "installButton": "Instalar Aplicación"
+    },
+    "common": {
+        "loading": "Cargando...",
+        "noData": "No hay datos disponibles",
+        "page": "Página",
+        "of": "de",
+        "total": "Total",
+        "days": "días",
+        "hours": "horas",
+        "minutes": "minutos",
+        "min": "min",
+        "avg": "prom"
+    }
+}

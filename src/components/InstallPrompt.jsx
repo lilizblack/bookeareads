@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const InstallPrompt = () => {
+    const { t } = useTranslation();
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [showPrompt, setShowPrompt] = useState(false);
 
@@ -74,15 +76,15 @@ const InstallPrompt = () => {
                         <Download size={24} />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">Install Bookea Reads</h3>
+                        <h3 className="font-semibold text-lg mb-1">{t('pwa.installTitle')}</h3>
                         <p className="text-white/90 text-sm mb-3">
-                            Install our app for quick access and offline reading!
+                            {t('pwa.installMessage')}
                         </p>
                         <button
                             onClick={handleInstallClick}
                             className="bg-white text-violet-600 px-4 py-2 rounded-lg font-medium hover:bg-violet-50 transition-colors w-full"
                         >
-                            Install App
+                            {t('pwa.installButton')}
                         </button>
                     </div>
                 </div>

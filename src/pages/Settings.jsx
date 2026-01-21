@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
 import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X } from 'lucide-react';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Settings = () => {
     const { toggleTheme, theme, themePreset, setThemePreset } = useTheme();
@@ -139,7 +140,12 @@ const Settings = () => {
                     ),
                     noChevron: true
                 },
-                { icon: <Globe size={20} />, label: 'Language', value: 'English' },
+                {
+                    icon: <Globe size={20} />,
+                    label: 'Language',
+                    value: <LanguageSwitcher />,
+                    noChevron: true
+                },
                 { icon: <CreditCard size={20} />, label: 'Currency', value: 'USD ($)' },
             ]
         },
