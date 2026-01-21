@@ -7,8 +7,8 @@ const LanguageSwitcher = () => {
     const [isOpen, setIsOpen] = React.useState(false);
 
     const languages = [
-        { code: 'en', name: 'English', flag: '🇺🇸' },
-        { code: 'es', name: 'Español', flag: '🇪🇸' }
+        { code: 'en', name: 'English', label: 'EN' },
+        { code: 'es', name: 'Español', label: 'ES' }
     ];
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
@@ -20,39 +20,51 @@ const LanguageSwitcher = () => {
     };
 
     return (
-        <div className="relative">
+        <div className="relative inline-block text-right">
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors w-auto"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(!isOpen);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
-                <Globe size={18} className="text-violet-600 flex-shrink-0" />
-                <span className="font-medium text-sm">{currentLanguage.flag} {currentLanguage.name}</span>
+                <div className="flex items-center gap-1.5 font-bold text-violet-600 text-xs tracking-wider">
+                    {currentLanguage.label}
+                </div>
+                <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">{currentLanguage.name}</span>
             </button>
 
             {isOpen && (
                 <>
                     <div
-                        className="fixed inset-0 z-10"
+                        className="fixed inset-0 z-[60]"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-20 min-w-[180px] origin-top-right">
-                        {languages.map((lang) => (
-                            <button
-                                key={lang.code}
-                                onClick={() => changeLanguage(lang.code)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b last:border-none border-slate-100 dark:border-slate-700"
-                            >
-                                <span className="flex items-center gap-3">
-                                    <span className="text-xl">{lang.flag}</span>
-                                    <span className={`font-medium ${i18n.language === lang.code ? 'text-violet-600' : 'text-slate-700 dark:text-slate-200'}`}>
-                                        {lang.name}
-                                    </span>
-                                </span>
-                                {i18n.language === lang.code && (
-                                    <Check size={18} className="text-violet-600" />
-                                )}
-                            </button>
-                        ))}
+                    <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[70] min-w-[160px] animate-slide-up transform origin-top-right">
+                        <div className="py-1">
+                            {languages.map((lang) => (
+                                <button
+                                    key={lang.code}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        changeLanguage(lang.code);
+                                    }}
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${i18n.language === lang.code ? 'bg-violet-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                            {lang.label}
+                                        </div>
+                                        <span className={`font-medium ${i18n.language === lang.code ? 'text-violet-600' : 'text-slate-700 dark:text-slate-200'}`}>
+                                            {lang.name}
+                                        </span>
+                                    </div>
+                                    {i18n.language === lang.code && (
+                                        <Check size={18} className="text-violet-600 stroke-[3px]" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </>
             )}
