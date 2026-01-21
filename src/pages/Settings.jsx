@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
 import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 const Settings = () => {
+    const { t } = useTranslation();
     const { toggleTheme, theme, themePreset, setThemePreset } = useTheme();
     const { user, signOut } = useAuth();
     const { syncLocalToCloud, books, exportData, importData, userProfile, updateUserProfile } = useBooks();
@@ -112,11 +114,11 @@ const Settings = () => {
 
     const sections = [
         {
-            title: 'App Settings',
+            title: t('settings.preferences'),
             items: [
                 {
                     icon: <Moon size={20} />,
-                    label: 'Dark Mode',
+                    label: t('settings.darkMode'),
                     action: themePreset === 'default' ? toggleTheme : undefined,
                     isToggle: true,
                     value: theme === 'dark',
@@ -125,7 +127,7 @@ const Settings = () => {
                 },
                 {
                     icon: <Edit2 size={20} />,
-                    label: 'Theme Preset',
+                    label: t('settings.themePreset'),
                     value: (
                         <select
                             value={themePreset}
@@ -142,7 +144,7 @@ const Settings = () => {
                 },
                 {
                     icon: <Globe size={20} />,
-                    label: 'Language',
+                    label: t('settings.language'),
                     value: <LanguageSwitcher />,
                     noChevron: true
                 },
@@ -150,10 +152,10 @@ const Settings = () => {
             ]
         },
         {
-            title: 'Data Management',
+            title: t('settings.dataManagement'),
             items: [
-                { icon: <Download size={20} />, label: 'Export Data', action: handleExport },
-                { icon: <Upload size={20} />, label: 'Import Data', action: handleImportClick }
+                { icon: <Download size={20} />, label: t('settings.exportData'), action: handleExport },
+                { icon: <Upload size={20} />, label: t('settings.importData'), action: handleImportClick }
             ]
         },
         {
@@ -171,7 +173,7 @@ const Settings = () => {
 
     return (
         <div className="pb-24 pt-4">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Settings</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">{t('settings.title')}</h1>
 
             {/* Profile Section */}
             <div className="flex items-center gap-4 mb-8 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 relative">
@@ -187,7 +189,7 @@ const Settings = () => {
                         {displayName}
                     </h2>
                     <p className="text-slate-500 text-sm">
-                        {user ? 'Cloud Sync Enabled' : 'Local Profile'}
+                        {user ? t('settings.account') : 'Local Profile'}
                     </p>
                 </div>
                 <button
