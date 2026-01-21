@@ -35,19 +35,21 @@ const LanguageSwitcher = () => {
                         className="fixed inset-0 z-10"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-20 min-w-[200px]">
+                    <div className="absolute top-full mt-2 right-0 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-20 min-w-[180px] origin-top-right">
                         {languages.map((lang) => (
                             <button
                                 key={lang.code}
                                 onClick={() => changeLanguage(lang.code)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b last:border-none border-slate-100 dark:border-slate-700"
                             >
-                                <span className="flex items-center gap-2">
-                                    <span className="text-2xl">{lang.flag}</span>
-                                    <span className="font-medium">{lang.name}</span>
+                                <span className="flex items-center gap-3">
+                                    <span className="text-xl">{lang.flag}</span>
+                                    <span className={`font-medium ${i18n.language === lang.code ? 'text-violet-600' : 'text-slate-700 dark:text-slate-200'}`}>
+                                        {lang.name}
+                                    </span>
                                 </span>
                                 {i18n.language === lang.code && (
-                                    <Check size={20} className="text-violet-600" />
+                                    <Check size={18} className="text-violet-600" />
                                 )}
                             </button>
                         ))}

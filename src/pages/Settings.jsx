@@ -223,7 +223,15 @@ const Settings = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                        {item.value !== undefined && <span className="text-slate-400 text-sm">{item.value === true ? 'On' : item.value === false ? 'Off' : item.value}</span>}
+                                        {item.value !== undefined && (
+                                            typeof item.value === 'boolean' ? (
+                                                <span className="text-slate-400 text-sm">
+                                                    {item.value ? 'On' : 'Off'}
+                                                </span>
+                                            ) : (
+                                                <div className="flex items-center">{item.value}</div>
+                                            )
+                                        )}
                                         {item.isToggle ? (
                                             <div className={`w-10 h-6 rounded-full relative transition-colors ${item.value ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                                 <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${item.value ? 'left-5' : 'left-1'}`} />
