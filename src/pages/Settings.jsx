@@ -220,7 +220,7 @@ const Settings = () => {
                                             {item.description && <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider mt-0.5">{item.description}</p>}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         {item.value !== undefined && <span className="text-slate-400 text-sm">{item.value === true ? 'On' : item.value === false ? 'Off' : item.value}</span>}
                                         {item.isToggle ? (
                                             <div className={`w-10 h-6 rounded-full relative transition-colors ${item.value ? 'bg-blue-500' : 'bg-slate-200'}`}>

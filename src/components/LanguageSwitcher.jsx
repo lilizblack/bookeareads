@@ -23,10 +23,10 @@ const LanguageSwitcher = () => {
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors min-w-[140px]"
+                className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors w-auto"
             >
                 <Globe size={18} className="text-violet-600 flex-shrink-0" />
-                <span className="font-medium text-sm whitespace-nowrap">{currentLanguage.flag} {currentLanguage.name}</span>
+                <span className="font-medium text-sm">{currentLanguage.flag} {currentLanguage.name}</span>
             </button>
 
             {isOpen && (
