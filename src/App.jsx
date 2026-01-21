@@ -17,6 +17,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Favorites from './pages/Favorites';
 import Notes from './pages/Notes';
+import InstallPrompt from './components/InstallPrompt';
 
 function App() {
     return (
@@ -42,6 +43,7 @@ function App() {
                     </Router>
                 </BookProvider>
             </AuthProvider>
+            <InstallPrompt />
         </ThemeProvider>
     );
 }
