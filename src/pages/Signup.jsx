@@ -20,11 +20,23 @@ const Signup = () => {
             return setError('Passwords do not match');
         }
 
+        if (password.length < 6) {
+            return setError('Password must be at least 6 characters');
+        }
+
         setLoading(true);
 
         try {
             const { error: signUpError } = await signUp(email, password);
-            if (signUpError) throw signUpError;
+            if (signUpError) {
+                // Handle specific error cases
+                if (signUpError.message.includes('already registered') ||
+                    signUpError.message.includes('already been registered') ||
+                    signUpError.message.includes('User already registered')) {
+                    throw new Error('This email is already registered. Please login instead.');
+                }
+                throw signUpError;
+            }
             alert('Check your email for the confirmation link!');
             navigate('/login');
         } catch (err) {
