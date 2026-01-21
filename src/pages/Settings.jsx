@@ -202,7 +202,7 @@ const Settings = () => {
                 {sections.map((section, idx) => (
                     <div key={idx}>
                         <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 px-2">{section.title}</h3>
-                        <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
                             {section.items.map((item, i) => (
                                 <div
                                     key={i}
@@ -211,6 +211,8 @@ const Settings = () => {
                                     flex items-center justify-between p-4 transition-colors
                                     ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'}
                                     ${i !== section.items.length - 1 ? 'border-b border-slate-100 dark:border-slate-800' : ''}
+                                    ${i === 0 ? 'rounded-t-xl' : ''}
+                                    ${i === section.items.length - 1 ? 'rounded-b-xl' : ''}
                                   `}
                                 >
                                     <div className="flex items-center gap-3">
