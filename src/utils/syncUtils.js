@@ -7,13 +7,11 @@ export const syncLocalDataToSupabase = async (userId) => {
     try {
         const localData = localStorage.getItem('book-tracker-data-v3');
         if (!localData) {
-            console.log('No local data to sync');
             return true; // No data is not an error
         }
 
         const books = JSON.parse(localData);
         if (!Array.isArray(books) || books.length === 0) {
-            console.log('No books to sync');
             return true;
         }
 
@@ -43,7 +41,6 @@ export const syncLocalDataToSupabase = async (userId) => {
         });
 
         if (booksToSync.length === 0) {
-            console.log('All books already synced');
             return true;
         }
 

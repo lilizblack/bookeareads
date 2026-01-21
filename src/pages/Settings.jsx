@@ -57,24 +57,17 @@ const Settings = () => {
     const handleImportClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (event) => {
-        console.log('📁 File input changed');
         const file = event.target.files[0];
 
         if (!file) {
-            console.log('❌ No file selected');
             return;
         }
 
-        console.log('📄 File selected:', file.name, file.type, file.size, 'bytes');
-
         const userConfirmed = confirm('Importing data will overwrite your current library. Are you sure?');
-        console.log('User confirmation:', userConfirmed);
 
         if (userConfirmed) {
             try {
-                console.log('🔄 Starting import...');
                 const result = await importData(file);
-                console.log('✅ Import result:', result);
                 alert(`Successfully imported ${result.bookCount} books!`);
 
                 // Force navigation to library to show imported books
@@ -84,7 +77,7 @@ const Settings = () => {
                 alert('Failed to import: ' + error.message);
             }
         } else {
-            console.log('⚠️ User cancelled import');
+            // User cancelled
         }
 
         // Reset file input

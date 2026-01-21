@@ -85,7 +85,6 @@ export const BookProvider = ({ children }) => {
 
             // 1. Authenticated User -> Fetch from Supabase
             if (user) {
-                console.log('Fetching from Supabase for user:', user.email);
                 const { data, error } = await supabase
                     .from('books')
                     .select('*')
@@ -97,7 +96,6 @@ export const BookProvider = ({ children }) => {
                     console.error('Error details:', JSON.stringify(error, null, 2));
                 } else {
                     if (data) {
-                        console.log(`Fetched ${data.length} books from Supabase`);
                         // Transform DB snake_case to app camelCase
                         const appBooks = data.map(b => ({
                             ...b,
@@ -124,7 +122,6 @@ export const BookProvider = ({ children }) => {
             }
             // 2. Offline Mode (Logged out but keeping data visible)
             else if (isOfflineMode) {
-                console.log('Offline Mode: Loading from localStorage.');
                 const savedBooks = localStorage.getItem('book-tracker-data-v3');
                 const savedGoal = localStorage.getItem('reading-goal');
                 if (savedBooks) setBooks(JSON.parse(savedBooks));
@@ -139,7 +136,6 @@ export const BookProvider = ({ children }) => {
             }
             // 3. Guest / First Load -> Local Storage
             else {
-                console.log('Guest Mode: Loading from Local Storage.');
                 const savedBooks = localStorage.getItem('book-tracker-data-v3');
                 const savedGoal = localStorage.getItem('reading-goal');
                 if (savedBooks) setBooks(JSON.parse(savedBooks));
@@ -191,8 +187,6 @@ export const BookProvider = ({ children }) => {
 
         if (user) {
             // Supabase Insert
-            console.log('Inserting book to Supabase:', newBook.title);
-
             // Build insert object (ISBN, reading_logs, notes excluded due to schema cache issues)
             const insertData = {
                 user_id: user.id,
@@ -227,7 +221,6 @@ export const BookProvider = ({ children }) => {
 
             if (data && data[0]) {
                 // Use the real ID from Supabase
-                console.log('Book inserted successfully with ID:', data[0].id);
                 newBook.id = data[0].id;
                 newBook.userId = user.id;
             } else {
@@ -619,12 +612,8 @@ export const BookProvider = ({ children }) => {
                 try {
                     const data = JSON.parse(e.target.result);
                     if (data.books && Array.isArray(data.books)) {
-                        console.log('📚 Importing', data.books.length, 'books...');
-
                         // If user is logged in, sync to Supabase
                         if (user && supabase) {
-                            console.log('User logged in, syncing imported books to Supabase...');
-
                             // Delete existing books for this user
                             const { error: deleteError } = await supabase
                                 .from('books')
@@ -674,8 +663,6 @@ export const BookProvider = ({ children }) => {
                                 return;
                             }
 
-                            console.log('✅ Successfully synced imported books to Supabase');
-
                             // Fetch the newly inserted books to update local state
                             const { data: fetchedBooks, error: fetchError } = await supabase
                                 .from('books')
@@ -709,7 +696,6 @@ export const BookProvider = ({ children }) => {
                             }));
 
                             setBooks(appBooks);
-                            console.log('📖 Updated local state with', appBooks.length, 'books');
                         } else {
                             // Guest mode - just update local state
                             setBooks(data.books);
