@@ -3,12 +3,14 @@ import { useBooks } from '../context/BookContext';
 import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const Library = () => {
     const { books, loading, bulkDeleteBooks, activeTimer, startTimer, stopTimer, updateBook, logReading } = useBooks();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const location = useLocation();
 
     // Manual search params to avoid hook issues
@@ -168,9 +170,9 @@ const Library = () => {
             {/* Page Header */}
             <div className="flex flex-col gap-4 mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white">BookShelf</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t('library.title')}</h1>
                     <div className="flex items-center gap-2">
-                        <p className="text-xs text-slate-400 font-bold uppercase">{filteredBooks.length} {filteredBooks.length === 1 ? 'Book' : 'Books'}</p>
+                        <p className="text-xs text-slate-400 font-bold uppercase">{t('library.bookCount', { count: filteredBooks.length })}</p>
                     </div>
                 </div>
 
@@ -203,7 +205,7 @@ const Library = () => {
                             className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-black uppercase text-slate-500 dark:text-slate-400"
                         >
                             {viewMode === 'list' ? <LayoutGrid size={14} /> : viewMode === 'grid' ? <List size={14} /> : <Book size={14} />}
-                            <span>Mode</span>
+                            <span>{t('library.mode')}</span>
                         </button>
 
                         <button
@@ -214,17 +216,17 @@ const Library = () => {
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${isSelectMode ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
                         >
                             {isSelectMode ? <CheckSquare size={14} /> : <Square size={14} />}
-                            {isSelectMode ? 'Done' : 'Select'}
+                            {isSelectMode ? t('library.done') : t('library.select')}
                         </button>
                     </div>
 
                     <div className="flex gap-2">
                         <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
-                            Filter <Filter size={14} />
+                            {t('library.filter')} <Filter size={14} />
                         </button>
                         <div className="w-px h-4 bg-slate-300 dark:bg-slate-700 my-auto" />
                         <button className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
-                            {sortBy} <ArrowDownUp size={14} />
+                            {sortBy === 'Alphabetical' ? t('library.sort.alphabetical') : sortBy === 'Recently Added' ? t('library.sort.added') : t('library.sort.bought')} <ArrowDownUp size={14} />
                         </button>
                     </div>
                 </div>
@@ -239,8 +241,8 @@ const Library = () => {
                                 <CheckSquare size={20} className="text-white" />
                             </div>
                             <div>
-                                <div className="text-sm font-black">{selectedIds.length} Selected</div>
-                                <div className="text-[10px] font-bold opacity-60 uppercase">Bulk Actions</div>
+                                <div className="text-sm font-black">{t('library.selectedCount', { count: selectedIds.length })}</div>
+                                <div className="text-[10px] font-bold opacity-60 uppercase">{t('library.bulkActions')}</div>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -248,14 +250,14 @@ const Library = () => {
                                 onClick={() => setSelectedIds([])}
                                 className="px-4 py-2 text-xs font-bold uppercase opacity-60 hover:opacity-100"
                             >
-                                Clear
+                                {t('library.clear')}
                             </button>
                             <button
                                 onClick={handleBulkDelete}
                                 disabled={selectedIds.length === 0}
                                 className="flex items-center gap-2 px-6 py-2 bg-red-500 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-red-500/30 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                <Trash2 size={14} /> Delete
+                                <Trash2 size={14} /> {t('actions.delete')}
                             </button>
                         </div>
                     </div>
@@ -267,10 +269,10 @@ const Library = () => {
                 isOpen={showDeleteModal}
                 onClose={() => setShowDeleteModal(false)}
                 onConfirm={confirmDelete}
-                title="Delete Books?"
-                message={`Are you sure you want to delete ${selectedIds.length} ${selectedIds.length === 1 ? 'book' : 'books'}? This action cannot be undone.`}
+                title={t('library.confirmDeleteTitle')}
+                message={t('library.confirmDeleteMessage', { count: selectedIds.length, item: t('book.fields.title').toLowerCase() })}
                 isDangerous={true}
-                confirmText="Delete"
+                confirmText={t('actions.delete')}
             />
 
             {/* Log Progress Modal Overlay */}
@@ -278,7 +280,7 @@ const Library = () => {
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in slide-in-from-bottom flex flex-col">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold dark:text-white">Log Progress</h3>
+                            <h3 className="text-xl font-bold dark:text-white">{t('dashboard.modals.logProgress')}</h3>
                             <button onClick={() => setSelectedBook(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400">
                                 <X size={24} />
                             </button>
@@ -286,7 +288,7 @@ const Library = () => {
 
                         {elapsedMinutes > 0 && (
                             <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 text-center animate-fade-in">
-                                Reading Session: {elapsedMinutes} min
+                                {t('dashboard.modals.session', { minutes: elapsedMinutes })}
                             </div>
                         )}
 
@@ -300,12 +302,12 @@ const Library = () => {
                                 autoFocus
                             />
                             <div className="text-[10px] font-bold text-slate-400 text-center mt-2">
-                                {selectedBook.format === 'Audiobook' || selectedBook.progressMode === 'chapters' ? 'CH' : 'PAGE'}
+                                {selectedBook.format === 'Audiobook' || selectedBook.progressMode === 'chapters' ? t('book.fields.chapters').toUpperCase() : t('book.fields.pages').toUpperCase()}
                             </div>
                         </div>
 
                         <button onClick={saveProgress} className="w-full py-5 bg-gradient-to-r from-violet-600 to-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-violet-500/20 active:scale-95 transition-all">
-                            Update Progress
+                            {t('actions.updateProgress')}
                         </button>
                     </div>
                 </div>
@@ -315,22 +317,22 @@ const Library = () => {
             {pendingStartBook && (
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
-                        <h3 className="text-2xl font-bold dark:text-white mb-2">Start Reading?</h3>
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            Do you want to start reading <strong>{pendingStartBook.title}</strong>?
+                            {t('dashboard.modals.startReadingMessage', { title: pendingStartBook.title })}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={confirmStartReading}
                                 className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition-all"
                             >
-                                Yes, Start
+                                {t('dashboard.modals.yesStart')}
                             </button>
                             <button
                                 onClick={() => setPendingStartBook(null)}
                                 className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold active:scale-95 transition-all"
                             >
-                                No
+                                {t('dashboard.modals.no')}
                             </button>
                         </div>
                     </div>
@@ -342,18 +344,33 @@ const Library = () => {
                 <div className="mb-6 p-4 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-100 dark:border-slate-800 animate-fade-in">
                     <div className="space-y-4">
                         <div>
-                            <span className="text-xs font-bold text-slate-400 uppercase mb-2 block">Sort By</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase mb-2 block">{t('library.sortBy')}</span>
                             <div className="flex flex-wrap gap-2">
                                 {sorts.map(s => (
-                                    <button key={s} onClick={() => setSortBy(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${sortBy === s ? 'bg-slate-800 text-white' : 'border-slate-200'}`}>{s}</button>
+                                    <button key={s} onClick={() => setSortBy(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${sortBy === s ? 'bg-slate-800 text-white' : 'border-slate-200'}`}>
+                                        {s === 'Alphabetical' ? t('library.sort.alphabetical') : s === 'Recently Added' ? t('library.sort.added') : t('library.sort.bought')}
+                                    </button>
                                 ))}
                             </div>
                         </div>
                         <div>
-                            <span className="text-xs font-bold text-slate-400 uppercase mb-2 block">Status</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase mb-2 block">{t('book.fields.status')}</span>
                             <div className="flex flex-wrap gap-2">
                                 {statuses.map(s => (
-                                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${statusFilter === s ? 'bg-violet-600 text-white' : 'border-slate-200'}`}>{s}</button>
+                                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-full text-xs font-medium border ${statusFilter === s ? 'bg-violet-600 text-white' : 'border-slate-200'}`}>
+                                        {s === 'All' ? t('library.all')
+                                            : s === 'Reading' ? t('book.status.reading')
+                                                : s === 'Read' ? t('book.status.completed')
+                                                    : s === 'Want to Read' ? t('book.status.wantToRead')
+                                                        : s === 'Paused' ? t('book.status.paused')
+                                                            : s === 'DNF' ? t('book.status.dnf')
+                                                                : s === 'Owned' ? t('book.status.owned')
+                                                                    : s === 'Sold' ? t('book.status.sold')
+                                                                        : s === 'Spicy' ? t('book.fields.spicy')
+                                                                            : s === 'To Buy' ? t('book.fields.toBuy')
+                                                                                : s === 'Worst Review' ? t('book.fields.worstReview')
+                                                                                    : s}
+                                    </button>
                                 ))}
                             </div>
                         </div>

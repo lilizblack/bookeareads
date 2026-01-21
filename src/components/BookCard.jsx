@@ -6,9 +6,11 @@ import { getCurrencySymbol } from '../utils/currency';
 import { getBookProgressPercentage, getSpineColor } from '../utils/bookUtils';
 import { useBooks } from '../context/BookContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selected = false, onSelect }) => {
     const { activeTimer, startTimer, stopTimer } = useBooks();
+    const { t } = useTranslation();
     const isActive = activeTimer?.bookId === book.id;
     const [imgError, setImgError] = useState(false);
 
@@ -106,12 +108,12 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                         {/* Status & Progress */}
                         {book.status === 'reading' && (
                             <div className="text-xs font-medium text-violet-600 dark:text-violet-400">
-                                Reading • {percentage}%
+                                {t('book.status.reading')} • {percentage}%
                             </div>
                         )}
                         {book.status === 'read' && (
                             <div className="text-xs font-medium text-violet-600 dark:text-violet-400">
-                                Read • 100%
+                                {t('book.status.completed')} • 100%
                             </div>
                         )}
 
@@ -119,12 +121,12 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                         <div className="flex gap-1 mb-1">
                             {book.isWantToBuy && (
                                 <span className="inline-block text-[10px] px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full font-bold">
-                                    Want
+                                    {t('actions.want')}
                                 </span>
                             )}
                             {book.status === 'want-to-read' && (
                                 <span className="inline-block text-[10px] px-2 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full font-bold">
-                                    TBR
+                                    {t('book.status.wantToRead')}
                                 </span>
                             )}
                         </div>
@@ -170,18 +172,18 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                         {/* Owned / Sold Tag */}
                         {book.ownershipStatus === 'sold' ? (
                             <span className="inline-block text-[10px] px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full font-bold">
-                                Sold
+                                {t('book.status.sold')}
                             </span>
                         ) : book.isOwned && (
                             <span className="inline-block text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold">
-                                Owned
+                                {t('book.status.owned')}
                             </span>
                         )}
 
                         {/* Genres - Show first one and all formats */}
                         {book.genres?.[0] && (
                             <div className="text-[10px] text-slate-400 mt-1">
-                                {book.genres[0]} • {[book.format, ...(book.otherVersions || [])].filter(Boolean).join(', ')}
+                                {book.genres[0]} • {[book.format, ...(book.otherVersions || [])].filter(Boolean).map(f => t(`book.formats.${f.toLowerCase()}`, f)).join(', ')}
                             </div>
                         )}
                     </div>
@@ -241,12 +243,12 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                     <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10">
                         {book.format && (
                             <div className="px-1.5 py-0.5 bg-white/80 dark:bg-black/40 backdrop-blur rounded text-[8px] font-bold text-slate-600 dark:text-slate-300 shadow-sm">
-                                {book.format}
+                                {t(`book.formats.${book.format.toLowerCase()}`, book.format)}
                             </div>
                         )}
                         {book.otherVersions?.map(ver => (
                             <div key={ver} className="px-1.5 py-0.5 bg-white/80 dark:bg-black/40 backdrop-blur rounded text-[8px] font-bold text-slate-600 dark:text-slate-300 shadow-sm">
-                                {ver}
+                                {t(`book.formats.${ver.toLowerCase()}`, ver)}
                             </div>
                         ))}
                     </div>
@@ -399,7 +401,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                             <div className="bg-green-500 h-full rounded-full" style={{ width: `${percentage}%` }} />
                         </div>
                         <div className="text-[10px] font-bold text-violet-600 dark:text-violet-400">
-                            Reading • {percentage}%
+                            {t('book.status.reading')} • {percentage}%
                         </div>
                     </div>
                 )}
@@ -413,17 +415,17 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                 <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
                     {book.ownershipStatus === 'sold' && (
                         <div className="px-2 py-0.5 bg-red-100/90 dark:bg-red-900/90 backdrop-blur rounded text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-sm">
-                            Sold
+                            {t('book.status.sold')}
                         </div>
                     )}
                     {book.format && (
                         <div className="px-2 py-0.5 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur rounded text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
-                            {book.format}
+                            {t(`book.formats.${book.format.toLowerCase()}`, book.format)}
                         </div>
                     )}
                     {book.otherVersions?.map(ver => (
                         <div key={ver} className="px-2 py-0.5 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur rounded text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
-                            {ver}
+                            {t(`book.formats.${ver.toLowerCase()}`, ver)}
                         </div>
                     ))}
                 </div>

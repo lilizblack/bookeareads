@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Heart, ScanBarcode, Upload, Image as ImageIcon, AlertTriangle, Book } from 'lucide-react';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -11,6 +12,7 @@ import ChilliIcon from '../components/ChilliIcon';
 import { fetchBookByISBN } from '../utils/bookApi';
 
 const AddBook = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const { addBook, checkDuplicate } = useBooks();
     const [showScanner, setShowScanner] = useState(false);
@@ -51,16 +53,16 @@ const AddBook = () => {
 
         // Validation
         const newErrors = {};
-        if (!formData.title.trim()) newErrors.title = 'Title is required';
-        if (!formData.author.trim()) newErrors.author = 'Author is required';
+        if (!formData.title.trim()) newErrors.title = t('addBook.form.errorTitle');
+        if (!formData.author.trim()) newErrors.author = t('addBook.form.errorAuthor');
 
         const totalVal = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
         if (!totalVal || totalVal <= 0) {
-            newErrors.pages = `${formData.format === 'Audiobook' ? 'Total Chapters' : 'Total Pages'} is required`;
+            newErrors.pages = formData.format === 'Audiobook' ? t('addBook.form.errorChapters') : t('addBook.form.errorPages');
         }
 
-        if (!formData.genres) newErrors.genres = 'Genre is required';
-        if (!formData.format) newErrors.format = 'Format is required';
+        if (!formData.genres) newErrors.genres = t('addBook.form.errorGenre');
+        if (!formData.format) newErrors.format = t('addBook.form.errorFormat');
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -127,7 +129,7 @@ const AddBook = () => {
 
     const handleFetchData = async () => {
         if (!formData.isbn) {
-            setCoverError('Please enter an ISBN first');
+            setCoverError(t('addBook.form.isbnError'));
             return;
         }
 
@@ -160,15 +162,15 @@ const AddBook = () => {
                         <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 mb-4">
                             <AlertTriangle size={32} />
                         </div>
-                        <h3 className="text-xl font-bold dark:text-white mb-2">Book Already Exists</h3>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('addBook.form.duplicateTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            A book with this {duplicateError.type === 'Title' ? 'title' : 'ISBN'} is already in your library. Please use a unique title or ISBN.
+                            {t('addBook.form.duplicateMessage', { type: duplicateError.type === 'Title' ? t('book.fields.title') : t('book.fields.isbn') })}
                         </p>
                         <button
                             onClick={() => setDuplicateError(null)}
                             className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold active:scale-95 transition-transform"
                         >
-                            Got it
+                            {t('addBook.form.gotIt')}
                         </button>
                     </div>
                 </div>
@@ -184,7 +186,7 @@ const AddBook = () => {
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-800 dark:text-white">
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Add Book</h1>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('addBook.title')}</h1>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,7 +199,7 @@ const AddBook = () => {
                             ) : (
                                 <div className="w-full h-full flex flex-col gap-2 items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-900/50">
                                     <Book size={48} strokeWidth={1.5} />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">No Cover</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">{t('addBook.form.noCover')}</span>
                                 </div>
                             )}
                         </div>
@@ -210,7 +212,7 @@ const AddBook = () => {
                             className="flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
                         >
                             <Upload size={14} />
-                            Upload
+                            {t('addBook.form.upload')}
                         </button>
                         <button
                             type="button"
@@ -219,7 +221,7 @@ const AddBook = () => {
                             className="flex items-center gap-1 px-3 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <ImageIcon size={14} />
-                            {fetchingCover ? 'Fetching...' : 'Fetch Book Data'}
+                            {fetchingCover ? t('addBook.form.fetching') : t('addBook.form.fetchData')}
                         </button>
                     </div>
 
@@ -239,12 +241,12 @@ const AddBook = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            Title <span className="text-red-500">*</span>
+                            {t('book.fields.title')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.title ? 'ring-2 ring-red-500' : ''}`}
-                            placeholder="Enter book title"
+                            placeholder={t('addBook.form.titlePlaceholder')}
                             value={formData.title}
                             onChange={e => {
                                 setFormData({ ...formData, title: e.target.value });
@@ -256,12 +258,12 @@ const AddBook = () => {
 
                     <div>
                         <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            Author <span className="text-red-500">*</span>
+                            {t('book.fields.author')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.author ? 'ring-2 ring-red-500' : ''}`}
-                            placeholder="Enter author name"
+                            placeholder={t('addBook.form.authorPlaceholder')}
                             value={formData.author}
                             onChange={e => {
                                 setFormData({ ...formData, author: e.target.value });
@@ -272,12 +274,12 @@ const AddBook = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">ISBN</label>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">{t('book.fields.isbn')}</label>
                         <div className="relative">
                             <input
                                 type="text"
                                 className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 pr-12 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white"
-                                placeholder="Enter ISBN or Scan"
+                                placeholder={t('addBook.form.isbnPlaceholder')}
                                 value={formData.isbn}
                                 onChange={e => setFormData({ ...formData, isbn: e.target.value })}
                             />
@@ -296,7 +298,7 @@ const AddBook = () => {
                     {/* Conditional: Total Pages (Physical/Ebook) or Total Chapters (Audiobook) */}
                     <div>
                         <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            {formData.format === 'Audiobook' ? 'Total Chapters' : 'Total Pages'} <span className="text-red-500">*</span>
+                            {formData.format === 'Audiobook' ? t('book.fields.chapters') : t('book.fields.pages')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
@@ -319,7 +321,7 @@ const AddBook = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                                Genre <span className="text-red-500">*</span>
+                                {t('book.fields.genres')} <span className="text-red-500">*</span>
                             </label>
                             <select
                                 className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white ${errors.genres ? 'ring-2 ring-red-500' : ''}`}
@@ -329,16 +331,18 @@ const AddBook = () => {
                                     if (errors.genres) setErrors({ ...errors, genres: null });
                                 }}
                             >
-                                <option value="" disabled>Select Genre</option>
+                                <option value="" disabled>{t('addBook.form.selectGenre')}</option>
                                 {GENRES.map(genre => (
-                                    <option key={genre} value={genre} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{genre}</option>
+                                    <option key={genre} value={genre} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">
+                                        {t(`book.genres.${genre}`, { defaultValue: genre })}
+                                    </option>
                                 ))}
                             </select>
                             {errors.genres && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.genres}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                                Status <span className="text-red-500">*</span>
+                                {t('book.fields.status')} <span className="text-red-500">*</span>
                             </label>
                             <select
                                 className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white"
@@ -367,9 +371,9 @@ const AddBook = () => {
                                     setFormData({ ...formData, ...updates });
                                 }}
                             >
-                                <option value="want-to-read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Want to Read</option>
-                                <option value="reading" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Reading</option>
-                                <option value="read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">Read</option>
+                                <option value="want-to-read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.wantToRead')}</option>
+                                <option value="reading" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.reading')}</option>
+                                <option value="read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.read')}</option>
                             </select>
                         </div>
                     </div>
@@ -379,10 +383,10 @@ const AddBook = () => {
                         <div className="space-y-4 animate-fade-in bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
                             <div className="flex justify-between items-center mb-1">
                                 <label className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                    Current {formData.format === 'Audiobook' ? 'Chapter' : 'Page'}
+                                    {formData.format === 'Audiobook' ? t('addBook.form.currentChapter') : t('addBook.form.currentPage')}
                                 </label>
                                 <span className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase">
-                                    {Math.round(((formData.progress || 0) / (formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages || 1)) * 100)}% Complete
+                                    {t('addBook.form.complete', { percent: Math.round(((formData.progress || 0) / (formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages || 1)) * 100) })}
                                 </span>
                             </div>
 
@@ -404,7 +408,7 @@ const AddBook = () => {
 
                             <div className="grid grid-cols-2 gap-4 pt-2">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Date Started</label>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">{t('addBook.form.dateStarted')}</label>
                                     <input
                                         type="date"
                                         className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs outline-none dark:text-white"
@@ -414,7 +418,7 @@ const AddBook = () => {
                                 </div>
                                 {formData.status === 'read' && (
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Date Finished</label>
+                                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">{t('addBook.form.dateFinished')}</label>
                                         <input
                                             type="date"
                                             className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs outline-none dark:text-white"
@@ -430,23 +434,23 @@ const AddBook = () => {
                     {/* Type / Format Selector */}
                     <div>
                         <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            Format <span className="text-red-500">*</span>
+                            {t('addBook.form.format')} <span className="text-red-500">*</span>
                         </label>
                         <div className={`flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg ${errors.format ? 'ring-2 ring-red-500' : ''}`}>
-                            {['Physical', 'Ebook', 'Audiobook'].map(format => (
+                            {['Physical', 'Ebook', 'Audiobook'].map(f => (
                                 <button
-                                    key={format}
+                                    key={f}
                                     type="button"
                                     onClick={() => {
-                                        setFormData({ ...formData, format });
+                                        setFormData({ ...formData, format: f });
                                         if (errors.format) setErrors({ ...errors, format: null });
                                     }}
-                                    className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${formData.format === format
+                                    className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${formData.format === f
                                         ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white'
                                         : 'text-slate-500 dark:text-slate-400'
                                         }`}
                                 >
-                                    {format}
+                                    {f === 'Physical' ? t('book.formats.physical') : f === 'Ebook' ? t('book.formats.ebook') : t('book.formats.audiobook')}
                                 </button>
                             ))}
                         </div>
@@ -455,7 +459,7 @@ const AddBook = () => {
 
                     {/* Other Versions Question */}
                     <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">Do you own another version?</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">{t('addBook.form.otherVersion')}</span>
                         <div className="flex flex-wrap gap-2">
                             {['Audiobook', 'Physical', 'Ebook'].map(version => (
                                 <label key={version} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
@@ -474,7 +478,9 @@ const AddBook = () => {
                                         }}
                                         className="accent-violet-600"
                                     />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{version}</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                        {version === 'Physical' ? t('book.formats.physical') : version === 'Ebook' ? t('book.formats.ebook') : t('book.formats.audiobook')}
+                                    </span>
                                 </label>
                             ))}
                         </div>
@@ -493,7 +499,7 @@ const AddBook = () => {
                                     }`}
                             >
                                 <Heart size={20} fill={formData.isFavorite ? "currentColor" : "none"} />
-                                <span className="text-xs font-bold">Favorite</span>
+                                <span className="text-xs font-bold">{t('addBook.form.favorite')}</span>
                             </button>
 
                             {/* 3-Way Ownership Toggle */}
@@ -520,7 +526,7 @@ const AddBook = () => {
                                         ? 'text-orange-700 dark:text-orange-400'
                                         : 'text-slate-500 dark:text-slate-400'
                                     }`}>
-                                    {formData.isOwned ? 'Owned' : formData.isWantToBuy ? 'Want' : 'Interested?'}
+                                    {formData.isOwned ? t('book.status.owned') : formData.isWantToBuy ? t('addBook.form.want') : t('addBook.form.interested')}
                                 </span>
 
                                 <div className={`w-10 h-5 rounded-full p-1 transition-colors relative shrink-0 ${formData.isOwned
@@ -542,7 +548,7 @@ const AddBook = () => {
                             {formData.isOwned && (
                                 <>
                                     <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[120px]">
-                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">Spent</span>
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">{t('book.fields.spent')}</span>
                                         <div className="flex items-center gap-1">
                                             <span className="text-sm font-bold text-slate-500">{getCurrencySymbol()}</span>
                                             <input
@@ -568,19 +574,19 @@ const AddBook = () => {
                                             value={formData.ownershipStatus}
                                             onChange={e => setFormData({ ...formData, ownershipStatus: e.target.value })}
                                         >
-                                            <option value="kept">Kept Copy</option>
-                                            <option value="sold">Sold</option>
+                                            <option value="kept">{t('book.status.owned')}</option>
+                                            <option value="sold">{t('book.status.sold')}</option>
                                         </select>
                                     </div>
 
                                     <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
-                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">Bought At</span>
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">{t('addBook.form.boughtAt')}</span>
                                         <select
                                             className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
                                             value={formData.purchaseLocation}
                                             onChange={e => setFormData({ ...formData, purchaseLocation: e.target.value })}
                                         >
-                                            <option value="" disabled>Select</option>
+                                            <option value="" disabled>{t('app.select')}</option>
                                             <option value="Online">Online</option>
                                             <option value="Local Bookstore">Local Bookstore</option>
                                         </select>
@@ -594,7 +600,7 @@ const AddBook = () => {
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <ChilliIcon size={20} className={formData.hasSpice ? "text-red-500" : "text-slate-400"} />
-                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Spicy Content?</span>
+                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{t('addBook.form.spicyContent')}</span>
                                 </div>
                                 <button
                                     type="button"
@@ -607,7 +613,7 @@ const AddBook = () => {
 
                             {formData.hasSpice && (
                                 <div className="flex items-center gap-4 py-2 px-3 bg-white dark:bg-slate-800 rounded-xl border border-red-100 dark:border-red-900/30 animate-fade-in shadow-sm">
-                                    <span className="text-[10px] font-black uppercase text-slate-400 min-w-[50px]">Intensity:</span>
+                                    <span className="text-[10px] font-black uppercase text-slate-400 min-w-[50px]">{t('addBook.form.intensity')}</span>
                                     <SpiceRating
                                         value={formData.spiceRating}
                                         onChange={v => setFormData({ ...formData, spiceRating: v })}
@@ -622,7 +628,7 @@ const AddBook = () => {
                     type="submit"
                     className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-xl mt-6 active:scale-95 transition-transform"
                 >
-                    Save Book
+                    {t('addBook.form.save')}
                 </button>
             </form>
         </div>

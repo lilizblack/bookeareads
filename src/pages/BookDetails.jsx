@@ -12,10 +12,12 @@ import CoverImage from '../components/CoverImage';
 import ShareModal from '../components/ShareModal';
 import { getCurrencySymbol } from '../utils/currency';
 import { Share2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const BookDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { books, updateBook, deleteBook, checkDuplicate, logReading, activeTimer, startTimer, stopTimer, globalSpeed } = useBooks();
 
     const [book, setBook] = useState(null);
@@ -225,15 +227,15 @@ const BookDetails = () => {
                         <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-orange-600 dark:text-orange-400 mb-4">
                             <AlertTriangle size={32} />
                         </div>
-                        <h3 className="text-xl font-bold dark:text-white mb-2">Duplicate Detected</h3>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.duplicateTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            Another book already uses this {duplicateError.type === 'Title' ? 'title' : 'ISBN'}. Please ensure all entries are unique.
+                            {t('dashboard.modals.duplicateMessage', { type: duplicateError.type === 'Title' ? t('book.fields.title') : t('book.fields.isbn') })}
                         </p>
                         <button
                             onClick={() => setDuplicateError(null)}
                             className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold active:scale-95 transition-transform"
                         >
-                            Got it
+                            {t('dashboard.modals.gotit')}
                         </button>
                     </div>
                 </div>
@@ -243,9 +245,10 @@ const BookDetails = () => {
             {showStartModal && (
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
-                        <h3 className="text-xl font-bold dark:text-white mb-2">Start Reading?</h3>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            Do you want to set the start date to today?
+                            {t('dashboard.modals.startReadingMessage', { title: '' })} {/* title is not actually used in this message in the old code but provided for future */}
+                            {t('dashboard.modals.startReadingQuestion', 'Do you want to set the start date to today?')}
                         </p>
 
                         {!showDateInput ? (
@@ -254,13 +257,13 @@ const BookDetails = () => {
                                     onClick={() => handleStartConfirm('now')}
                                     className="flex-1 py-3 bg-blue-500 text-white rounded-xl font-bold active:scale-95 transition-transform"
                                 >
-                                    Yes, Start Now
+                                    {t('dashboard.modals.startNow')}
                                 </button>
                                 <button
                                     onClick={() => handleStartConfirm('manual_input')}
                                     className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold active:scale-95 transition-transform"
                                 >
-                                    Set Manual
+                                    {t('dashboard.modals.setManual')}
                                 </button>
                             </div>
                         ) : (
@@ -275,7 +278,7 @@ const BookDetails = () => {
                                     onClick={() => handleStartConfirm('manual_save')}
                                     className="w-full py-3 bg-blue-500 text-white rounded-xl font-bold active:scale-95 transition-transform"
                                 >
-                                    Confirm Date
+                                    {t('dashboard.modals.confirmDate')}
                                 </button>
                             </div>
                         )}
@@ -284,7 +287,7 @@ const BookDetails = () => {
                             onClick={() => { setShowStartModal(false); setShowDateInput(false); }}
                             className="mt-4 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
                         >
-                            Cancel
+                            {t('app.cancel')}
                         </button>
                     </div>
                 </div>
@@ -295,7 +298,7 @@ const BookDetails = () => {
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm max-h-[80vh] rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col">
                         <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
-                            <h3 className="text-xl font-bold dark:text-white">Reading Activity</h3>
+                            <h3 className="text-xl font-bold dark:text-white">{t('dashboard.modals.history')}</h3>
                             <button onClick={() => setShowActivityModal(false)} className="text-slate-400 hover:text-slate-600">
                                 <CloseIcon size={20} />
                             </button>
@@ -314,7 +317,7 @@ const BookDetails = () => {
                                                     {format(parseISO(log.date), 'MMMM d, yyyy')}
                                                 </span>
                                                 <span className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {log.pagesRead} {book.progressMode === 'chapters' ? 'Chapters' : 'Pages'}
+                                                    {log.pagesRead} {book.progressMode === 'chapters' ? t('book.fields.chapters') : t('book.fields.pages')}
                                                 </span>
                                             </div>
                                         </div>
@@ -322,7 +325,7 @@ const BookDetails = () => {
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-slate-400">
-                                    <p>No activity recorded yet.</p>
+                                    <p>{t('dashboard.modals.noHistory')}</p>
                                 </div>
                             )}
                         </div>
@@ -343,8 +346,8 @@ const BookDetails = () => {
 
                             <div className="flex justify-between items-center mb-6 z-10">
                                 <div>
-                                    <h3 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">Log Progress</h3>
-                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Update your journey</p>
+                                    <h3 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">{t('dashboard.modals.logProgress')}</h3>
+                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('dashboard.modals.updateJourney')}</p>
                                 </div>
                                 <button
                                     onClick={() => setShowLogModal(false)}
@@ -356,7 +359,7 @@ const BookDetails = () => {
 
                             <div className="mb-8 z-10">
                                 <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">
-                                    New {book.format === 'Audiobook' || book.progressMode === 'chapters' ? 'Chapter' : 'Page'} Number
+                                    {book.format === 'Audiobook' || book.progressMode === 'chapters' ? t('dashboard.modals.newChapter') : t('dashboard.modals.newPage')}
                                 </label>
                                 <input
                                     type="number"
@@ -381,7 +384,7 @@ const BookDetails = () => {
                                 }}
                                 className="w-full py-4 bg-gradient-to-r from-violet-600 to-blue-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/30 active:scale-95 transition-all z-10"
                             >
-                                Update Progress
+                                {t('dashboard.modals.logProgress')}
                             </button>
                         </div>
                     </div>
@@ -399,9 +402,9 @@ const BookDetails = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
                 <button onClick={() => navigate(-1)} className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center">
-                    ← Back
+                    ← {t('actions.back')}
                 </button>
-                <h1 className="text-xl font-bold dark:text-white">Book Details</h1>
+                <h1 className="text-xl font-bold dark:text-white">{t('book.details')}</h1> {/* or specific title */}
                 {isEditing ? (
                     <div className="flex gap-2">
                         <button onClick={handleCancel} className="bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
@@ -413,7 +416,7 @@ const BookDetails = () => {
                     </div>
                 ) : (
                     <button onClick={handleEditToggle} className="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
-                        <Pencil size={16} /> Edit
+                        <Pencil size={16} /> {t('actions.edit')}
                     </button>
                 )}
             </div>
@@ -429,9 +432,9 @@ const BookDetails = () => {
                             <Timer size={20} className={activeTimer?.bookId === book.id ? 'animate-spin-slow' : ''} />
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Reading Timer</span>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">{t('dashboard.modals.timer')}</span>
                             <h4 className="text-sm font-bold dark:text-white">
-                                {activeTimer?.bookId === book.id ? 'Session in progress...' : 'Start tracking time'}
+                                {activeTimer?.bookId === book.id ? t('dashboard.modals.sessionInProgress') : t('dashboard.modals.startTracking')}
                             </h4>
                         </div>
                     </div>
@@ -458,7 +461,7 @@ const BookDetails = () => {
                             : 'bg-blue-600 text-white shadow-blue-500/30'
                             }`}
                     >
-                        {activeTimer?.bookId === book.id ? 'Stop & Log' : 'Start Timer'}
+                        {activeTimer?.bookId === book.id ? t('actions.stopAndLog') : t('actions.startTimer')}
                     </button>
                 </div>
             )}
@@ -501,7 +504,7 @@ const BookDetails = () => {
                                 className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium transition-colors"
                             >
                                 <ImageIcon size={14} />
-                                {fetchingCover ? 'Fetching...' : 'Fetch Book Data'}
+                                {fetchingCover ? t('actions.fetching') : t('actions.fetchData')}
                             </button>
                             {coverError && <p className="text-[10px] text-red-500 text-center">{coverError}</p>}
                         </div>
@@ -602,7 +605,7 @@ const BookDetails = () => {
                                 ? 'text-orange-700 dark:text-orange-400'
                                 : 'text-slate-500 dark:text-slate-400'
                             }`}>
-                            {(isEditing ? editData.isOwned : book.isOwned) ? 'Owned' : (isEditing ? editData.isWantToBuy : book.isWantToBuy) ? 'Want' : 'Interested?'}
+                            {(isEditing ? editData.isOwned : book.isOwned) ? t('book.status.owned') : (isEditing ? editData.isWantToBuy : book.isWantToBuy) ? t('actions.want') : t('book.fields.interested')}
                         </span>
 
                         <div className={`w-8 h-4 rounded-full p-0.5 transition-colors relative shrink-0 ${(isEditing ? editData.isOwned : book.isOwned)
@@ -622,7 +625,7 @@ const BookDetails = () => {
 
                     {(isEditing ? editData.isOwned : book.isOwned) && (
                         <div className="flex flex-col justify-center px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px] shrink-0">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5 text-center">Spent</span>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5 text-center">{t('book.fields.spent')}</span>
                             <div className="flex items-center gap-1 justify-center">
                                 <span className="text-sm font-bold text-slate-500">{getCurrencySymbol()}</span>
                                 <input
@@ -644,27 +647,27 @@ const BookDetails = () => {
 
                     {(isEditing ? editData.isOwned : book.isOwned) && (
                         <div className="flex flex-col justify-center px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px] shrink-0">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">Status</span>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">{t('book.fields.status')}</span>
                             <select
                                 value={(isEditing ? editData.ownershipStatus : book.ownershipStatus) || 'kept'}
                                 onChange={e => handleChange('ownershipStatus', e.target.value)}
                                 className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none text-center cursor-pointer"
                             >
-                                <option value="kept">Kept Copy</option>
-                                <option value="sold">Sold</option>
+                                <option value="kept">{t('book.status.owned')}</option>
+                                <option value="sold">{t('book.status.sold')}</option>
                             </select>
                         </div>
                     )}
 
                     {(isEditing ? editData.isOwned : book.isOwned) && (
                         <div className="flex flex-col justify-center px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px] shrink-0">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">Bought At</span>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">{t('book.fields.purchaseLocation')}</span>
                             <select
                                 value={(isEditing ? editData.purchaseLocation : book.purchaseLocation) || ''}
                                 onChange={e => handleChange('purchaseLocation', e.target.value)}
                                 className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none text-center cursor-pointer"
                             >
-                                <option value="" disabled>Select</option>
+                                <option value="" disabled>{t('app.select')}</option>
                                 <option value="Online">Online</option>
                                 <option value="Local Bookstore">Local Bookstore</option>
                             </select>
@@ -691,126 +694,109 @@ const BookDetails = () => {
                 )}
 
                 {/* Info Grid (Selectors) */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-6 mb-6">
-                    {/* Genre */}
-                    <div className="col-span-2">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 block">Genre</span>
-                        <div className="relative">
-                            <select
-                                value={(isEditing ? editData.genres?.[0] : book.genres?.[0]) || ''}
-                                onChange={e => handleChange('genres', [e.target.value])}
-                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none"
-                            >
-                                <option value="" disabled>Select Genre</option>
-                                {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                ▼
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Format/Type Toggles */}
+                <div className="grid grid-cols-2 gap-4 mb-8">
                     <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">Format</span>
+                        <span className="text-xs font-bold uppercase text-slate-400 block mb-1">{t('book.fields.genres')}</span>
+                        {isEditing ? (
+                            <div className="relative">
+                                <select
+                                    value={(isEditing ? editData.genres?.[0] : book.genres?.[0]) || ''}
+                                    onChange={e => handleChange('genres', [e.target.value])}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none"
+                                >
+                                    <option value="" disabled>{t('app.select')}</option>
+                                    {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    ▼
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-1">
+                                {book.genres.map((g, i) => (
+                                    <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded text-[10px] font-bold">
+                                        {g}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <span className="text-xs font-bold uppercase text-slate-400 block mb-1">{t('book.fields.format')}</span>
                         <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                             {['Physical', 'Ebook', 'Audiobook'].map(type => (
                                 <button
                                     key={type}
                                     onClick={() => handleChange('format', type)}
-                                    className={`py-2 rounded-lg text-xs font-bold transition-all ${(isEditing ? editData.format : book.format) === type
+                                    className={`py-2 rounded-lg text-[10px] font-bold transition-all ${(isEditing ? editData.format : book.format) === type
                                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                                         : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                         }`}
+                                    disabled={!isEditing}
                                 >
-                                    {type}
+                                    {t(`book.formats.${type.toLowerCase()}`)}
                                 </button>
                             ))}
                         </div>
                     </div>
+                </div>
 
-                    {/* Other Versions Question */}
-                    <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">Do you own another version?</span>
-                        <div className="flex flex-wrap gap-2">
-                            {['Audiobook', 'Physical', 'Ebook'].map(version => (
-                                <label key={version} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={(isEditing ? (editData.otherVersions || []) : (book.otherVersions || [])).includes(version)}
-                                        onChange={(e) => {
-                                            const currentVersions = isEditing ? (editData.otherVersions || []) : (book.otherVersions || []);
-                                            let newVersions;
-                                            if (e.target.checked) {
-                                                newVersions = [...currentVersions, version];
-                                            } else {
-                                                newVersions = currentVersions.filter(v => v !== version);
-                                            }
-                                            handleChange('otherVersions', newVersions);
-                                        }}
-                                        className="accent-violet-600"
-                                    />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{version}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-1">
-                        <span className="font-bold text-slate-900 dark:text-white">Status:</span>
+                <div className="space-y-6 mb-8">
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white">{t('book.fields.status')}:</span>
                         <select
                             value={isEditing ? editData.status : book.status}
                             onChange={e => handleChange('status', e.target.value)}
                             className="bg-transparent text-right outline-none text-slate-600 dark:text-slate-300"
+                            disabled={!isEditing}
                         >
-                            <option value="reading" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Reading</option>
-                            <option value="read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Read</option>
-                            <option value="want-to-read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">TBR</option>
-                            <option value="paused" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Paused</option>
-                            <option value="dnf" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">DNF</option>
+                            <option value="reading" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.reading')}</option>
+                            <option value="read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.completed')}</option>
+                            <option value="want-to-read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.wantToRead')}</option>
+                            <option value="paused" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.paused')}</option>
+                            <option value="dnf" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.dnf')}</option>
                         </select>
                     </div>
 
-                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-1">
-                        <span className="font-bold text-slate-900 dark:text-white">Style:</span>
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white">{t('book.fields.style')}:</span>
                         <select
-                            value={(isEditing ? editData.progressMode : book.progressMode) || 'percent'}
-                            onChange={e => handleChange('progressMode', e.target.value)}
+                            value={isEditing ? editData.readingStyle : book.readingStyle}
+                            onChange={e => handleChange('readingStyle', e.target.value)}
                             className="bg-transparent text-right outline-none text-slate-600 dark:text-slate-300"
+                            disabled={!isEditing}
                         >
-                            <option value="percent" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Percent</option>
-                            {book.format === 'Audiobook' ? (
-                                <option value="chapters" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Chapters</option>
-                            ) : (
-                                <option value="pages" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Pages</option>
-                            )}
+                            <option value="Normal" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('settings.default')}</option>
+                            <option value="Buddy Read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Buddy Read</option>
+                            <option value="Re-read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Re-read</option>
                         </select>
                     </div>
                 </div>
 
-                {/* Input Grid for Progress */}
-                <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                <div className="grid grid-cols-2 gap-6 mb-10">
                     <div>
-                        <span className="block font-bold text-slate-900 dark:text-white mb-1">Started:</span>
+                        <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.started')}:</span>
                         <input
                             type="date"
                             value={(isEditing ? editData.startedAt : book.startedAt)?.split('T')[0] || ''}
                             onChange={e => handleChange('startedAt', e.target.value)}
                             className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300"
+                            disabled={!isEditing}
                         />
                     </div>
                     <div>
-                        <span className="block font-bold text-slate-900 dark:text-white mb-1">Finished:</span>
+                        <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.finished')}:</span>
                         <input
                             type="date"
                             value={(isEditing ? editData.finishedAt : book.finishedAt)?.split('T')[0] || ''}
                             onChange={e => handleChange('finishedAt', e.target.value)}
                             className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300"
+                            disabled={!isEditing}
                         />
                     </div>
 
                     <div>
-                        <span className="block font-bold text-slate-900 dark:text-white mb-1">Read:</span>
+                        <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.read')}:</span>
                         <input
                             type="number"
                             value={(isEditing ? editData.progress : book.progress) || 0}
@@ -829,7 +815,7 @@ const BookDetails = () => {
                     </div>
                     <div>
                         <span className="block font-bold text-slate-900 dark:text-white mb-1">
-                            Total {book.format === 'Audiobook' ? 'Chapters' : 'Pages'}:
+                            {t('book.fields.total')} {book.format === 'Audiobook' ? t('book.fields.chapters') : t('book.fields.pages')}:
                         </span>
                         {isEditing ? (
                             <input
@@ -847,41 +833,37 @@ const BookDetails = () => {
                     </div>
                 </div>
 
-                {/* Non-Editable Sliding Bookmark Progress Bar */}
+                {/* Progress Bar Rendering */}
                 <div className="mb-6 mt-4">
                     <div className="relative w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full">
-                        {/* Filled Bar */}
                         <div
                             className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-400 to-violet-500 rounded-full transition-all duration-300"
                             style={{ width: `${getPercentage()}%` }}
                         />
-
-                        {/* Sliding Bookmark */}
                         <div
                             className="absolute top-0 transition-all duration-300 z-10"
                             style={{ left: `${getPercentage()}%`, transform: 'translateX(-50%)' }}
                         >
                             <div className="relative -top-3 flex flex-col items-center">
-                                {/* Bookmark Body */}
                                 <div className="bg-violet-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm shadow-md min-w-[40px] text-center mb-1 whitespace-nowrap">
                                     {getBookmarkLabel()}
                                 </div>
-                                {/* Triangle arrow */}
                                 <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-violet-600"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-
-
-                <h3 className="font-bold text-slate-900 dark:text-white mb-2">Description</h3>
-                <textarea
-                    value={(isEditing ? editData.description : book.description) || ''}
-                    onChange={e => handleChange('description', e.target.value)}
-                    className="w-full h-24 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm mb-6 outline-none dark:text-slate-200 resize-none"
-                    placeholder="Enter description..."
-                />
+                <div className="mb-8">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">{t('book.fields.description', 'Description')}</h3>
+                    <textarea
+                        value={(isEditing ? editData.description : book.description) || ''}
+                        onChange={e => handleChange('description', e.target.value)}
+                        readOnly={!isEditing}
+                        className="w-full h-24 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm mb-6 outline-none dark:text-slate-200 resize-none"
+                        placeholder={t('book.fields.description', 'Enter description...')}
+                    />
+                </div>
 
                 {!isEditing && book.status === 'read' && (
                     <div className="mb-8">
@@ -890,26 +872,27 @@ const BookDetails = () => {
                             className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
                         >
                             <Share2 size={20} className="group-hover:rotate-12 transition-transform" />
-                            Share Achievement
+                            {t('actions.export', 'Share Achievement')}
                         </button>
                     </div>
                 )}
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-slate-900 dark:text-white">Your Review</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white">{t('book.fields.review')}</h3>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold w-16 dark:text-slate-300">Rating:</span>
+                        <span className="text-sm font-bold w-16 dark:text-slate-300">{t('book.fields.rating')}:</span>
                         <Rating value={isEditing ? editData.rating : book.rating} onChange={v => handleChange('rating', v)} />
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold w-16 dark:text-slate-300">Spice:</span>
+                        <span className="text-sm font-bold w-16 dark:text-slate-300">{t('book.fields.spice')}:</span>
                         <SpiceRating value={isEditing ? editData.spiceRating : book.spiceRating} onChange={v => handleChange('spiceRating', v)} />
 
                         <div className="ml-auto flex items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase text-slate-400">Spicy Content?</span>
+                            <span className="text-[10px] font-bold uppercase text-slate-400">{t('book.fields.hasSpice', 'Spicy Content?')}</span>
                             <button
                                 onClick={() => handleChange('hasSpice', isEditing ? !editData.hasSpice : !book.hasSpice)}
                                 className={`w-10 h-5 rounded-full p-0.5 transition-colors relative ${(isEditing ? editData.hasSpice : book.hasSpice) ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                disabled={!isEditing}
                             >
                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 absolute top-0.5 ${(isEditing ? editData.hasSpice : book.hasSpice) ? 'left-[22px]' : 'left-[2px]'}`} />
                             </button>
@@ -919,26 +902,27 @@ const BookDetails = () => {
                     <textarea
                         value={(isEditing ? editData.review : book.review) || ''}
                         onChange={e => handleChange('review', e.target.value)}
+                        readOnly={!isEditing}
                         className="w-full h-32 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm outline-none resize-none dark:text-slate-200"
-                        placeholder="Write your thoughts about the book..."
+                        placeholder={t('book.fields.notes', 'Write your thoughts about the book...')}
                     />
                 </div>
 
                 <div className="flex justify-between items-center mt-6">
                     <button onClick={() => navigate(`/book/${id}/notes`)} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 -ml-3 active:scale-95">
-                        See all Notes →
+                        {t('nav.notes')} →
                     </button>
                     <button onClick={() => setShowActivityModal(true)} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 -mr-3 active:scale-95">
-                        See all Activity →
+                        {t('calendar.readingActivity')} →
                     </button>
                 </div>
 
                 {!isEditing && (
                     <div className="space-y-4 mt-8">
                         <button className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl shadow-sm active:scale-95 transition-transform" onClick={() => navigate(-1)}>
-                            Back to Library
+                            {t('app.back')}
                         </button>
-                        <button onClick={() => setShowDeleteModal(true)} className="w-full text-red-500/60 text-sm font-bold">Delete Book</button>
+                        <button onClick={() => setShowDeleteModal(true)} className="w-full text-red-500/60 text-sm font-bold">{t('actions.delete')}</button>
                     </div>
                 )}
             </div>
@@ -948,8 +932,8 @@ const BookDetails = () => {
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in relative overflow-hidden text-center">
                         <div className="mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete Book?</h3>
-                            <p className="text-slate-500 dark:text-slate-400">Are you sure you want to delete this book? This action cannot be undone.</p>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('library.confirmDeleteTitle')}</h3>
+                            <p className="text-slate-500 dark:text-slate-400">{t('library.confirmDeleteMessage', { count: 1, item: t('book.fields.title').toLowerCase() })}</p>
                         </div>
 
                         <div className="flex gap-3">
@@ -957,7 +941,7 @@ const BookDetails = () => {
                                 onClick={() => setShowDeleteModal(false)}
                                 className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl"
                             >
-                                No, Keep it
+                                {t('app.no')}
                             </button>
                             <button
                                 onClick={() => {
@@ -967,13 +951,12 @@ const BookDetails = () => {
                                 }}
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/30"
                             >
-                                Yes, Delete
+                                {t('app.yes')}, {t('actions.delete')}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
 
             {/* Share Modal */}
             {showShareModal && (

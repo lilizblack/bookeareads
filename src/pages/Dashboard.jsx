@@ -7,6 +7,7 @@ import StatsCard from '../components/StatsCard';
 import CoverImage from '../components/CoverImage';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer } from 'lucide-react';
 import { getBookProgressPercentage } from '../utils/bookUtils';
 
@@ -14,6 +15,7 @@ const Dashboard = () => {
     const { loading, readingBooks, getYearlyStats, wantToReadBooks, logReading, readingGoal, setReadingGoal, userProfile, activeTimer, startTimer, stopTimer, updateBook } = useBooks();
     const { user } = useAuth();
     const { theme, toggleTheme, themePreset } = useTheme();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const stats = getYearlyStats();
 
@@ -36,7 +38,6 @@ const Dashboard = () => {
             if (activeTimer && activeTimer.bookId === book.id) {
                 const start = new Date(activeTimer.startTime);
                 const now = new Date();
-                const diffMs = now - start;
                 const minutes = (now - start) / 60000;
                 setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
                 setSelectedBook(book);
@@ -122,7 +123,7 @@ const Dashboard = () => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col">
                         <div className="flex justify-between items-center mb-8">
                             <h3 className="text-2xl font-bold dark:text-white flex items-center gap-2">
-                                <Target className="text-blue-500" /> Set Goals
+                                <Target className="text-blue-500" /> {t('dashboard.modals.setGoals')}
                             </h3>
                             <button onClick={() => setIsGoalModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                                 <X size={24} className="text-slate-400" />
@@ -131,7 +132,7 @@ const Dashboard = () => {
 
                         <div className="space-y-8 mb-10">
                             <div>
-                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">Monthly Goal</label>
+                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">{t('dashboard.modals.monthlyGoal')}</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
@@ -139,12 +140,12 @@ const Dashboard = () => {
                                         value={tempGoals.monthly}
                                         onChange={e => setTempGoals(prev => ({ ...prev, monthly: Number(e.target.value) }))}
                                     />
-                                    <span className="text-slate-400 font-bold uppercase text-xs">Books / Mo</span>
+                                    <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksMo')}</span>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">Yearly Goal</label>
+                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">{t('dashboard.modals.yearlyGoal')}</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
@@ -152,7 +153,7 @@ const Dashboard = () => {
                                         value={tempGoals.yearly}
                                         onChange={e => setTempGoals(prev => ({ ...prev, yearly: Number(e.target.value) }))}
                                     />
-                                    <span className="text-slate-400 font-bold uppercase text-xs">Books / Yr</span>
+                                    <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksYr')}</span>
                                 </div>
                             </div>
                         </div>
@@ -161,17 +162,18 @@ const Dashboard = () => {
                             onClick={saveGoals}
                             className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
                         >
-                            Save Goals
+                            {t('dashboard.modals.setGoals')}
                         </button>
                     </div>
                 </div>
             )}
+
             {/* Modal Overlay */}
             {selectedBook && (
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in slide-in-from-bottom">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold dark:text-white">Log Progress</h3>
+                            <h3 className="text-xl font-bold dark:text-white">{t('dashboard.modals.logProgress')}</h3>
                             <button onClick={() => setSelectedBook(null)}><X /></button>
                         </div>
 
@@ -186,21 +188,21 @@ const Dashboard = () => {
                             </div>
                             <div>
                                 <h4 className="font-bold dark:text-white">{selectedBook.title}</h4>
-                                <p className="text-sm text-slate-500">Current: {selectedBook.progress}</p>
+                                <p className="text-sm text-slate-500">{t('book.fields.progress')}: {selectedBook.progress}</p>
                             </div>
                         </div>
 
                         {elapsedMinutes > 0 && (
                             <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 text-center animate-fade-in">
-                                Reading Session: {elapsedMinutes} min
+                                {t('dashboard.modals.session', { minutes: elapsedMinutes })}
                             </div>
                         )}
 
                         <div className="mb-8">
                             <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">
                                 {(selectedBook.progressMode === 'chapters' || selectedBook.format === 'Audiobook')
-                                    ? 'New Chapter Number'
-                                    : 'New Page Number'}
+                                    ? t('dashboard.modals.newChapter')
+                                    : t('dashboard.modals.newPage')}
                             </label>
                             <input
                                 type="number"
@@ -212,7 +214,7 @@ const Dashboard = () => {
                         </div>
 
                         <button onClick={saveProgress} className="w-full py-4 bg-violet-600 rounded-xl text-white font-bold text-lg active:scale-95 transition-transform">
-                            Save Progress
+                            {t('dashboard.modals.logProgress')}
                         </button>
                     </div>
                 </div>
@@ -222,22 +224,22 @@ const Dashboard = () => {
             {pendingStartBook && (
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
-                        <h3 className="text-2xl font-bold dark:text-white mb-2">Start Reading?</h3>
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            Do you want to start reading <strong>{pendingStartBook.title}</strong>?
+                            {t('dashboard.modals.startReadingMessage', { title: pendingStartBook.title })}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={confirmStartReading}
                                 className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition-all"
                             >
-                                Yes, Start
+                                {t('dashboard.modals.yesStart')}
                             </button>
                             <button
                                 onClick={() => setPendingStartBook(null)}
                                 className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold active:scale-95 transition-all"
                             >
-                                No
+                                {t('dashboard.modals.no')}
                             </button>
                         </div>
                     </div>
@@ -249,9 +251,9 @@ const Dashboard = () => {
 
             <div className="flex justify-between items-start mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Dashboard</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t('dashboard.title')}</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {userProfile?.name ? `Hi, ${userProfile.name}` : (user ? `Hi, ${user.email.split('@')[0]}` : 'Welcome, Guest')}
+                        {userProfile?.name ? t('dashboard.hi', { name: userProfile.name }) : (user ? t('dashboard.hi', { name: user.email.split('@')[0] }) : t('dashboard.welcome'))}
                     </p>
                 </div>
             </div>
@@ -259,25 +261,25 @@ const Dashboard = () => {
             {/* Stats Cards Row */}
             <div className="grid grid-cols-4 gap-3 mb-8">
                 <StatsCard
-                    label="Reading"
+                    label={t('dashboard.reading')}
                     count={stats.reading}
                     colorClass="bg-[var(--color-pastel-blue)] dark:bg-blue-900/40"
                     onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
                 />
                 <StatsCard
-                    label="Read"
+                    label={t('dashboard.read')}
                     count={stats.read}
                     colorClass="bg-[var(--color-pastel-green)] dark:bg-emerald-900/40"
                     onClick={() => navigate('/library', { state: { statusFilter: 'Read' } })}
                 />
                 <StatsCard
-                    label="TBR"
+                    label={t('dashboard.tbr')}
                     count={stats.tbr}
                     colorClass="bg-[var(--color-pastel-pink)] dark:bg-fuchsia-900/40"
                     onClick={() => navigate('/library', { state: { statusFilter: 'Want to Read' } })}
                 />
                 <StatsCard
-                    label="Added"
+                    label={t('dashboard.added')}
                     count={stats.addedThisMonth}
                     colorClass="bg-[var(--color-pastel-orange)] dark:bg-amber-900/40"
                     onClick={() => navigate('/library')}
@@ -287,9 +289,9 @@ const Dashboard = () => {
             {/* Goals Section (Special Bar) */}
             <div className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Goals This Month</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('dashboard.goalsThisMonth')}</h2>
                     <button onClick={openGoalModal} className={`text-sm font-bold ${themePreset === 'paper-ink' ? 'text-slate-900' : 'text-blue-500 hover:text-blue-600'} transition-colors px-3 py-2 -mr-3 active:scale-95`}>
-                        Set Goals <ArrowRight size={14} className="ml-1 inline" />
+                        {t('dashboard.setGoals')} <ArrowRight size={14} className="ml-1 inline" />
                     </button>
                 </div>
 
@@ -304,14 +306,14 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                                <span className="block text-sm font-black text-slate-800 dark:text-slate-200">Books Read</span>
+                                <span className="block text-sm font-black text-slate-800 dark:text-slate-200">{t('dashboard.booksRead')}</span>
                                 {stats.readThisMonth >= readingGoal.monthly && (
                                     <div className="bg-blue-500 text-white p-0.5 rounded-full shadow-lg shadow-blue-500/40 animate-scale-in">
                                         <Check size={12} strokeWidth={4} />
                                     </div>
                                 )}
                             </div>
-                            <span className="text-[10px] font-bold text-blue-500/80 uppercase tracking-tighter">Monthly Target</span>
+                            <span className="text-[10px] font-bold text-blue-500/80 uppercase tracking-tighter">{t('dashboard.readingGoal')}</span>
                         </div>
                     </div>
                 </div>
@@ -323,10 +325,10 @@ const Dashboard = () => {
                         className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl py-3 px-4 flex items-center justify-center gap-2 font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-md"
                     >
                         <BarChart2 size={18} />
-                        Annual Report
+                        {t('dashboard.annualReport')}
                     </button>
                     <div className="bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between flex-[1.5] border border-slate-200 dark:border-white/10 contrast-card">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yearly Progress</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.yearlyProgress')}</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
                             <span className="text-xs font-bold text-slate-400">/ {readingGoal.yearly}</span>
@@ -338,13 +340,13 @@ const Dashboard = () => {
             {/* Currently Reading (Carousel) */}
             <div className="mb-8 -mx-4 px-4">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Currently reading</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('dashboard.currentlyReading')}</h2>
                     <div className="flex gap-4 items-center">
                         <button
                             onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
                             className={`text-sm font-bold ${themePreset === 'paper-ink' ? 'text-slate-900' : 'text-blue-500 hover:text-blue-600'} transition-colors px-3 py-2 active:scale-95`}
                         >
-                            See all <ArrowRight size={14} className="ml-1 inline" />
+                            {t('dashboard.seeAll')} <ArrowRight size={14} className="ml-1 inline" />
                         </button>
                         <div className="flex gap-2">
                             <button onClick={() => scroll('left')} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -409,16 +411,16 @@ const Dashboard = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-slate-400 text-sm italic py-4">Not reading anything yet.</div>
+                    <div className="text-slate-400 text-sm italic py-4">{t('dashboard.noBooksReading')}</div>
                 )}
             </div>
 
             {/* Next Up */}
             <div>
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Next Up</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('dashboard.nextUp')}</h2>
                     <button onClick={() => navigate('/add')} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 active:scale-95">
-                        + Add book
+                        {t('dashboard.addBookShort')}
                     </button>
                 </div>
 
@@ -428,7 +430,7 @@ const Dashboard = () => {
                     ))}
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 

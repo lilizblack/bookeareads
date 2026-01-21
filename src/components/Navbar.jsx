@@ -1,14 +1,17 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Library, PlusCircle, Calendar, Heart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Navbar = () => {
+    const { t } = useTranslation();
+
     const navItems = [
-        { to: '/', icon: <Home size={24} />, label: 'Home' },
-        { to: '/library', icon: <Library size={24} />, label: 'Shelf' },
-        { to: '/add', icon: <PlusCircle size={32} className="text-slate-900 dark:text-white" />, label: 'Add', isSpecial: true },
-        { to: '/calendar', icon: <Calendar size={24} />, label: 'Calendar' },
-        { to: '/favorites', icon: <Heart size={24} />, label: 'Favs' },
+        { to: '/', icon: <Home size={24} />, label: t('nav.dashboard') },
+        { to: '/library', icon: <Library size={24} />, label: t('nav.library') },
+        { to: '/add', icon: <PlusCircle size={32} className="text-slate-900 dark:text-white" />, label: t('nav.addBook'), isSpecial: true },
+        { to: '/calendar', icon: <Calendar size={24} />, label: t('nav.calendar') },
+        { to: '/favorites', icon: <Heart size={24} />, label: t('nav.favorites') },
     ];
 
     return (

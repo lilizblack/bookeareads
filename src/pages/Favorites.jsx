@@ -4,8 +4,10 @@ import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import { ArrowDownUp, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Favorites = () => {
+    const { t } = useTranslation();
     const { books, loading } = useBooks();
     const navigate = useNavigate();
 
@@ -21,6 +23,12 @@ const Favorites = () => {
     }
 
     const sorts = ['Alphabetical', 'Recently Added', 'Recently Bought'];
+    const getSortLabel = (s) => {
+        if (s === 'Alphabetical') return t('library.sort.alphabetical');
+        if (s === 'Recently Added') return t('library.sort.added');
+        if (s === 'Recently Bought') return t('library.sort.bought');
+        return s;
+    };
 
     // Filter only favorite books
     let favoriteBooks = books.filter(book => book.isFavorite);
@@ -38,13 +46,13 @@ const Favorites = () => {
             <Header />
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Favorites</h1>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t('favorites.title')}</h1>
                 <div className="relative">
                     <button
                         onClick={() => setShowSortMenu(!showSortMenu)}
                         className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500"
                     >
-                        {sortBy} <ArrowDownUp size={14} />
+                        {getSortLabel(sortBy)} <ArrowDownUp size={14} />
                     </button>
 
                     {/* Sort Menu */}
@@ -59,7 +67,7 @@ const Favorites = () => {
                                     }}
                                     className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${sortBy === s ? 'bg-violet-600 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                 >
-                                    {s}
+                                    {getSortLabel(s)}
                                 </button>
                             ))}
                         </div>
@@ -70,7 +78,7 @@ const Favorites = () => {
             {/* Book Count */}
             <div className="mb-4">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {favoriteBooks.length} {favoriteBooks.length === 1 ? 'book' : 'books'}
+                    {t('library.bookCount', { count: favoriteBooks.length })}
                 </p>
             </div>
 
@@ -93,9 +101,9 @@ const Favorites = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">No Favorites Yet</h3>
+                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">{t('favorites.noFavorites')}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                        Mark books as favorites by tapping the heart icon in their details page.
+                        {t('favorites.noFavoritesDesc')}
                     </p>
                 </div>
             )}

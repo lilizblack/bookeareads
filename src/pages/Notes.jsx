@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plus, Edit2, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
 import CoverImage from '../components/CoverImage';
 import { format, isToday, isSameDay, subDays, parseISO } from 'date-fns';
@@ -9,6 +10,7 @@ const Notes = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { books, addNote, deleteNote } = useBooks();
+    const { t } = useTranslation();
 
     const book = books.find(b => b.id === id);
 
@@ -43,7 +45,7 @@ const Notes = () => {
         setIsAddingNote(false);
     };
 
-    if (!book) return <div className="p-8 text-center">Book not found</div>;
+    if (!book) return <div className="p-8 text-center">{t('notes.bookNotFound')}</div>;
 
     return (
         <div className="min-h-screen bg-white dark:bg-slate-950 pb-20">
@@ -53,9 +55,9 @@ const Notes = () => {
                     onClick={() => navigate(-1)}
                     className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-3 flex items-center gap-2 font-bold text-xs transition-colors active:scale-95"
                 >
-                    <ArrowLeft size={16} /> Back
+                    <ArrowLeft size={16} /> {t('actions.back')}
                 </button>
-                <h1 className="text-lg font-bold flex-1 text-center pr-10 text-slate-900 dark:text-white">Notes Details</h1>
+                <h1 className="text-lg font-bold flex-1 text-center pr-10 text-slate-900 dark:text-white">{t('notes.title')}</h1>
                 <button
                     onClick={() => setIsAddingNote(true)}
                     className="p-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/30 transition-all active:scale-95"
@@ -74,7 +76,7 @@ const Notes = () => {
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1 leading-tight">{book.title}</h2>
                         <p className="text-xs font-medium text-slate-500">{book.author}</p>
                         <div className="mt-3 text-xs font-bold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/20 px-3 py-1 rounded-full self-start inline-flex items-center gap-1">
-                            <span className="opacity-70">Total Notes:</span> {book.notes?.length || 0}
+                            <span className="opacity-70">{t('notes.totalNotes')}</span> {book.notes?.length || 0}
                         </div>
                     </div>
                 </div>
@@ -87,11 +89,14 @@ const Notes = () => {
                                 key={type}
                                 onClick={() => setFilterType(type)}
                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${filterType === type
-                                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     } `}
                             >
-                                {type}
+                                {type === 'All' ? t('notes.filters.all') :
+                                    type === 'Today' ? t('notes.filters.today') :
+                                        type === 'Last 7 Days' ? t('notes.filters.last7Days') :
+                                            t('notes.filters.custom')}
                             </button>
                         ))}
                     </div>
@@ -112,8 +117,8 @@ const Notes = () => {
                 {filteredNotes.length === 0 ? (
                     <div className="text-center py-12 opacity-50">
                         <CalendarIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                        <p className="font-bold text-slate-400">No notes found</p>
-                        <p className="text-xs text-slate-400 mt-1">Tap the + button to add a new note</p>
+                        <p className="font-bold text-slate-400">{t('notes.noNotes')}</p>
+                        <p className="text-xs text-slate-400 mt-1">{t('notes.noNotesDesc')}</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -152,7 +157,7 @@ const Notes = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-scale-in">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">New Note</h3>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('notes.modal.newNote')}</h3>
                             <button onClick={() => setIsAddingNote(false)} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                 <X size={20} className="text-slate-500" />
                             </button>
@@ -161,7 +166,7 @@ const Notes = () => {
                         <textarea
                             value={newNoteContent}
                             onChange={(e) => setNewNoteContent(e.target.value)}
-                            placeholder="Write your note here..."
+                            placeholder={t('notes.modal.placeholder')}
                             className="w-full h-40 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500 resize-none mb-4 dark:text-white"
                             autoFocus
                         />
@@ -171,14 +176,14 @@ const Notes = () => {
                                 onClick={() => setIsAddingNote(false)}
                                 className="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                             >
-                                Cancel
+                                {t('notes.modal.cancel')}
                             </button>
                             <button
                                 onClick={handleAddNote}
                                 disabled={!newNoteContent.trim()}
                                 className="px-6 py-2 rounded-lg text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-violet-500/20"
                             >
-                                Save Note
+                                {t('notes.modal.saveNote')}
                             </button>
                         </div>
                     </div>

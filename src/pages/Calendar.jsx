@@ -11,10 +11,15 @@ import Header from '../components/Header';
 
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { enUS, es } from 'date-fns/locale';
 
 const Calendar = () => {
     const { books, getYearlyStats, getStreak, readingGoal, setReadingGoal } = useBooks();
     const { themePreset } = useTheme();
+    const { t, i18n } = useTranslation();
+    const currentLocale = i18n.language.startsWith('es') ? es : enUS;
+
     const stats = getYearlyStats();
     const streak = getStreak();
     const navigate = useNavigate();
@@ -86,8 +91,9 @@ const Calendar = () => {
     // Monthly Format distribution
     const formatCounts = {};
     readBooksThisMonth.forEach(b => {
-        const f = b.format || 'Unknown';
-        formatCounts[f] = (formatCounts[f] || 0) + 1;
+        const formatKey = b.format?.toLowerCase() || 'physical';
+        const localizedFormat = t(`book.formats.${formatKey}`, { defaultValue: b.format || t('common.noData') });
+        formatCounts[localizedFormat] = (formatCounts[localizedFormat] || 0) + 1;
     });
     const monthlyFormatData = Object.entries(formatCounts)
         .map(([name, value]) => ({ name, value }));
@@ -197,7 +203,7 @@ const Calendar = () => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col">
                         <div className="flex justify-between items-center mb-8">
                             <h3 className="text-2xl font-bold dark:text-white flex items-center gap-2">
-                                <Target className="text-blue-500" /> Set Goals
+                                <Target className="text-blue-500" /> {t('dashboard.modals.setGoals')}
                             </h3>
                             <button onClick={() => setIsGoalModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                                 <X size={24} className="text-slate-400" />
@@ -206,7 +212,7 @@ const Calendar = () => {
 
                         <div className="space-y-8 mb-10">
                             <div>
-                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">Monthly Goal</label>
+                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">{t('dashboard.modals.monthlyGoal')}</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
@@ -214,12 +220,12 @@ const Calendar = () => {
                                         value={tempGoals.monthly}
                                         onChange={e => setTempGoals(prev => ({ ...prev, monthly: Number(e.target.value) }))}
                                     />
-                                    <span className="text-slate-400 font-bold uppercase text-xs">Books / Mo</span>
+                                    <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksMo')}</span>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">Yearly Goal</label>
+                                <label className="text-xs font-bold uppercase text-slate-400 mb-3 block tracking-wider">{t('dashboard.modals.yearlyGoal')}</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
@@ -227,16 +233,16 @@ const Calendar = () => {
                                         value={tempGoals.yearly}
                                         onChange={e => setTempGoals(prev => ({ ...prev, yearly: Number(e.target.value) }))}
                                     />
-                                    <span className="text-slate-400 font-bold uppercase text-xs">Books / Yr</span>
+                                    <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksYr')}</span>
                                 </div>
                             </div>
                         </div>
 
                         <button
-                            onClick={saveGoals}
+                            onClick={() => handleGoalSave(tempGoals)}
                             className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
                         >
-                            Save Goals
+                            {t('actions.save')}
                         </button>
                     </div>
                 </div>
@@ -245,13 +251,13 @@ const Calendar = () => {
             <Header />
 
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Calendar</h1>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('calendar.title')}</h1>
                 <button
                     onClick={() => navigate('/annual')}
                     className="flex items-center gap-1.5 px-3 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors text-xs font-black uppercase tracking-wider shadow-sm contrast-card"
                 >
                     <TrendingUp size={14} />
-                    Report
+                    {t('calendar.report')}
                 </button>
             </div>
 
@@ -263,31 +269,31 @@ const Calendar = () => {
                         <Check size={20} />
                     </div>
                     <div className="text-2xl font-bold text-slate-900 dark:text-white leading-none mb-1">{streak}</div>
-                    <div className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase leading-tight">Day<br />Streak</div>
+                    <div className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase leading-tight">{t('calendar.streakOne')}<br />{t('calendar.streakOther')}</div>
                 </div>
 
                 {/* Stats Cards (Horizontal Row of Squares) */}
                 <div className="flex-1 grid grid-cols-4 gap-2">
                     <StatsCard
-                        label="Reading"
+                        label={t('dashboard.reading')}
                         count={stats.reading}
                         colorClass="bg-[var(--color-pastel-blue)] dark:bg-blue-900/40"
                         onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
                     />
                     <StatsCard
-                        label="Read"
+                        label={t('dashboard.read')}
                         count={stats.read}
                         colorClass="bg-[var(--color-pastel-green)] dark:bg-emerald-900/40"
                         onClick={() => navigate('/library', { state: { statusFilter: 'Read' } })}
                     />
                     <StatsCard
-                        label="TBR"
+                        label={t('dashboard.tbr')}
                         count={stats.tbr}
                         colorClass="bg-[var(--color-pastel-pink)] dark:bg-fuchsia-900/40"
                         onClick={() => navigate('/library', { state: { statusFilter: 'Want to Read' } })}
                     />
                     <StatsCard
-                        label="Added"
+                        label={t('dashboard.added')}
                         count={stats.addedThisMonth}
                         colorClass="bg-[var(--color-pastel-orange)] dark:bg-amber-900/40"
                         onClick={() => navigate('/library')}
@@ -298,9 +304,9 @@ const Calendar = () => {
             {/* Goals Section */}
             <div className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Goals This Month</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('calendar.goals')}</h2>
                     <button onClick={openGoalModal} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors px-3 py-2 -mr-3 active:scale-95">
-                        Set Goals →
+                        {t('dashboard.modals.setGoals')} →
                     </button>
                 </div>
 
@@ -315,21 +321,21 @@ const Calendar = () => {
                         </div>
                         <div className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                                <span className="block text-sm font-black text-slate-800 dark:text-slate-200">Books Read</span>
+                                <span className="block text-sm font-black text-slate-800 dark:text-slate-200">{t('dashboard.booksRead')}</span>
                                 {stats.readThisMonth >= readingGoal.monthly && (
                                     <div className="bg-blue-500 text-white p-0.5 rounded-full shadow-lg shadow-blue-500/40 animate-scale-in">
                                         <Check size={12} strokeWidth={4} />
                                     </div>
                                 )}
                             </div>
-                            <span className="text-[10px] font-bold text-blue-500/80 uppercase tracking-tighter">Monthly Target</span>
+                            <span className="text-[10px] font-bold text-blue-500/80 uppercase tracking-tighter">{t('calendar.target')}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Yearly Summary */}
                 <div className="mt-3 bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10 contrast-card">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yearly Progress</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.yearlyProgress')}</span>
                     <div className="flex items-baseline gap-1">
                         <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
                         <span className="text-xs font-bold text-slate-400">/ {readingGoal.yearly}</span>
@@ -337,20 +343,20 @@ const Calendar = () => {
                 </div>
             </div>
 
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Books this Month</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{t('calendar.booksThisMonth')}</h2>
 
             {/* Calendar Grid */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 contrast-card">
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                            {format(selectedDate, 'MMMM yyyy')}
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
+                            {format(selectedDate, 'MMMM yyyy', { locale: currentLocale })}
                         </h2>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handlePreviousMonth}
                                 className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                                title="Previous Month"
+                                title={t('actions.back')}
                             >
                                 <ChevronLeft size={20} />
                             </button>
@@ -358,12 +364,12 @@ const Calendar = () => {
                                 onClick={handleToday}
                                 className="px-3 py-2 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors text-xs font-bold"
                             >
-                                Today
+                                {t('calendar.today')}
                             </button>
                             <button
                                 onClick={handleNextMonth}
                                 className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                                title="Next Month"
+                                title={t('actions.next')}
                             >
                                 <ChevronRight size={20} />
                             </button>
@@ -377,9 +383,14 @@ const Calendar = () => {
 
                 {/* Day Headers */}
                 <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                        <div key={`${d}-${i}`} className="text-xs font-bold text-slate-400">{d}</div>
-                    ))}
+                    {Array.from({ length: 7 }).map((_, i) => {
+                        const day = addDays(startOfWeek(new Date(), { locale: currentLocale }), i);
+                        return (
+                            <div key={`header-${i}`} className="text-xs font-bold text-slate-400 uppercase">
+                                {format(day, 'EEEEE', { locale: currentLocale })}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Days */}
@@ -462,13 +473,12 @@ const Calendar = () => {
 
             {/* Weekly Progress Tracker */}
             <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 contrast-card">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">This Week's Progress</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{t('calendar.weeklyProgress')}</h3>
                 <div className="grid grid-cols-7 gap-2">
                     {(() => {
                         const today = new Date();
-                        const weekStart = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
+                        const weekStart = startOfWeek(today, { weekStartsOn: 0, locale: currentLocale }); // Sunday
                         const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-                        const dayAbbreviations = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
                         return weekDays.map((day, index) => {
                             // Check if there's any reading activity on this day
@@ -498,7 +508,7 @@ const Calendar = () => {
                                             ? 'text-blue-700 dark:text-blue-400'
                                             : 'text-slate-400'
                                         }`}>
-                                        {dayAbbreviations[index]}
+                                        {format(day, 'EEE', { locale: currentLocale })}
                                     </div>
                                     <div className={`text-lg font-bold mb-2 ${hasActivity
                                         ? 'text-emerald-900 dark:text-emerald-300'
@@ -522,30 +532,30 @@ const Calendar = () => {
                 <div className="mt-4 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-full bg-emerald-500"></div>
-                        <span>Activity logged</span>
+                        <span>{t('calendar.activityLogged')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                        <span>Today</span>
+                        <span>{t('calendar.today')}</span>
                     </div>
                 </div>
             </div>
 
             {/* Monthly Analytics Section */}
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-8 mb-4">Monthly Analytics</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-8 mb-4">{t('calendar.analytics')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
                 <ChartCard
-                    title="Monthly Top Genres"
+                    title={t('calendar.genres')}
                     data={monthlyTopGenres}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
                 />
                 <ChartCard
-                    title="Monthly Book Formats"
+                    title={t('calendar.formats')}
                     data={monthlyFormatData}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
                 />
                 <ChartCard
-                    title="Monthly Purchase Locations"
+                    title={t('calendar.locations')}
                     data={monthlyLocationData}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
                 />
@@ -560,7 +570,7 @@ const Calendar = () => {
                             <DollarSign className="text-emerald-600 dark:text-emerald-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Monthly Spent</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.spent')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {formatCurrency(monthlySpent)}
                             </p>
@@ -575,7 +585,7 @@ const Calendar = () => {
                             <Clock className="text-violet-600 dark:text-violet-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Time Read</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.timeRead')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {formatTime(monthlyTimeRead)}
                             </p>
@@ -590,7 +600,7 @@ const Calendar = () => {
                             <BookOpen className="text-blue-600 dark:text-blue-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Pages Read</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.pagesRead')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {monthlyPagesRead.toLocaleString()}
                             </p>
@@ -605,7 +615,7 @@ const Calendar = () => {
                             <ChilliIcon size={24} className="text-red-500 fill-current" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Spicy Reads</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.spicyReads')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {spicyBooksReadThisMonth}
                             </p>
@@ -620,7 +630,7 @@ const Calendar = () => {
                             <PauseCircle className="text-amber-600 dark:text-amber-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Paused</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.status.paused')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {stats.pausedThisMonth}
                             </p>
@@ -635,7 +645,7 @@ const Calendar = () => {
                             <XCircle className="text-slate-600 dark:text-slate-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">DNF</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.status.dnf')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {stats.dnfThisMonth}
                             </p>
@@ -650,7 +660,7 @@ const Calendar = () => {
                             <Star className="text-red-600 dark:text-red-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Worst Review</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.worstReview')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {worstReviewCount}
                             </p>
@@ -665,7 +675,7 @@ const Calendar = () => {
                             <Heart className="text-pink-600 dark:text-pink-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Favorites</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('nav.favorites')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {favoritesThisMonth}
                             </p>
@@ -679,19 +689,21 @@ const Calendar = () => {
                         <Library size={80} />
                     </div>
                     <div className="relative z-10">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Monthly Growth ({format(selectedDate, 'MMMM')})</h3>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+                            {t('calendar.growth', { month: format(selectedDate, 'MMMM', { locale: currentLocale }) })}
+                        </h3>
                         <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <div className="text-2xl font-black">{booksAddedThisMonth}</div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase">Added</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">{t('calendar.added')}</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-amber-400">{tbrAddedThisMonth}</div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase">TBR Added</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">{t('calendar.tbrAdded')}</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-emerald-400">{totalTBRRemaining}</div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase">TBR Total</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">{t('calendar.tbrTotal')}</div>
                             </div>
                         </div>
                     </div>
