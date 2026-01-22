@@ -1,8 +1,8 @@
+import { db } from '../lib/firebaseClient';
+import { collection, getDocs, addDoc, query, where, Timestamp, serverTimestamp } from 'firebase/firestore';
 
-import { supabase } from '../lib/supabaseClient';
-
-export const syncLocalDataToSupabase = async (userId) => {
-    if (!supabase) return false;
+export const syncLocalDataToFirestore = async (userId) => {
+    if (!db) return false;
 
     try {
         const localData = localStorage.getItem('book-tracker-data-v3');
@@ -17,93 +17,72 @@ export const syncLocalDataToSupabase = async (userId) => {
 
         console.log('Found local data. Starting sync...', books.length, 'books');
 
-        // Check which books already exist in Supabase
-        const { data: existingBooks, error: fetchError } = await supabase
-            .from('books')
-            .select('id, title, author')
-            .eq('user_id', userId);
+        // Check which books already exist in Firestore
+        const booksRef = collection(db, 'users', userId, 'books');
+        const snapshot = await getDocs(booksRef);
+        const existingIds = new Set(snapshot.docs.map(doc => doc.id));
 
-        if (fetchError) {
-            console.error('Error fetching existing books:', fetchError);
-        }
-
-        const existingIds = new Set(existingBooks?.map(b => b.id) || []);
-
-        // Only sync books that don't already exist (filter out UUID books)
+        // Only sync books that don't already exist (filter out Firestore IDs)
         const booksToSync = books.filter(book => {
-            // If book has a UUID (from Supabase), skip it
-            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(book.id);
-            if (isUUID && existingIds.has(book.id)) {
-                return false; // Already in Supabase
+            // If book has a Firestore ID (20 chars alphanumeric), skip if exists
+            const isFirestoreId = /^[a-zA-Z0-9]{20}$/.test(book.id);
+            if (isFirestoreId && existingIds.has(book.id)) {
+                return false; // Already in Firestore
             }
             // If book has a timestamp ID (created offline), sync it
-            return !isUUID;
+            return !isFirestoreId;
         });
 
         if (booksToSync.length === 0) {
+            console.log('No new books to sync');
             return true;
         }
 
         console.log(`Syncing ${booksToSync.length} offline books...`);
 
         // Sanitize and validate books before upload
-        const formattedBooks = booksToSync.map(book => {
-            // Create clean object with ONLY valid database columns
+        const syncPromises = booksToSync.map(async (book) => {
+            // Create clean object with ONLY valid Firestore fields
             const cleanBook = {
-                user_id: userId, // CRITICAL: Must be set
                 title: book.title || 'Untitled',
                 author: book.author || null,
                 cover: book.cover || null,
                 status: book.status || 'want-to-read',
                 progress: parseInt(book.progress) || 0,
-                total_pages: book.totalPages ? parseInt(book.totalPages) : null,
-                total_chapters: book.totalChapters ? parseInt(book.totalChapters) : null,
+                totalPages: book.totalPages ? parseInt(book.totalPages) : null,
+                totalChapters: book.totalChapters ? parseInt(book.totalChapters) : null,
                 rating: parseFloat(book.rating) || 0,
-                spice_rating: parseFloat(book.spiceRating) || 0,
-                is_owned: Boolean(book.isOwned),
-                is_favorite: Boolean(book.isFavorite),
-                to_buy: Boolean(book.toBuy || book.isWantToBuy),
+                spiceRating: parseFloat(book.spiceRating) || 0,
+                isOwned: Boolean(book.isOwned),
+                isFavorite: Boolean(book.isFavorite),
+                toBuy: Boolean(book.toBuy || book.isWantToBuy),
                 price: book.price ? parseFloat(book.price) : null,
                 review: book.review || null,
                 format: book.format || null,
                 genres: Array.isArray(book.genres) ? book.genres : [],
-                added_at: book.addedAt || new Date().toISOString(),
-                started_at: book.startedAt || null,
-                finished_at: book.finishedAt || null,
-                paused_at: book.pausedAt || null,
-                dnf_at: book.dnfAt || null
+                addedAt: book.addedAt ? Timestamp.fromDate(new Date(book.addedAt)) : Timestamp.now(),
+                startedAt: book.startedAt ? Timestamp.fromDate(new Date(book.startedAt)) : null,
+                finishedAt: book.finishedAt ? Timestamp.fromDate(new Date(book.finishedAt)) : null,
+                pausedAt: book.pausedAt ? Timestamp.fromDate(new Date(book.pausedAt)) : null,
+                dnfAt: book.dnfAt ? Timestamp.fromDate(new Date(book.dnfAt)) : null,
+                updatedAt: serverTimestamp(),
+                readingLogs: [],
+                notes: []
             };
 
-            // Remove any undefined values (Supabase doesn't like undefined)
+            // Remove any undefined values
             Object.keys(cleanBook).forEach(key => {
                 if (cleanBook[key] === undefined) {
-                    cleanBook[key] = null;
+                    delete cleanBook[key];
                 }
             });
 
-            return cleanBook;
+            return addDoc(booksRef, cleanBook);
         });
 
-        // Insert Books
-        const { data, error } = await supabase
-            .from('books')
-            .insert(formattedBooks)
-            .select();
+        await Promise.all(syncPromises);
 
-
-        if (error) {
-            console.error('Error syncing books:', error);
-            console.error('Error details:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-            });
-            console.log('Sample book data that failed:', formattedBooks[0]);
-            throw error;
-        }
-
-        console.log('Successfully synced books to Supabase:', data.length);
+        console.log('Successfully synced books to Firestore:', booksToSync.length);
         return true;
 
     } catch (error) {
@@ -111,3 +90,6 @@ export const syncLocalDataToSupabase = async (userId) => {
         return false;
     }
 };
+
+// Keep old function name for backward compatibility
+export const syncLocalDataToSupabase = syncLocalDataToFirestore;

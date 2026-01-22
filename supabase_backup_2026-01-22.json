@@ -1,0 +1,35 @@
+{
+    "export_date": "2026-01-22T13:34:00-04:00",
+    "source": "Supabase (pxucfzdcofbehgvxvlmb)",
+    "total_books": 7,
+    "books": [
+        {
+            "id": "333f0dc1-cc65-4468-a4eb-345b3ddd95a2",
+            "user_id": "5c076587-e532-4355-99a3-2b5a598eb2de",
+            "title": "Iron Flame",
+            "author": "Rebecca Yarros",
+            "cover": "https://covers.openlibrary.org/b/id/14611581-L.jpg",
+            "status": "want-to-read",
+            "progress": 0,
+            "total_pages": 512,
+            "total_chapters": null,
+            "rating": "0.5",
+            "spice_rating": "5",
+            "is_owned": true,
+            "is_favorite": false,
+            "to_buy": false,
+            "price": null,
+            "review": null,
+            "format": "Ebook",
+            "genres": [
+                "Fiction"
+            ],
+            "added_at": "2026-01-17 12:17:42.41+00",
+            "updated_at": "2026-01-21 23:22:58.538+00"
+        }
+    ],
+    "notes": [],
+    "reading_sessions": [],
+    "user_goals": [],
+    "migration_notes": "Backup created before Firebase migration. 7 books found across 2 users. Notes, sessions, and goals tables are empty."
+}

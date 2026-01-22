@@ -60,12 +60,12 @@ export const migrateReadingLogsToSessions = async () => {
 };
 
 /**
- * Migrates notes from books table (JSONB) to book_notes table
+ * Migrates notes from books table (JSONB) to notes table
  * @returns {Promise<{success: boolean, migratedCount: number, errors: Array}>}
  */
 export const migrateNotesToTable = async () => {
     try {
-        console.log('Starting migration of notes to book_notes table...');
+        console.log('Starting migration of notes to notes table...');
 
         // Fetch all books with notes
         const { data: books, error: fetchError } = await supabase
@@ -82,18 +82,17 @@ export const migrateNotesToTable = async () => {
                 continue;
             }
 
-            // Transform notes to book_notes format
+            // Transform notes to notes table format
             const notes = book.notes.map(note => ({
                 user_id: book.user_id,
                 book_id: book.id,
                 content: note.content || note.text || '',
-                page_reference: note.page || null,
-                is_private: true
+                date: note.date || new Date().toISOString()
             })).filter(note => note.content.trim().length > 0); // Only migrate non-empty notes
 
             if (notes.length > 0) {
                 const { error: insertError } = await supabase
-                    .from('book_notes')
+                    .from('notes')
                     .insert(notes);
 
                 if (insertError) {
@@ -155,9 +154,9 @@ export const verifyMigration = async () => {
             .from('reading_sessions')
             .select('*', { count: 'exact', head: true });
 
-        // Count notes in book_notes
+        // Count notes in notes table
         const { count: notesCount } = await supabase
-            .from('book_notes')
+            .from('notes')
             .select('*', { count: 'exact', head: true });
 
         const verification = {

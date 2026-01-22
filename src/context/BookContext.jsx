@@ -1,6 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { isSameDay, differenceInCalendarDays, parseISO } from 'date-fns';
-import { supabase } from '../lib/supabaseClient';
+import { db } from '../lib/firebaseClient';
+import {
+    collection,
+    doc,
+    getDocs,
+    getDoc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy,
+    serverTimestamp,
+    Timestamp
+} from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { calculateGlobalSpeed } from '../utils/bookUtils';
 
@@ -83,41 +97,40 @@ export const BookProvider = ({ children }) => {
         const loadBooks = async () => {
             setLoading(true);
 
-            // 1. Authenticated User -> Fetch from Supabase
+            // 1. Authenticated User -> Fetch from Firestore
             if (user) {
-                const { data, error } = await supabase
-                    .from('books')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .order('added_at', { ascending: false });
+                try {
+                    const booksRef = collection(db, 'users', user.uid, 'books');
+                    const q = query(booksRef, orderBy('addedAt', 'desc'));
+                    const snapshot = await getDocs(q);
 
-                if (error) {
-                    console.error('Error fetching books:', error);
-                    console.error('Error details:', JSON.stringify(error, null, 2));
-                } else {
-                    if (data) {
-                        // Transform DB snake_case to app camelCase
-                        const appBooks = data.map(b => ({
-                            ...b,
-                            // Map specific fields if key names differ (they mostly match or we mapped in sync)
-                            // Database Schema uses snake_case, App uses camelCase
-                            userId: b.user_id,
-                            totalPages: b.total_pages,
-                            totalChapters: b.total_chapters,
-                            spiceRating: b.spice_rating,
-                            isOwned: b.is_owned,
-                            isFavorite: b.is_favorite,
-                            toBuy: b.to_buy,
-                            addedAt: b.added_at,
-                            startedAt: b.started_at,
-                            finishedAt: b.finished_at,
-                            pausedAt: b.paused_at,
-                            dnfAt: b.dnf_at,
-                            readingLogs: b.reading_logs || [],
-                            notes: b.notes || []
-                        }));
+                    if (!snapshot.empty) {
+                        const appBooks = snapshot.docs.map(docSnap => {
+                            const data = docSnap.data();
+                            // Convert Firestore Timestamps to ISO strings
+                            return {
+                                id: docSnap.id,
+                                ...data,
+                                addedAt: data.addedAt?.toDate?.()?.toISOString() || data.addedAt,
+                                startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
+                                finishedAt: data.finishedAt?.toDate?.()?.toISOString() || data.finishedAt,
+                                pausedAt: data.pausedAt?.toDate?.()?.toISOString() || data.pausedAt,
+                                dnfAt: data.dnfAt?.toDate?.()?.toISOString() || data.dnfAt,
+                                updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+                                readingLogs: data.readingLogs || [],
+                                notes: data.notes || []
+                            };
+                        });
                         setBooks(appBooks);
+                    } else {
+                        setBooks([]);
                     }
+                } catch (error) {
+                    console.error('Error fetching books from Firestore:', error);
+                    console.error('Error details:', JSON.stringify(error, null, 2));
+                    // Fallback to localStorage if Firestore fails
+                    const savedBooks = localStorage.getItem('book-tracker-data-v3');
+                    if (savedBooks) setBooks(JSON.parse(savedBooks));
                 }
             }
             // 2. Offline Mode (Logged out but keeping data visible)
@@ -186,46 +199,44 @@ export const BookProvider = ({ children }) => {
 
 
         if (user) {
-            // Supabase Insert
-            // Build insert object (ISBN, reading_logs, notes excluded due to schema cache issues)
+            // Firestore Insert
             const insertData = {
-                user_id: user.id,
                 title: newBook.title,
                 author: newBook.author,
                 cover: newBook.cover,
                 status: newBook.status || 'want-to-read',
                 progress: newBook.progress || 0,
-                total_pages: newBook.totalPages || null,
-                total_chapters: newBook.totalChapters || null,
+                totalPages: newBook.totalPages || null,
+                totalChapters: newBook.totalChapters || null,
                 rating: newBook.rating || 0,
-                spice_rating: newBook.spiceRating || 0,
-                is_owned: newBook.isOwned || false,
-                is_favorite: newBook.isFavorite || false,
-                to_buy: newBook.toBuy || false,
+                spiceRating: newBook.spiceRating || 0,
+                isOwned: newBook.isOwned || false,
+                isFavorite: newBook.isFavorite || false,
+                toBuy: newBook.toBuy || false,
                 price: newBook.price ? parseFloat(newBook.price) : null,
                 review: newBook.review || null,
                 format: newBook.format || null,
                 genres: newBook.genres || [],
-                added_at: newBook.addedAt,
-                started_at: newBook.startedAt || null,
-                finished_at: newBook.finishedAt || null
+                addedAt: Timestamp.fromDate(new Date(newBook.addedAt)),
+                startedAt: newBook.startedAt ? Timestamp.fromDate(new Date(newBook.startedAt)) : null,
+                finishedAt: newBook.finishedAt ? Timestamp.fromDate(new Date(newBook.finishedAt)) : null,
+                pausedAt: null,
+                dnfAt: null,
+                updatedAt: serverTimestamp(),
+                readingLogs: [],
+                notes: []
             };
 
-            const { data, error } = await supabase.from('books').insert([insertData]).select();
+            try {
+                const booksRef = collection(db, 'users', user.uid, 'books');
+                const docRef = await addDoc(booksRef, insertData);
 
-            if (error) {
-                console.error('Error inserting book to Supabase:', error);
+                // Use the Firestore-generated ID
+                newBook.id = docRef.id;
+            } catch (error) {
+                console.error('Error inserting book to Firestore:', error);
                 alert('Failed to save book: ' + error.message);
-                return; // Don't add to local state if Supabase insert failed
-            }
-
-            if (data && data[0]) {
-                // Use the real ID from Supabase
-                newBook.id = data[0].id;
-                newBook.userId = user.id;
-            } else {
-                console.error('No data returned from Supabase insert');
-                return; // Don't add to local state if no data returned
+                return; // Don't add to local state if Firestore insert failed
             }
         }
 
@@ -274,23 +285,24 @@ export const BookProvider = ({ children }) => {
                     updated.dnfAt = new Date().toISOString();
                 }
                 if (user) {
-                    supabase.from('books').update({
+                    const bookRef = doc(db, 'users', user.uid, 'books', id);
+                    updateDoc(bookRef, {
                         status: updated.status,
                         progress: updated.progress,
                         rating: updated.rating,
-                        spice_rating: updated.spiceRating,
-                        is_favorite: updated.isFavorite,
-                        is_owned: updated.isOwned,
-                        finished_at: updated.finishedAt,
-                        paused_at: updated.pausedAt,
-                        dnf_at: updated.dnfAt,
+                        spiceRating: updated.spiceRating,
+                        isFavorite: updated.isFavorite,
+                        isOwned: updated.isOwned,
+                        finishedAt: updated.finishedAt ? Timestamp.fromDate(new Date(updated.finishedAt)) : null,
+                        pausedAt: updated.pausedAt ? Timestamp.fromDate(new Date(updated.pausedAt)) : null,
+                        dnfAt: updated.dnfAt ? Timestamp.fromDate(new Date(updated.dnfAt)) : null,
                         review: updated.review,
-                        cover: updated.cover, // Allow updating cover/details
+                        cover: updated.cover,
                         title: updated.title,
                         author: updated.author,
-                        updated_at: new Date().toISOString()
-                    }).eq('id', id).eq('user_id', user.id).then(({ error }) => {
-                        if (error) console.error('Supabase update failed:', error);
+                        updatedAt: serverTimestamp()
+                    }).catch((error) => {
+                        console.error('Firestore update failed:', error);
                     });
                 }
                 return updated;
@@ -300,14 +312,28 @@ export const BookProvider = ({ children }) => {
 
     const deleteBook = async (id) => {
         if (user) {
-            await supabase.from('books').delete().eq('id', id).eq('user_id', user.id);
+            try {
+                const bookRef = doc(db, 'users', user.uid, 'books', id);
+                await deleteDoc(bookRef);
+            } catch (error) {
+                console.error('Firestore delete failed:', error);
+            }
         }
         setBooks(prev => prev.filter(book => book.id !== id));
     };
 
     const bulkDeleteBooks = async (ids) => {
         if (user) {
-            await supabase.from('books').delete().in('id', ids).eq('user_id', user.id);
+            try {
+                // Firestore doesn't have bulk delete in one query, so we delete individually
+                const deletePromises = ids.map(id => {
+                    const bookRef = doc(db, 'users', user.uid, 'books', id);
+                    return deleteDoc(bookRef);
+                });
+                await Promise.all(deletePromises);
+            } catch (error) {
+                console.error('Firestore bulk delete failed:', error);
+            }
         }
         setBooks(prev => prev.filter(book => !ids.includes(book.id)));
     };
@@ -759,21 +785,16 @@ export const BookProvider = ({ children }) => {
         if (!user) return { success: false, message: 'User not logged in' };
 
         try {
-            const { data, error } = await supabase
-                .from('reading_sessions')
-                .insert({
-                    user_id: user.id,
-                    book_id: bookId,
-                    duration_minutes: durationMinutes,
-                    pages_read: pagesRead,
-                    started_at: startedAt,
-                    ended_at: endedAt
-                })
-                .select()
-                .single();
+            const sessionsRef = collection(db, 'users', user.uid, 'books', bookId, 'sessions');
+            const docRef = await addDoc(sessionsRef, {
+                durationMinutes,
+                pagesRead,
+                startedAt: Timestamp.fromDate(new Date(startedAt)),
+                endedAt: Timestamp.fromDate(new Date(endedAt)),
+                createdAt: serverTimestamp()
+            });
 
-            if (error) throw error;
-            return { success: true, data };
+            return { success: true, data: { id: docRef.id } };
         } catch (error) {
             console.error('Error creating reading session:', error);
             return { success: false, message: error.message };
@@ -784,14 +805,16 @@ export const BookProvider = ({ children }) => {
         if (!user) return [];
 
         try {
-            const { data, error } = await supabase
-                .from('reading_sessions')
-                .select('*')
-                .eq('book_id', bookId)
-                .order('started_at', { ascending: false });
+            const sessionsRef = collection(db, 'users', user.uid, 'books', bookId, 'sessions');
+            const q = query(sessionsRef, orderBy('startedAt', 'desc'));
+            const snapshot = await getDocs(q);
 
-            if (error) throw error;
-            return data || [];
+            return snapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data(),
+                startedAt: docSnap.data().startedAt?.toDate?.()?.toISOString(),
+                endedAt: docSnap.data().endedAt?.toDate?.()?.toISOString()
+            }));
         } catch (error) {
             console.error('Error fetching book sessions:', error);
             return [];
@@ -802,17 +825,11 @@ export const BookProvider = ({ children }) => {
         if (!user) return [];
 
         try {
-            let query = supabase
-                .from('reading_sessions')
-                .select('*')
-                .order('started_at', { ascending: false });
-
-            if (startDate) query = query.gte('started_at', startDate);
-            if (endDate) query = query.lte('started_at', endDate);
-
-            const { data, error } = await query;
-            if (error) throw error;
-            return data || [];
+            // Note: Firestore doesn't support cross-collection queries easily
+            // We'd need to query all books' sessions subcollections
+            // For now, return empty array - this function may need restructuring
+            console.warn('getUserSessions not fully implemented for Firestore yet');
+            return [];
         } catch (error) {
             console.error('Error fetching user sessions:', error);
             return [];
@@ -842,19 +859,12 @@ export const BookProvider = ({ children }) => {
         }
 
         try {
-            const { data, error } = await supabase
-                .from('book_notes')
-                .insert({
-                    user_id: user.id,
-                    book_id: bookId,
-                    content,
-                    page_reference: pageReference,
-                    is_private: isPrivate
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
+            const notesRef = collection(db, 'users', user.uid, 'books', bookId, 'notes');
+            const docRef = await addDoc(notesRef, {
+                content,
+                date: Timestamp.fromDate(new Date()),
+                createdAt: serverTimestamp()
+            });
 
             // Update local state
             setBooks(prev => prev.map(book => {
@@ -862,45 +872,38 @@ export const BookProvider = ({ children }) => {
                 return {
                     ...book,
                     notes: [...(book.notes || []), {
-                        id: data.id,
-                        content: data.content,
-                        page: data.page_reference,
-                        createdAt: data.created_at
+                        id: docRef.id,
+                        content,
+                        date: new Date().toISOString(),
+                        createdAt: new Date().toISOString()
                     }]
                 };
             }));
 
-            return { success: true, data };
+            return { success: true, data: { id: docRef.id } };
         } catch (error) {
             console.error('Error adding note:', error);
             return { success: false, message: error.message };
         }
     };
 
-    const updateBookNote = async (noteId, updates) => {
+    const updateBookNote = async (bookId, noteId, updates) => {
         if (!user) return { success: false, message: 'User not logged in' };
 
         try {
-            const { data, error } = await supabase
-                .from('book_notes')
-                .update({
-                    content: updates.content,
-                    page_reference: updates.pageReference,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', noteId)
-                .select()
-                .single();
+            const noteRef = doc(db, 'users', user.uid, 'books', bookId, 'notes', noteId);
+            await updateDoc(noteRef, {
+                content: updates.content
+            });
 
-            if (error) throw error;
-            return { success: true, data };
+            return { success: true };
         } catch (error) {
             console.error('Error updating note:', error);
             return { success: false, message: error.message };
         }
     };
 
-    const deleteBookNote = async (noteId) => {
+    const deleteBookNote = async (bookId, noteId) => {
         if (!user) {
             // Fallback for guest users
             setBooks(prev => prev.map(book => ({
@@ -911,12 +914,8 @@ export const BookProvider = ({ children }) => {
         }
 
         try {
-            const { error } = await supabase
-                .from('book_notes')
-                .delete()
-                .eq('id', noteId);
-
-            if (error) throw error;
+            const noteRef = doc(db, 'users', user.uid, 'books', bookId, 'notes', noteId);
+            await deleteDoc(noteRef);
 
             // Update local state
             setBooks(prev => prev.map(book => ({
@@ -938,14 +937,16 @@ export const BookProvider = ({ children }) => {
         }
 
         try {
-            const { data, error } = await supabase
-                .from('book_notes')
-                .select('*')
-                .eq('book_id', bookId)
-                .order('created_at', { ascending: false });
+            const notesRef = collection(db, 'users', user.uid, 'books', bookId, 'notes');
+            const q = query(notesRef, orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
 
-            if (error) throw error;
-            return data || [];
+            return snapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data(),
+                date: docSnap.data().date?.toDate?.()?.toISOString(),
+                createdAt: docSnap.data().createdAt?.toDate?.()?.toISOString()
+            }));
         } catch (error) {
             console.error('Error fetching notes:', error);
             return [];
@@ -964,22 +965,21 @@ export const BookProvider = ({ children }) => {
         }
 
         try {
-            const { data, error } = await supabase
-                .from('reading_goals')
-                .upsert({
-                    user_id: user.id,
+            const goalRef = doc(db, 'users', user.uid, 'goals', year.toString());
+            await updateDoc(goalRef, {
+                yearlyGoal: !month ? targetBooks : null,
+                monthlyGoal: month ? targetBooks : null,
+                updatedAt: serverTimestamp()
+            }).catch(async () => {
+                // Document doesn't exist, create it
+                await addDoc(collection(db, 'users', user.uid, 'goals'), {
                     year,
-                    month,
-                    target_books: targetBooks,
-                    target_pages: targetPages,
-                    updated_at: new Date().toISOString()
-                }, {
-                    onConflict: 'user_id,year,month'
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
+                    yearlyGoal: !month ? targetBooks : null,
+                    monthlyGoal: month ? targetBooks : null,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            });
 
             // Update local state
             if (!month) {
@@ -988,7 +988,7 @@ export const BookProvider = ({ children }) => {
                 setReadingGoal(prev => ({ ...prev, monthly: targetBooks }));
             }
 
-            return { success: true, data };
+            return { success: true };
         } catch (error) {
             console.error('Error setting reading goal:', error);
             return { success: false, message: error.message };
@@ -999,20 +999,13 @@ export const BookProvider = ({ children }) => {
         if (!user) return null;
 
         try {
-            let query = supabase
-                .from('reading_goals')
-                .select('*')
-                .eq('year', year);
+            const goalRef = doc(db, 'users', user.uid, 'goals', year.toString());
+            const docSnap = await getDoc(goalRef);
 
-            if (month) {
-                query = query.eq('month', month);
-            } else {
-                query = query.is('month', null);
+            if (docSnap.exists()) {
+                return docSnap.data();
             }
-
-            const { data, error } = await query.single();
-            if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-            return data;
+            return null;
         } catch (error) {
             console.error('Error fetching reading goal:', error);
             return null;
