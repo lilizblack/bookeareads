@@ -1,0 +1,27 @@
+# Ignore node_modules
+node_modules
+
+# Ignore development files
+.env
+.env.local
+.env.*.local
+
+# Ignore git
+.git
+.gitignore
+
+# Ignore documentation
+README.md
+*.md
+
+# Ignore screenshots and design files
+screenshots
+*.pdf
+
+# Ignore development artifacts
+.vscode
+.idea
+
+# Ignore test files
+*.test.js
+*.spec.js
