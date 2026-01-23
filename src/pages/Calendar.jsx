@@ -98,7 +98,7 @@ const Calendar = () => {
     const monthlyFormatData = Object.entries(formatCounts)
         .map(([name, value]) => ({ name, value }));
 
-    // Monthly Purchase Location distribution (for owned books)
+    // Monthly Purchase Location distribution (for owned books) - sum of money spent
     const locationCounts = {};
     books.filter(b => {
         if (!b.isOwned || !b.purchaseLocation) return false;
@@ -113,7 +113,8 @@ const Calendar = () => {
         return false;
     }).forEach(b => {
         const loc = b.purchaseLocation;
-        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+        const price = parseFloat(b.price) || 0;
+        locationCounts[loc] = (locationCounts[loc] || 0) + price;
     });
     const monthlyLocationData = Object.entries(locationCounts)
         .map(([name, value]) => ({ name, value }));
@@ -558,6 +559,7 @@ const Calendar = () => {
                     title={t('calendar.locations')}
                     data={monthlyLocationData}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
+                    isCurrency={true}
                 />
             </div>
 

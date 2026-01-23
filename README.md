@@ -30,14 +30,16 @@ A premium, mobile-first book tracking application designed for readers who want 
 - **Calendar View**: See exactly when you finished each book.
 
 ### ☁️ Sync & Security
-- **Cloud Sync**: Powered by **Supabase** to keep your data safe across all your devices.
+- **Cloud Sync**: Powered by **Firebase** to keep your data safe across all your devices.
 - **User Accounts**: Personalized experience with secure signup and login.
+- **Google Sign-In**: Quick authentication with your Google account.
 
 ## 🛠️ Tech Stack
 -   **Frontend**: React + Vite
 -   **Styling**: Custom CSS (Utility-first approach) + Lucide Icons
--   **Backend**: Supabase (Database & Authentication)
+-   **Backend**: Firebase (Firestore Database, Authentication, Hosting)
 -   **Utilities**: `html2canvas` for sharing, `html5-qrcode` for scanning.
+-   **Deployment**: Firebase Hosting with GitHub Actions CI/CD
 
 ## 🚀 Getting Started
 

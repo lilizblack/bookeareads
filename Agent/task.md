@@ -8,7 +8,7 @@
 - [x] Install Firebase SDK (`npm install firebase`)
 - [x] Create `src/lib/firebaseClient.js`
 - [x] Update `.env` with Firebase config
-- [ ] Delete `src/lib/supabaseClient.js` (keeping for parallel testing)
+- [x] Delete `src/lib/supabaseClient.js`
 
 ## Phase 2: Auth Migration
 - [x] Rewrite `src/context/AuthContext.jsx` for Firebase
@@ -34,28 +34,33 @@
 
 ## Phase 4: Data Migration
 - [ ] Export existing data from Supabase
-- [ ] Create Firestore import script
+- [x] Create Firestore import script (`migrate-data.js`)
 - [ ] Import data to Firestore
 - [ ] Verify data integrity
 
 ## Phase 5: Deployment
-- [ ] Create `firebase.json` config
-- [ ] Create `firestore.rules`
+- [x] Create `firebase.json` config
+- [x] Create `firestore.rules`
+- [x] Create GitHub Actions workflow
+- [x] Add Firebase secrets to GitHub (6/7 complete)
+- [ ] **BLOCKED**: Update FIREBASE_SERVICE_ACCOUNT secret with actual JSON
 - [ ] Run `npm run build`
-- [ ] Deploy with `firebase deploy`
+- [ ] Deploy with GitHub Actions
 - [ ] Test production site
 - [ ] Verify PWA functionality
 
 ## Phase 6: Cleanup
-- [ ] Delete `netlify.toml`
-- [ ] Delete `supabase_schema_migration.sql`
-- [ ] Remove Netlify site from dashboard
-- [ ] Update `package.json` (remove Supabase dep)
-- [ ] Update README.md
+- [x] Delete `netlify.toml`
+- [x] Delete `supabase_schema_migration.sql`
+- [x] Delete `src/lib/supabaseClient.js`
+- [ ] Remove Netlify site from dashboard (user action required)
+- [x] Update `package.json` (remove Supabase dep)
+- [x] Update README.md
 
 ## Deliverables
 - [x] Implementation plan
 - [x] Agent handoff document
+- [x] Data migration script
 - [ ] Firebase migration complete
 - [ ] Walkthrough document
 
