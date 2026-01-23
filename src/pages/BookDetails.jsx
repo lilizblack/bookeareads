@@ -13,6 +13,7 @@ import ShareModal from '../components/ShareModal';
 import { getCurrencySymbol } from '../utils/currency';
 import { Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import CustomSelect from '../components/CustomSelect';
 
 const BookDetails = () => {
     const { id } = useParams();
@@ -648,29 +649,32 @@ const BookDetails = () => {
                     {(isEditing ? editData.isOwned : book.isOwned) && (
                         <div className="flex flex-col justify-center px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px] shrink-0">
                             <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">{t('book.fields.status')}</span>
-                            <select
+                            <CustomSelect
                                 value={(isEditing ? editData.ownershipStatus : book.ownershipStatus) || 'kept'}
                                 onChange={e => handleChange('ownershipStatus', e.target.value)}
-                                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none text-center cursor-pointer"
-                            >
-                                <option value="kept">{t('book.status.owned')}</option>
-                                <option value="sold">{t('book.status.sold')}</option>
-                            </select>
+                                options={[
+                                    { value: 'kept', label: t('book.status.owned') },
+                                    { value: 'sold', label: t('book.status.sold') }
+                                ]}
+                                className="text-xs"
+                            />
                         </div>
                     )}
 
                     {(isEditing ? editData.isOwned : book.isOwned) && (
                         <div className="flex flex-col justify-center px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px] shrink-0">
                             <span className="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">{t('book.fields.purchaseLocation')}</span>
-                            <select
+                            <CustomSelect
                                 value={(isEditing ? editData.purchaseLocation : book.purchaseLocation) || ''}
                                 onChange={e => handleChange('purchaseLocation', e.target.value)}
-                                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none text-center cursor-pointer"
-                            >
-                                <option value="" disabled>{t('app.select')}</option>
-                                <option value="Online">Online</option>
-                                <option value="Local Bookstore">Local Bookstore</option>
-                            </select>
+                                options={[
+                                    { value: '', label: t('app.select') },
+                                    { value: 'Online', label: 'Online' },
+                                    { value: 'Local Bookstore', label: 'Local Bookstore' }
+                                ]}
+                                placeholder={t('app.select')}
+                                className="text-xs"
+                            />
                         </div>
                     )}
                 </div>
@@ -698,19 +702,15 @@ const BookDetails = () => {
                     <div>
                         <span className="text-xs font-bold uppercase text-slate-400 block mb-1">{t('book.fields.genres')}</span>
                         {isEditing ? (
-                            <div className="relative">
-                                <select
-                                    value={(isEditing ? editData.genres?.[0] : book.genres?.[0]) || ''}
-                                    onChange={e => handleChange('genres', [e.target.value])}
-                                    className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none appearance-none"
-                                >
-                                    <option value="" disabled>{t('app.select')}</option>
-                                    {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                    ▼
-                                </div>
-                            </div>
+                            <CustomSelect
+                                value={(isEditing ? editData.genres?.[0] : book.genres?.[0]) || ''}
+                                onChange={e => handleChange('genres', [e.target.value])}
+                                options={[
+                                    { value: '', label: t('app.select'), disabled: true },
+                                    ...GENRES.map(g => ({ value: g, label: g }))
+                                ]}
+                                placeholder={t('app.select')}
+                            />
                         ) : (
                             <div className="flex flex-wrap gap-1">
                                 {book.genres.map((g, i) => (
@@ -744,32 +744,36 @@ const BookDetails = () => {
                 <div className="space-y-6 mb-8">
                     <div className="flex justify-between items-center">
                         <span className="font-bold text-slate-900 dark:text-white">{t('book.fields.status')}:</span>
-                        <select
-                            value={isEditing ? editData.status : book.status}
-                            onChange={e => handleChange('status', e.target.value)}
-                            className="bg-transparent text-right outline-none text-slate-600 dark:text-slate-300"
-                            disabled={!isEditing}
-                        >
-                            <option value="reading" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.reading')}</option>
-                            <option value="read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.completed')}</option>
-                            <option value="want-to-read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.wantToRead')}</option>
-                            <option value="paused" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.paused')}</option>
-                            <option value="dnf" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('book.status.dnf')}</option>
-                        </select>
+                        <div className="min-w-[140px]">
+                            <CustomSelect
+                                value={isEditing ? editData.status : book.status}
+                                onChange={e => handleChange('status', e.target.value)}
+                                options={[
+                                    { value: 'reading', label: t('book.status.reading') },
+                                    { value: 'read', label: t('book.status.completed') },
+                                    { value: 'want-to-read', label: t('book.status.wantToRead') },
+                                    { value: 'paused', label: t('book.status.paused') },
+                                    { value: 'dnf', label: t('book.status.dnf') }
+                                ]}
+                                className="text-sm"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex justify-between items-center">
                         <span className="font-bold text-slate-900 dark:text-white">{t('book.fields.style')}:</span>
-                        <select
-                            value={isEditing ? editData.readingStyle : book.readingStyle}
-                            onChange={e => handleChange('readingStyle', e.target.value)}
-                            className="bg-transparent text-right outline-none text-slate-600 dark:text-slate-300"
-                            disabled={!isEditing}
-                        >
-                            <option value="Normal" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t('settings.default')}</option>
-                            <option value="Buddy Read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Buddy Read</option>
-                            <option value="Re-read" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">Re-read</option>
-                        </select>
+                        <div className="min-w-[120px]">
+                            <CustomSelect
+                                value={isEditing ? editData.readingStyle : book.readingStyle}
+                                onChange={e => handleChange('readingStyle', e.target.value)}
+                                options={[
+                                    { value: 'Normal', label: t('settings.default') },
+                                    { value: 'Buddy Read', label: 'Buddy Read' },
+                                    { value: 'Re-read', label: 'Re-read' }
+                                ]}
+                                className="text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
 

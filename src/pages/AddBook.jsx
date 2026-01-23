@@ -10,6 +10,7 @@ import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
 import { fetchBookByISBN } from '../utils/bookApi';
+import CustomSelect from '../components/CustomSelect';
 
 const AddBook = () => {
     const { t } = useTranslation();
@@ -323,41 +324,39 @@ const AddBook = () => {
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
                                 {t('book.fields.genres')} <span className="text-red-500">*</span>
                             </label>
-                            <select
-                                className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white ${errors.genres ? 'ring-2 ring-red-500' : ''}`}
+                            <CustomSelect
                                 value={formData.genres}
                                 onChange={e => {
                                     setFormData({ ...formData, genres: e.target.value });
                                     if (errors.genres) setErrors({ ...errors, genres: null });
                                 }}
-                            >
-                                <option value="" disabled>{t('addBook.form.selectGenre')}</option>
-                                {GENRES.map(genre => (
-                                    <option key={genre} value={genre} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">
-                                        {t(`book.genres.${genre}`, { defaultValue: genre })}
-                                    </option>
-                                ))}
-                            </select>
+                                options={[
+                                    { value: '', label: t('addBook.form.selectGenre'), disabled: true },
+                                    ...GENRES.map(genre => ({
+                                        value: genre,
+                                        label: t(`book.genres.${genre}`, { defaultValue: genre })
+                                    }))
+                                ]}
+                                placeholder={t('addBook.form.selectGenre')}
+                                className={errors.genres ? 'ring-2 ring-red-500' : ''}
+                            />
                             {errors.genres && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.genres}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
                                 {t('book.fields.status')} <span className="text-red-500">*</span>
                             </label>
-                            <select
-                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none dark:text-white"
+                            <CustomSelect
                                 value={formData.status}
                                 onChange={e => {
                                     const newStatus = e.target.value;
                                     let updates = { status: newStatus };
 
                                     if (newStatus === 'read') {
-                                        // Auto-fill progress to 100%
                                         const total = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
                                         if (total) {
                                             updates.progress = total;
                                         }
-                                        // Auto-fill dates if empty
                                         const today = new Date().toISOString().split('T')[0];
                                         if (!formData.startedAt) updates.startedAt = today;
                                         if (!formData.finishedAt) updates.finishedAt = today;
@@ -370,11 +369,12 @@ const AddBook = () => {
 
                                     setFormData({ ...formData, ...updates });
                                 }}
-                            >
-                                <option value="want-to-read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.wantToRead')}</option>
-                                <option value="reading" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.reading')}</option>
-                                <option value="read" className="text-slate-900 bg-white dark:bg-slate-900 dark:text-white">{t('book.status.read')}</option>
-                            </select>
+                                options={[
+                                    { value: 'want-to-read', label: t('book.status.wantToRead') },
+                                    { value: 'reading', label: t('book.status.reading') },
+                                    { value: 'read', label: t('book.status.read') }
+                                ]}
+                            />
                         </div>
                     </div>
 
@@ -569,27 +569,30 @@ const AddBook = () => {
 
                                     <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
                                         <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">Status</span>
-                                        <select
-                                            className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                        <CustomSelect
                                             value={formData.ownershipStatus}
                                             onChange={e => setFormData({ ...formData, ownershipStatus: e.target.value })}
-                                        >
-                                            <option value="kept">{t('book.status.owned')}</option>
-                                            <option value="sold">{t('book.status.sold')}</option>
-                                        </select>
+                                            options={[
+                                                { value: 'kept', label: t('book.status.owned') },
+                                                { value: 'sold', label: t('book.status.sold') }
+                                            ]}
+                                            className="text-xs"
+                                        />
                                     </div>
 
                                     <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
                                         <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">{t('addBook.form.boughtAt')}</span>
-                                        <select
-                                            className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                        <CustomSelect
                                             value={formData.purchaseLocation}
                                             onChange={e => setFormData({ ...formData, purchaseLocation: e.target.value })}
-                                        >
-                                            <option value="" disabled>{t('app.select')}</option>
-                                            <option value="Online">Online</option>
-                                            <option value="Local Bookstore">Local Bookstore</option>
-                                        </select>
+                                            options={[
+                                                { value: '', label: t('app.select') },
+                                                { value: 'Online', label: 'Online' },
+                                                { value: 'Local Bookstore', label: 'Local Bookstore' }
+                                            ]}
+                                            placeholder={t('app.select')}
+                                            className="text-xs"
+                                        />
                                     </div>
                                 </>
                             )}
