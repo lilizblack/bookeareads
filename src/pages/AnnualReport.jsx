@@ -6,6 +6,7 @@ import { BookOpen, Calendar, TrendingUp, Award, Clock, PauseCircle, XCircle, Ale
 import ChilliIcon from '../components/ChilliIcon';
 import { formatCurrency } from '../utils/currency';
 import ChartCard from '../components/ChartCard';
+import CustomSelect from '../components/CustomSelect';
 
 const AnnualReport = () => {
     const { books, getYearlyStats } = useBooks();
@@ -190,19 +191,19 @@ const AnnualReport = () => {
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Annual Report</h1>
             </div>
 
-            <div className="flex items-center gap-2 mb-8">
+            <div className="flex items-center gap-3 mb-8">
                 <span className="text-xl font-bold text-slate-900 dark:text-white">Year</span>
-                <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="text-violet-600 dark:text-violet-400 font-medium bg-transparent border-2 border-violet-200 dark:border-violet-800 rounded-lg px-3 py-1 cursor-pointer hover:border-violet-400 dark:hover:border-violet-600 transition-colors"
-                >
-                    {availableYears.map(year => (
-                        <option key={year} value={year} className="bg-white dark:bg-slate-900">
-                            {year}
-                        </option>
-                    ))}
-                </select>
+                <div className="min-w-[100px]">
+                    <CustomSelect
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        options={availableYears.map(year => ({
+                            value: year,
+                            label: year.toString()
+                        }))}
+                        className="text-sm"
+                    />
+                </div>
             </div>
 
             {/* Interactive Monthly Bar Chart */}

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
 import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import CustomSelect from '../components/CustomSelect';
 import { useTranslation } from 'react-i18next';
 
 const Settings = () => {
@@ -129,16 +130,18 @@ const Settings = () => {
                     icon: <Edit2 size={20} />,
                     label: t('settings.themePreset'),
                     value: (
-                        <select
-                            value={themePreset}
-                            onChange={(e) => setThemePreset(e.target.value)}
-                            className="bg-transparent border-none text-slate-500 dark:text-slate-400 font-medium outline-none cursor-pointer text-right"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <option value="default">Default</option>
-                            <option value="cozy-lofi">Cozy Lofi</option>
-                            <option value="paper-ink">Paper & Ink</option>
-                        </select>
+                        <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                            <CustomSelect
+                                value={themePreset}
+                                onChange={(e) => setThemePreset(e.target.value)}
+                                options={[
+                                    { value: 'default', label: t('settings.default') },
+                                    { value: 'cozy-lofi', label: t('settings.cozyLofi') },
+                                    { value: 'paper-ink', label: t('settings.paperInk') }
+                                ]}
+                                className="text-sm"
+                            />
+                        </div>
                     ),
                     noChevron: true
                 },
