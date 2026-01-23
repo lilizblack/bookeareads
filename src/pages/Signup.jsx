@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { useTranslation } from 'react-i18next';
 import { UserPlus, Mail, Lock, AlertCircle } from 'lucide-react';
 
 const Signup = () => {
@@ -10,6 +12,8 @@ const Signup = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { signUp, signInWithGoogle } = useAuth();
+    const { success, info } = useToast();
+    const { t } = useTranslation();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -17,11 +21,11 @@ const Signup = () => {
         setError('');
 
         if (password !== confirmPassword) {
-            return setError('Passwords do not match');
+            return setError(t('auth.passwordsDoNotMatch'));
         }
 
         if (password.length < 6) {
-            return setError('Password must be at least 6 characters');
+            return setError(t('auth.passwordTooShort'));
         }
 
         setLoading(true);
@@ -33,11 +37,12 @@ const Signup = () => {
                 if (signUpError.message.includes('already registered') ||
                     signUpError.message.includes('already been registered') ||
                     signUpError.message.includes('User already registered')) {
-                    throw new Error('This email is already registered. Please login instead.');
+                    throw new Error(t('auth.emailAlreadyRegistered'));
                 }
                 throw signUpError;
             }
-            alert('Check your email for the confirmation link!');
+            info(t('auth.checkEmailConfirmation'));
+            success(t('auth.signupSuccess'));
             navigate('/login');
         } catch (err) {
             setError(err.message);
@@ -52,6 +57,7 @@ const Signup = () => {
 
         try {
             await signInWithGoogle();
+            success(t('auth.welcomeGoogle'));
             navigate('/');
         } catch (err) {
             setError(err.message);
@@ -67,8 +73,8 @@ const Signup = () => {
                     <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-4">
                         <UserPlus size={32} />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Create Account</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">Start syncing your books today</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('auth.createAccountTitle')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('auth.signupSubtitle')}</p>
                 </div>
 
                 {error && (
@@ -80,7 +86,7 @@ const Signup = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Email</label>
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">{t('auth.email')}</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
@@ -88,14 +94,14 @@ const Signup = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
-                                placeholder="name@example.com"
+                                placeholder={t('auth.emailPlaceholder')}
                                 required
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Password</label>
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">{t('auth.password')}</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
@@ -103,14 +109,14 @@ const Signup = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
-                                placeholder="••••••••"
+                                placeholder={t('auth.passwordPlaceholder')}
                                 required
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Confirm Password</label>
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">{t('auth.confirmPassword')}</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
@@ -118,7 +124,7 @@ const Signup = () => {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
-                                placeholder="••••••••"
+                                placeholder={t('auth.passwordPlaceholder')}
                                 required
                             />
                         </div>
@@ -132,7 +138,7 @@ const Signup = () => {
                         {loading ? (
                             <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                            'Sign Up'
+                            t('auth.signUp')
                         )}
                     </button>
                 </form>
@@ -142,7 +148,7 @@ const Signup = () => {
                         <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="px-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">Or continue with</span>
+                        <span className="px-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">{t('auth.orContinueWith')}</span>
                     </div>
                 </div>
 
@@ -158,13 +164,13 @@ const Signup = () => {
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
-                    Sign up with Google
+                    {t('auth.signUpWithGoogle')}
                 </button>
 
                 <div className="mt-8 text-center text-sm">
-                    <span className="text-slate-500 dark:text-slate-400">Already have an account? </span>
+                    <span className="text-slate-500 dark:text-slate-400">{t('auth.alreadyHaveAccount')} </span>
                     <Link to="/login" className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
-                        Log In
+                        {t('auth.logIn')}
                     </Link>
                 </div>
             </div>
