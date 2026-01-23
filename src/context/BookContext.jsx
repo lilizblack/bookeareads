@@ -447,48 +447,68 @@ export const BookProvider = ({ children }) => {
 
     const syncLocalToCloud = async () => {
         if (!user) {
-            alert('Please log in to sync to cloud');
-            return { success: false, message: 'Not logged in' };
+            return { success: false, message: 'Please log in to sync to cloud' };
         }
 
         try {
-            // Use the existing sync utility
-            const { syncLocalDataToSupabase } = await import('../utils/syncUtils');
-            const result = await syncLocalDataToSupabase(user.id);
+            // Get local books from state
+            const localBooks = books.filter(book => !book.id.startsWith('firebase-')); // Only sync truly local books
 
-            if (result) {
-                // Refresh books from cloud after sync
-                const { data, error } = await supabase
-                    .from('books')
-                    .select('*')
-                    .order('updated_at', { ascending: false });
-
-                if (!error && data) {
-                    const appBooks = data.map(b => ({
-                        ...b,
-                        userId: b.user_id,
-                        totalPages: b.total_pages,
-                        totalChapters: b.total_chapters,
-                        isbn: b.isbn,
-                        spiceRating: b.spice_rating,
-                        isOwned: b.is_owned,
-                        isFavorite: b.is_favorite,
-                        toBuy: b.to_buy,
-                        addedAt: b.added_at,
-                        startedAt: b.started_at,
-                        finishedAt: b.finished_at,
-                        pausedAt: b.paused_at,
-                        dnfAt: b.dnf_at,
-                        readingLogs: [],
-                        notes: []
-                    }));
-                    setBooks(appBooks);
-                }
-
-                return { success: true, message: 'Sync completed successfully' };
+            if (localBooks.length === 0) {
+                return { success: true, message: 'No local data to sync' };
             }
 
-            return { success: true, message: 'No new data to sync' };
+            let syncedCount = 0;
+            const errors = [];
+
+            // Sync each local book to Firestore
+            for (const book of localBooks) {
+                try {
+                    const booksRef = collection(db, 'users', user.uid, 'books');
+                    const insertData = {
+                        title: book.title,
+                        author: book.author,
+                        cover: book.cover,
+                        status: book.status || 'want-to-read',
+                        progress: book.progress || 0,
+                        totalPages: book.totalPages || null,
+                        totalChapters: book.totalChapters || null,
+                        rating: book.rating || 0,
+                        spiceRating: book.spiceRating || 0,
+                        isOwned: book.isOwned || false,
+                        isFavorite: book.isFavorite || false,
+                        toBuy: book.toBuy || false,
+                        price: book.price ? parseFloat(book.price) : null,
+                        review: book.review || null,
+                        format: book.format || null,
+                        genres: book.genres || [],
+                        addedAt: Timestamp.fromDate(new Date(book.addedAt || Date.now())),
+                        startedAt: book.startedAt ? Timestamp.fromDate(new Date(book.startedAt)) : null,
+                        finishedAt: book.finishedAt ? Timestamp.fromDate(new Date(book.finishedAt)) : null,
+                        pausedAt: book.pausedAt ? Timestamp.fromDate(new Date(book.pausedAt)) : null,
+                        dnfAt: book.dnfAt ? Timestamp.fromDate(new Date(book.dnfAt)) : null,
+                        updatedAt: serverTimestamp(),
+                        readingLogs: book.readingLogs || [],
+                        notes: book.notes || []
+                    };
+
+                    await addDoc(booksRef, insertData);
+                    syncedCount++;
+                } catch (error) {
+                    console.error(`Error syncing book ${book.title}:`, error);
+                    errors.push({ title: book.title, error: error.message });
+                }
+            }
+
+            // Reload books from Firestore
+            await loadBooks();
+
+            return {
+                success: true,
+                message: `Successfully synced ${syncedCount} book${syncedCount !== 1 ? 's' : ''} to cloud`,
+                syncedCount,
+                errors
+            };
         } catch (error) {
             console.error('Sync failed:', error);
             return { success: false, message: 'Sync failed: ' + error.message };
@@ -638,90 +658,56 @@ export const BookProvider = ({ children }) => {
                 try {
                     const data = JSON.parse(e.target.result);
                     if (data.books && Array.isArray(data.books)) {
-                        // If user is logged in, sync to Supabase
-                        if (user && supabase) {
-                            // Delete existing books for this user
-                            const { error: deleteError } = await supabase
-                                .from('books')
-                                .delete()
-                                .eq('user_id', user.id);
+                        // If user is logged in, sync to Firestore
+                        if (user) {
+                            try {
+                                // Delete existing books for this user
+                                const booksRef = collection(db, 'users', user.uid, 'books');
+                                const snapshot = await getDocs(booksRef);
+                                const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+                                await Promise.all(deletePromises);
 
-                            if (deleteError) {
-                                console.error('Error deleting existing books:', deleteError);
-                                reject(new Error('Failed to clear existing books: ' + deleteError.message));
+                                // Insert imported books
+                                const insertPromises = data.books.map(book => {
+                                    const insertData = {
+                                        title: book.title || 'Untitled',
+                                        author: book.author || 'Unknown Author',
+                                        cover: book.cover || null,
+                                        status: book.status || 'want-to-read',
+                                        progress: parseInt(book.progress) || 0,
+                                        totalPages: parseInt(book.totalPages) || null,
+                                        totalChapters: parseInt(book.totalChapters) || null,
+                                        isbn: book.isbn || null,
+                                        rating: parseFloat(book.rating) || 0,
+                                        spiceRating: parseFloat(book.spiceRating) || 0,
+                                        isOwned: Boolean(book.isOwned),
+                                        isFavorite: Boolean(book.isFavorite),
+                                        toBuy: Boolean(book.toBuy || book.isWantToBuy),
+                                        price: parseFloat(book.price) || 0,
+                                        review: book.review || null,
+                                        format: book.format || null,
+                                        genres: Array.isArray(book.genres) ? book.genres : [],
+                                        addedAt: Timestamp.fromDate(new Date(book.addedAt || Date.now())),
+                                        startedAt: book.startedAt ? Timestamp.fromDate(new Date(book.startedAt)) : null,
+                                        finishedAt: book.finishedAt ? Timestamp.fromDate(new Date(book.finishedAt)) : null,
+                                        pausedAt: book.pausedAt ? Timestamp.fromDate(new Date(book.pausedAt)) : null,
+                                        dnfAt: book.dnfAt ? Timestamp.fromDate(new Date(book.dnfAt)) : null,
+                                        updatedAt: serverTimestamp(),
+                                        readingLogs: book.readingLogs || [],
+                                        notes: book.notes || []
+                                    };
+                                    return addDoc(booksRef, insertData);
+                                });
+
+                                await Promise.all(insertPromises);
+
+                                // Reload books from Firestore
+                                await loadBooks();
+                            } catch (error) {
+                                console.error('Error importing books to Firestore:', error);
+                                reject(new Error('Import failed: ' + error.message));
                                 return;
                             }
-
-                            // Format and insert imported books
-                            const formattedBooks = data.books.map(book => ({
-                                user_id: user.id,
-                                title: book.title || 'Untitled',
-                                author: book.author || 'Unknown Author',
-                                cover: book.cover || null,
-                                status: book.status || 'want-to-read',
-                                progress: parseInt(book.progress) || 0,
-                                total_pages: parseInt(book.totalPages) || null,
-                                total_chapters: parseInt(book.totalChapters) || null,
-                                isbn: book.isbn || null,
-                                rating: parseFloat(book.rating) || 0,
-                                spice_rating: parseFloat(book.spiceRating) || 0,
-                                is_owned: Boolean(book.isOwned),
-                                is_favorite: Boolean(book.isFavorite),
-                                to_buy: Boolean(book.toBuy || book.isWantToBuy),
-                                price: parseFloat(book.price) || 0,
-                                review: book.review || null,
-                                format: book.format || null,
-                                genres: Array.isArray(book.genres) ? book.genres : [],
-                                added_at: book.addedAt || new Date().toISOString(),
-                                started_at: book.startedAt || null,
-                                finished_at: book.finishedAt || null,
-                                paused_at: book.pausedAt || null,
-                                dnf_at: book.dnfAt || null
-                            }));
-
-                            const { error: insertError } = await supabase
-                                .from('books')
-                                .insert(formattedBooks);
-
-                            if (insertError) {
-                                console.error('Error syncing imported books:', insertError);
-                                reject(new Error('Import failed to sync to cloud: ' + insertError.message));
-                                return;
-                            }
-
-                            // Fetch the newly inserted books to update local state
-                            const { data: fetchedBooks, error: fetchError } = await supabase
-                                .from('books')
-                                .select('*')
-                                .order('updated_at', { ascending: false });
-
-                            if (fetchError) {
-                                console.error('Error fetching imported books:', fetchError);
-                                reject(new Error('Import succeeded but failed to fetch: ' + fetchError.message));
-                                return;
-                            }
-
-                            // Transform to app format
-                            const appBooks = fetchedBooks.map(b => ({
-                                ...b,
-                                userId: b.user_id,
-                                totalPages: b.total_pages,
-                                totalChapters: b.total_chapters,
-                                isbn: b.isbn,
-                                spiceRating: b.spice_rating,
-                                isOwned: b.is_owned,
-                                isFavorite: b.is_favorite,
-                                toBuy: b.to_buy,
-                                addedAt: b.added_at,
-                                startedAt: b.started_at,
-                                finishedAt: b.finished_at,
-                                pausedAt: b.paused_at,
-                                dnfAt: b.dnf_at,
-                                readingLogs: [],
-                                notes: []
-                            }));
-
-                            setBooks(appBooks);
                         } else {
                             // Guest mode - just update local state
                             setBooks(data.books);

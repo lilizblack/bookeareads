@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 
 const Login = () => {
@@ -9,6 +10,7 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { signIn, signInWithGoogle } = useAuth();
+    const { success } = useToast();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -19,6 +21,7 @@ const Login = () => {
         try {
             const { error: signInError } = await signIn(email, password);
             if (signInError) throw signInError;
+            success('Welcome back! Successfully logged in.');
             navigate('/');
         } catch (err) {
             setError(err.message);
@@ -33,6 +36,7 @@ const Login = () => {
 
         try {
             await signInWithGoogle();
+            success('Welcome! Successfully logged in with Google.');
             navigate('/');
         } catch (err) {
             setError(err.message);
