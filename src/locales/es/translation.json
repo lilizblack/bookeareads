@@ -130,7 +130,11 @@
         "forgotPassword": "¿Olvidaste tu contraseña?",
         "noAccount": "¿No tienes una cuenta?",
         "hasAccount": "¿Ya tienes una cuenta?",
-        "offlineMode": "Modo Sin Conexión"
+        "offlineMode": "Modo Sin Conexión",
+        "welcomeBack": "¡Bienvenido de nuevo! Sesión iniciada exitosamente.",
+        "welcomeGoogle": "¡Bienvenido! Sesión iniciada con Google exitosamente.",
+        "loginSuccess": "Sesión iniciada exitosamente",
+        "signupSuccess": "Cuenta creada exitosamente"
     },
     "app": {
         "title": "Bookea Reads",
@@ -348,18 +352,31 @@
             "bookDeleted": "¡Libro eliminado exitosamente!",
             "dataSaved": "¡Datos guardados exitosamente!",
             "dataExported": "¡Datos exportados exitosamente!",
-            "dataImported": "¡Datos importados exitosamente!"
+            "dataImported": "¡Datos importados exitosamente!",
+            "syncSuccess": "Sincronización completada exitosamente",
+            "syncedBooks": "{{count}} libro(s) sincronizado(s) exitosamente a la nube",
+            "noLocalData": "No hay datos locales para sincronizar",
+            "importSuccess": "{{count}} libro(s) importado(s) exitosamente"
         },
         "error": {
             "generic": "Algo salió mal. Por favor, intenta de nuevo.",
             "networkError": "Error de red. Por favor, verifica tu conexión.",
             "notFound": "No encontrado",
             "invalidData": "Formato de datos inválido",
-            "supabaseNotConfigured": "Supabase no configurado. Ejecutando en modo sin conexión."
+            "supabaseNotConfigured": "Supabase no configurado. Ejecutando en modo sin conexión.",
+            "syncFailed": "Error al sincronizar: {{message}}",
+            "importFailed": "Error al importar: {{message}}",
+            "loginRequired": "Por favor inicia sesión para sincronizar a la nube",
+            "notLoggedIn": "No has iniciado sesión"
         },
         "confirm": {
             "deleteBook": "¿Estás seguro de que quieres eliminar este libro?",
             "importData": "Importar datos sobrescribirá tu biblioteca actual. ¿Estás seguro?"
+        },
+        "info": {
+            "syncing": "Sincronizando con la nube...",
+            "importing": "Importando datos...",
+            "exporting": "Exportando datos..."
         }
     },
     "pwa": {

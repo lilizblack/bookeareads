@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useTranslation } from 'react-i18next';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 
 const Login = () => {
@@ -11,6 +12,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const { signIn, signInWithGoogle } = useAuth();
     const { success } = useToast();
+    const { t } = useTranslation();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -21,7 +23,7 @@ const Login = () => {
         try {
             const { error: signInError } = await signIn(email, password);
             if (signInError) throw signInError;
-            success('Welcome back! Successfully logged in.');
+            success(t('auth.welcomeBack'));
             navigate('/');
         } catch (err) {
             setError(err.message);
@@ -36,7 +38,7 @@ const Login = () => {
 
         try {
             await signInWithGoogle();
-            success('Welcome! Successfully logged in with Google.');
+            success(t('auth.welcomeGoogle'));
             navigate('/');
         } catch (err) {
             setError(err.message);
