@@ -61,6 +61,6 @@
 - [x] Implementation plan
 - [x] Agent handoff document
 - [x] Data migration script
-- [ ] Firebase migration complete
-- [ ] Walkthrough document
+- [ ] Firebase migration complete (blocked on FIREBASE_SERVICE_ACCOUNT secret)
+- [x] Walkthrough document
 
