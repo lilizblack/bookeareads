@@ -7,9 +7,13 @@
     display: block;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #334155;
     margin-bottom: 0.5rem;
     margin-left: 0.25rem;
+}
+
+:root.dark .custom-select-label {
+    color: #e2e8f0;
 }
 
 .custom-select-trigger {
@@ -18,24 +22,34 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.75rem 1rem;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     font-size: 0.9375rem;
-    color: var(--text-primary);
+    color: #0f172a;
     cursor: pointer;
     transition: all 0.2s;
     text-align: left;
     -webkit-tap-highlight-color: transparent;
 }
 
+:root.dark .custom-select-trigger {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
 .custom-select-trigger:hover:not(.disabled) {
-    border-color: var(--primary-color);
-    background: var(--hover-bg);
+    border-color: #3b82f6;
+    background: #e0e7ff;
+}
+
+:root.dark .custom-select-trigger:hover:not(.disabled) {
+    background: #1e3a8a;
 }
 
 .custom-select-trigger.open {
-    border-color: var(--primary-color);
+    border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -52,14 +66,14 @@
 }
 
 .custom-select-value.placeholder {
-    color: var(--text-secondary);
+    color: #64748b;
     opacity: 0.6;
 }
 
 .custom-select-icon {
     flex-shrink: 0;
     margin-left: 0.5rem;
-    color: var(--text-secondary);
+    color: #64748b;
     transition: transform 0.2s;
 }
 
@@ -72,14 +86,19 @@
     top: calc(100% + 0.5rem);
     left: 0;
     right: 0;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     z-index: 1000;
     max-height: 320px;
     overflow: hidden;
     animation: slideDown 0.2s ease-out;
+}
+
+:root.dark .custom-select-dropdown {
+    background: #1e293b;
+    border-color: #334155;
 }
 
 @keyframes slideDown {
@@ -96,23 +115,33 @@
 
 .custom-select-search {
     padding: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+:root.dark .custom-select-search {
+    border-bottom-color: #334155;
 }
 
 .custom-select-search-input {
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     font-size: 0.875rem;
-    color: var(--text-primary);
+    color: #0f172a;
     outline: none;
     transition: all 0.2s;
 }
 
+:root.dark .custom-select-search-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
 .custom-select-search-input:focus {
-    border-color: var(--primary-color);
+    border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -131,34 +160,43 @@
     background: transparent;
     border: none;
     font-size: 0.9375rem;
-    color: var(--text-primary);
+    color: #0f172a;
     cursor: pointer;
     transition: background 0.15s;
     text-align: left;
     -webkit-tap-highlight-color: transparent;
 }
 
+:root.dark .custom-select-option {
+    color: #f1f5f9;
+}
+
 .custom-select-option:hover,
 .custom-select-option:active {
-    background: var(--hover-bg);
+    background: #f1f5f9;
+}
+
+:root.dark .custom-select-option:hover,
+:root.dark .custom-select-option:active {
+    background: #334155;
 }
 
 .custom-select-option.selected {
     background: rgba(59, 130, 246, 0.1);
-    color: var(--primary-color);
+    color: #3b82f6;
     font-weight: 600;
 }
 
 .custom-select-check {
     flex-shrink: 0;
     margin-left: 0.5rem;
-    color: var(--primary-color);
+    color: #3b82f6;
 }
 
 .custom-select-option-empty {
     padding: 1.5rem 1rem;
     text-align: center;
-    color: var(--text-secondary);
+    color: #64748b;
     font-size: 0.875rem;
 }
 
@@ -172,12 +210,16 @@
 }
 
 .custom-select-options::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: #e2e8f0;
     border-radius: 3px;
 }
 
+:root.dark .custom-select-options::-webkit-scrollbar-thumb {
+    background: #334155;
+}
+
 .custom-select-options::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
+    background: #64748b;
 }
 
 /* Mobile optimizations */
