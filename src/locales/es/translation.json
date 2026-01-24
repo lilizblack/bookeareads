@@ -413,5 +413,27 @@
         "minutes": "minutos",
         "min": "min",
         "avg": "prom"
+    },
+    "auth": {
+        "welcomeBackTitle": "¡Bienvenido de vuelta!",
+        "loginSubtitle": "Inicia sesión para continuar tu viaje de lectura",
+        "createAccountTitle": "Crear Cuenta",
+        "signupSubtitle": "Únete a nosotros y comienza tu viaje de lectura",
+        "emailPlaceholder": "Correo electrónico",
+        "passwordPlaceholder": "Contraseña",
+        "confirmPasswordPlaceholder": "Confirmar contraseña",
+        "signIn": "Iniciar Sesión",
+        "signUp": "Registrarse",
+        "signInWithGoogle": "Iniciar sesión con Google",
+        "signUpWithGoogle": "Registrarse con Google",
+        "orContinueWith": "O continuar con",
+        "dontHaveAccount": "¿No tienes una cuenta?",
+        "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+        "logIn": "Iniciar sesión",
+        "passwordsDoNotMatch": "Las contraseñas no coinciden",
+        "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+        "emailAlreadyRegistered": "Este correo electrónico ya está registrado",
+        "checkEmailConfirmation": "Por favor revisa tu correo para confirmar tu cuenta",
+        "signupSuccess": "¡Cuenta creada exitosamente!"
     }
 }
