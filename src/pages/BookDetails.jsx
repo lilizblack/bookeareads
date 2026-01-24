@@ -656,6 +656,7 @@ const BookDetails = () => {
                                     { value: 'kept', label: t('book.status.owned') },
                                     { value: 'sold', label: t('book.status.sold') }
                                 ]}
+                                disabled={!isEditing}
                                 className="text-xs"
                             />
                         </div>
@@ -673,6 +674,7 @@ const BookDetails = () => {
                                     { value: 'Local Bookstore', label: 'Local Bookstore' }
                                 ]}
                                 placeholder={t('app.select')}
+                                disabled={!isEditing}
                                 className="text-xs"
                             />
                         </div>
@@ -710,6 +712,7 @@ const BookDetails = () => {
                                     ...GENRES.map(g => ({ value: g, label: g }))
                                 ]}
                                 placeholder={t('app.select')}
+                                disabled={!isEditing}
                             />
                         ) : (
                             <div className="flex flex-wrap gap-1">
@@ -755,6 +758,7 @@ const BookDetails = () => {
                                     { value: 'paused', label: t('book.status.paused') },
                                     { value: 'dnf', label: t('book.status.dnf') }
                                 ]}
+                                disabled={!isEditing}
                                 className="text-sm"
                             />
                         </div>
@@ -771,6 +775,7 @@ const BookDetails = () => {
                                     { value: 'Buddy Read', label: 'Buddy Read' },
                                     { value: 'Re-read', label: 'Re-read' }
                                 ]}
+                                disabled={!isEditing}
                                 className="text-sm"
                             />
                         </div>
