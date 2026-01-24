@@ -758,7 +758,6 @@ const BookDetails = () => {
                                     { value: 'paused', label: t('book.status.paused') },
                                     { value: 'dnf', label: t('book.status.dnf') }
                                 ]}
-                                disabled={!isEditing}
                                 className="text-sm"
                             />
                         </div>
