@@ -742,6 +742,41 @@ const BookDetails = () => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Other Versions */}
+                    <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 mb-2 block">{t('addBook.form.otherVersion')}</span>
+                        <div className="flex flex-wrap gap-2">
+                            {['Audiobook', 'Physical', 'Ebook'].map(version => (
+                                <label
+                                    key={version}
+                                    className={`flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg transition-colors ${!isEditing ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700'
+                                        }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={((isEditing ? editData.otherVersions : book.otherVersions) || []).includes(version)}
+                                        onChange={(e) => {
+                                            if (!isEditing) return;
+                                            const currentVersions = editData.otherVersions || [];
+                                            let newVersions;
+                                            if (e.target.checked) {
+                                                newVersions = [...currentVersions, version];
+                                            } else {
+                                                newVersions = currentVersions.filter(v => v !== version);
+                                            }
+                                            setEditData(prev => ({ ...prev, otherVersions: newVersions }));
+                                        }}
+                                        disabled={!isEditing}
+                                        className="accent-violet-600"
+                                    />
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                        {version === 'Physical' ? t('book.formats.physical') : version === 'Ebook' ? t('book.formats.ebook') : t('book.formats.audiobook')}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-6 mb-8">
