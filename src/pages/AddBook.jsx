@@ -46,7 +46,8 @@ const AddBook = () => {
         purchaseLocation: '',
         otherVersions: [],
         hasSpice: false,
-        spiceRating: 0
+        spiceRating: 0,
+        language: 'English'
     });
 
     const handleSubmit = (e) => {
@@ -455,6 +456,21 @@ const AddBook = () => {
                             ))}
                         </div>
                         {errors.format && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.format}</p>}
+                    </div>
+
+                    {/* Language Selector */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                            {t('book.fields.language')}
+                        </label>
+                        <CustomSelect
+                            value={formData.language}
+                            onChange={e => setFormData({ ...formData, language: e.target.value })}
+                            options={[
+                                { value: 'English', label: t('book.languages.English') },
+                                { value: 'Spanish', label: t('book.languages.Spanish') }
+                            ]}
+                        />
                     </div>
 
                     {/* Other Versions Question */}

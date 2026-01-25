@@ -265,7 +265,15 @@ body {
   color: var(--color-text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Prevent text size adjustment on mobile */
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Improve touch handling */
+  touch-action: manipulation;
 }
 
 h1,
@@ -314,6 +322,13 @@ button {
 @media (max-width: 640px) {
   body {
     padding-bottom: 80px;
+  }
+
+  /* Prevent zoom on input focus - iOS requires 16px minimum */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 

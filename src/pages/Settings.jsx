@@ -72,7 +72,11 @@ const Settings = () => {
         if (userConfirmed) {
             try {
                 const result = await importData(file);
-                alert(`Successfully imported ${result.bookCount} books!`);
+                let message = `Successfully imported ${result.bookCount} unique books!`;
+                if (result.duplicatesRemoved > 0) {
+                    message += `\n\nRemoved ${result.duplicatesRemoved} duplicate${result.duplicatesRemoved !== 1 ? 's' : ''} from the import file.`;
+                }
+                alert(message);
 
                 // Force navigation to library to show imported books
                 window.location.href = '/library';

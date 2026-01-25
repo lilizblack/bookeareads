@@ -53,7 +53,12 @@
             "notes": "Notes",
             "spicy": "Spicy",
             "toBuy": "To Buy",
-            "worstReview": "Worst Review"
+            "worstReview": "Worst Review",
+            "language": "Language"
+        },
+        "languages": {
+            "English": "English",
+            "Spanish": "Spanish"
         },
         "formats": {
             "physical": "Physical",

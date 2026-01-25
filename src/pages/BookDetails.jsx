@@ -814,6 +814,22 @@ const BookDetails = () => {
                             />
                         </div>
                     </div>
+
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white">{t('book.fields.language')}:</span>
+                        <div className="min-w-[120px]">
+                            <CustomSelect
+                                value={(isEditing ? editData.language : book.language) || 'English'}
+                                onChange={e => handleChange('language', e.target.value)}
+                                options={[
+                                    { value: 'English', label: t('book.languages.English') },
+                                    { value: 'Spanish', label: t('book.languages.Spanish') }
+                                ]}
+                                disabled={!isEditing}
+                                className="text-sm"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-6 mb-10">
