@@ -2,15 +2,18 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Heart, ScanBarcode, Upload, Image as ImageIcon, AlertTriangle, Book } from 'lucide-react';
+import { ArrowLeft, Heart, ScanBarcode, Upload, Image as ImageIcon, AlertTriangle, Book, Search, User, Save } from 'lucide-react';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
 import SpiceRating from '../components/SpiceRating';
 import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
-import { fetchBookByISBN } from '../utils/bookApi';
+import { fetchBookData } from '../utils/bookApi';
 import CustomSelect from '../components/CustomSelect';
+import FormInput from '../components/FormInput';
+import FormTextarea from '../components/FormTextarea';
+import FormButton from '../components/FormButton';
 
 const AddBook = () => {
     const { t } = useTranslation();
@@ -21,6 +24,8 @@ const AddBook = () => {
     const [coverError, setCoverError] = useState('');
     const [duplicateError, setDuplicateError] = useState(null); // { type: 'Title' | 'ISBN' }
     const [errors, setErrors] = useState({});
+    const [searchMode, setSearchMode] = useState('isbn'); // 'isbn' or 'title'
+    const [searchQuery, setSearchQuery] = useState('');
     const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
@@ -98,11 +103,15 @@ const AddBook = () => {
 
     const handleScanSuccess = async (decodedText) => {
         setFormData(prev => ({ ...prev, isbn: decodedText }));
+        setSearchQuery(decodedText);
+        setSearchMode('isbn');
         setShowScanner(false);
 
         // Auto-fetch book data after scanning
         setFetchingCover(true);
-        const result = await fetchBookByISBN(decodedText);
+        setCoverError('');
+
+        const result = await fetchBookData(decodedText, 'isbn');
 
         if (result.success) {
             setFormData(prev => ({
@@ -130,15 +139,21 @@ const AddBook = () => {
     };
 
     const handleFetchData = async () => {
-        if (!formData.isbn) {
-            setCoverError(t('addBook.form.isbnError'));
+        // Validate based on search mode
+        if (searchMode === 'isbn' && !searchQuery.trim()) {
+            setCoverError('Please enter an ISBN');
+            return;
+        }
+        if (searchMode === 'title' && !searchQuery.trim()) {
+            setCoverError('Please enter a book title');
             return;
         }
 
         setFetchingCover(true);
         setCoverError('');
 
-        const result = await fetchBookByISBN(formData.isbn);
+        // Use waterfall search with appropriate search type
+        const result = await fetchBookData(searchQuery.trim(), searchMode);
 
         if (result.success) {
             setFormData(prev => ({
@@ -219,11 +234,16 @@ const AddBook = () => {
                         <button
                             type="button"
                             onClick={handleFetchData}
-                            disabled={!formData.isbn || fetchingCover}
+                            disabled={!searchQuery.trim() || fetchingCover}
                             className="flex items-center gap-1 px-3 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <ImageIcon size={14} />
-                            {fetchingCover ? t('addBook.form.fetching') : t('addBook.form.fetchData')}
+                            <Search size={14} />
+                            {fetchingCover
+                                ? 'Searching...'
+                                : searchMode === 'isbn'
+                                    ? 'Search by ISBN'
+                                    : 'Search by Title'
+                            }
                         </button>
                     </div>
 
@@ -242,57 +262,84 @@ const AddBook = () => {
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            {t('book.fields.title')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
+                        <FormInput
+                            label={t('book.fields.title')}
                             type="text"
-                            className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.title ? 'ring-2 ring-red-500' : ''}`}
                             placeholder={t('addBook.form.titlePlaceholder')}
                             value={formData.title}
                             onChange={e => {
                                 setFormData({ ...formData, title: e.target.value });
                                 if (errors.title) setErrors({ ...errors, title: null });
                             }}
+                            required
+                            error={errors.title}
+                            icon={Book}
                         />
-                        {errors.title && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.title}</p>}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 flex justify-between">
-                            {t('book.fields.author')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
+                        <FormInput
+                            label={t('book.fields.author')}
                             type="text"
-                            className={`w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white ${errors.author ? 'ring-2 ring-red-500' : ''}`}
                             placeholder={t('addBook.form.authorPlaceholder')}
                             value={formData.author}
                             onChange={e => {
                                 setFormData({ ...formData, author: e.target.value });
                                 if (errors.author) setErrors({ ...errors, author: null });
                             }}
+                            required
+                            error={errors.author}
+                            icon={User}
                         />
-                        {errors.author && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.author}</p>}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">{t('book.fields.isbn')}</label>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">
+                                {searchMode === 'isbn' ? 'ISBN' : 'Search by Title'}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchMode(prev => prev === 'isbn' ? 'title' : 'isbn');
+                                    setSearchQuery('');
+                                    setCoverError('');
+                                }}
+                                className="text-xs font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors flex items-center gap-1"
+                            >
+                                <Search size={12} />
+                                {searchMode === 'isbn' ? 'Search by Title' : 'Search by ISBN'}
+                            </button>
+                        </div>
                         <div className="relative">
                             <input
                                 type="text"
                                 className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-3 pr-12 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white"
-                                placeholder={t('addBook.form.isbnPlaceholder')}
-                                value={formData.isbn}
-                                onChange={e => setFormData({ ...formData, isbn: e.target.value })}
+                                placeholder={searchMode === 'isbn' ? 'Enter ISBN (e.g., 9780316769174)' : 'Enter book title (e.g., Fourth Wing)'}
+                                value={searchQuery}
+                                onChange={e => {
+                                    setSearchQuery(e.target.value);
+                                    // Also update ISBN field if in ISBN mode
+                                    if (searchMode === 'isbn') {
+                                        setFormData({ ...formData, isbn: e.target.value });
+                                    }
+                                }}
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowScanner(true)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                            >
-                                <ScanBarcode size={20} />
-                            </button>
+                            {searchMode === 'isbn' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowScanner(true)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                >
+                                    <ScanBarcode size={20} />
+                                </button>
+                            )}
                         </div>
+                        {searchMode === 'title' && (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                                💡 Tip: Be as specific as possible for best results
+                            </p>
+                        )}
                     </div>
 
 
@@ -643,12 +690,15 @@ const AddBook = () => {
                     </div>
                 </div>
 
-                <button
+                <FormButton
                     type="submit"
-                    className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-xl mt-6 active:scale-95 transition-transform"
+                    variant="primary"
+                    size="lg"
+                    icon={Save}
+                    className="w-full mt-6"
                 >
                     {t('addBook.form.save')}
-                </button>
+                </FormButton>
             </form>
         </div>
     );

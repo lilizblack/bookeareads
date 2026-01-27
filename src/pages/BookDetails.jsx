@@ -14,6 +14,10 @@ import { getCurrencySymbol } from '../utils/currency';
 import { Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import CustomSelect from '../components/CustomSelect';
+import { fetchBookData } from '../utils/bookApi';
+import FormInput from '../components/FormInput';
+import FormTextarea from '../components/FormTextarea';
+import FormButton from '../components/FormButton';
 
 const BookDetails = () => {
     const { id } = useParams();
@@ -128,45 +132,27 @@ const BookDetails = () => {
         setFetchingCover(true);
         setCoverError('');
 
-        try {
-            // 1. Fetch Metadata (Title, Author, Pages)
-            const metadataResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbnToUse}&format=json&jscmd=data`);
-            const metadata = await metadataResponse.json();
-            const bookInfo = metadata[`ISBN:${isbnToUse}`];
+        // Use waterfall search: Google Books API → Open Library API
+        const result = await fetchBookData(isbnToUse, 'isbn');
 
-            if (bookInfo) {
-                setEditData(prev => ({
-                    ...prev,
-                    title: bookInfo.title || prev.title,
-                    author: bookInfo.authors?.[0]?.name || prev.author,
-                    totalPages: bookInfo.number_of_pages || prev.totalPages
-                }));
-
-                // 2. Fetch High-Res Cover
-                const coverUrl = `https://covers.openlibrary.org/b/isbn/${isbnToUse}-L.jpg`;
-                const img = new Image();
-                img.onload = () => {
-                    setEditData(prev => ({ ...prev, cover: coverUrl }));
-                    setFetchingCover(false);
-                };
-                img.onerror = () => {
-                    // Fallback to metadata cover if direct high-res fails
-                    if (bookInfo.cover?.large) {
-                        setEditData(prev => ({ ...prev, cover: bookInfo.cover.large }));
-                    } else {
-                        setCoverError('High-res cover not found, but metadata updated.');
-                    }
-                    setFetchingCover(false);
-                };
-                img.src = coverUrl;
-            } else {
-                setCoverError('No book found for this ISBN');
-                setFetchingCover(false);
-            }
-        } catch (error) {
-            setCoverError('Failed to fetch book data');
-            setFetchingCover(false);
+        if (result.success && result.data) {
+            setEditData(prev => ({
+                ...prev,
+                title: result.data.title || prev.title,
+                author: result.data.author || prev.author,
+                cover: result.data.cover || prev.cover,
+                totalPages: result.data.totalPages || prev.totalPages,
+                isbn: result.data.isbn || prev.isbn,
+                publisher: result.data.publisher || prev.publisher,
+                publishedDate: result.data.publishedDate || prev.publishedDate,
+                genres: result.data.genres ? [result.data.genres] : prev.genres
+            }));
+            setCoverError('');
+        } else {
+            setCoverError(result.error || 'Failed to fetch book data');
         }
+
+        setFetchingCover(false);
     };
 
     const handleScanSuccess = (decodedText) => {
@@ -716,7 +702,7 @@ const BookDetails = () => {
                             />
                         ) : (
                             <div className="flex flex-wrap gap-1">
-                                {book.genres.map((g, i) => (
+                                {(book.genres && Array.isArray(book.genres) ? book.genres : []).map((g, i) => (
                                     <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded text-[10px] font-bold">
                                         {g}
                                     </span>

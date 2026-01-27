@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
-import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X } from 'lucide-react';
+import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import CustomSelect from '../components/CustomSelect';
 import { useTranslation } from 'react-i18next';
+import FormInput from '../components/FormInput';
+import FormTextarea from '../components/FormTextarea';
+import FormButton from '../components/FormButton';
 
 const Settings = () => {
     const { t } = useTranslation();
@@ -324,19 +327,26 @@ const Settings = () => {
 
                         {/* Name Input */}
                         <div className="w-full mb-8">
-                            <label className="text-xs font-bold uppercase text-slate-400 mb-2 block tracking-wider">Display Name</label>
-                            <input
+                            <FormInput
+                                label="Display Name"
                                 type="text"
-                                className="w-full text-center text-xl font-bold bg-slate-50 dark:bg-slate-800/50 rounded-xl py-3 outline-none border-2 border-transparent focus:border-blue-500 transition-all dark:text-white"
                                 value={tempProfile.name}
                                 onChange={e => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
                                 placeholder="Enter name"
+                                icon={User}
+                                className="text-center text-xl font-bold"
                             />
                         </div>
 
-                        <button onClick={handleSaveProfile} className="w-full py-4 bg-violet-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-violet-500/30 active:scale-95 transition-all">
+                        <FormButton
+                            onClick={handleSaveProfile}
+                            variant="primary"
+                            size="lg"
+                            icon={Save}
+                            className="w-full"
+                        >
                             Save Changes
-                        </button>
+                        </FormButton>
                     </div>
                 </div>
             )}
@@ -347,15 +357,30 @@ const Settings = () => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-scale-in">
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? 'Report a Bug' : 'Send Feedback'}</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">We'll format this into an email for you.</p>
-                        <textarea
-                            className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-900 dark:text-white resize-none mb-4"
+                        <FormTextarea
                             placeholder="Type your message..."
                             value={feedbackMessage}
                             onChange={(e) => setFeedbackMessage(e.target.value)}
+                            rows={6}
+                            className="mb-4"
                         />
                         <div className="flex gap-3 justify-end">
-                            <button onClick={() => setShowFeedbackModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Cancel</button>
-                            <button onClick={handleSubmitFeedback} disabled={!feedbackMessage.trim()} className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50">Send Email</button>
+                            <FormButton
+                                onClick={() => setShowFeedbackModal(false)}
+                                variant="secondary"
+                                size="md"
+                            >
+                                Cancel
+                            </FormButton>
+                            <FormButton
+                                onClick={handleSubmitFeedback}
+                                disabled={!feedbackMessage.trim()}
+                                variant="primary"
+                                size="md"
+                                icon={MessageSquare}
+                            >
+                                Send Email
+                            </FormButton>
                         </div>
                     </div>
                 </div>

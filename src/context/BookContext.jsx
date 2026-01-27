@@ -91,77 +91,98 @@ export const BookProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [readingGoal, setReadingGoal] = useState({ yearly: 15, monthly: 2 });
     const [activeTimer, setActiveTimer] = useState(null);
+    const [celebrationBook, setCelebrationBook] = useState(null);
 
-    // Load books function - extracted so it can be reused by syncLocalToCloud
+    // Load books function - defined early so it can be reused by syncLocalToCloud and importData
     const loadBooks = useCallback(async () => {
+        console.log('📚 loadBooks called - user:', user?.uid, 'isOfflineMode:', isOfflineMode);
         setLoading(true);
 
-        // 1. Authenticated User -> Fetch from Firestore
-        if (user) {
-            try {
-                const booksRef = collection(db, 'users', user.uid, 'books');
-                const q = query(booksRef, orderBy('addedAt', 'desc'));
-                const snapshot = await getDocs(q);
+        try {
+            // 1. Authenticated User -> Fetch from Firestore
+            if (user) {
+                try {
+                    const booksRef = collection(db, 'users', user.uid, 'books');
+                    const q = query(booksRef, orderBy('addedAt', 'desc'));
+                    const snapshot = await getDocs(q);
 
-                if (!snapshot.empty) {
-                    const appBooks = snapshot.docs.map(docSnap => {
-                        const data = docSnap.data();
-                        // Convert Firestore Timestamps to ISO strings
-                        return {
-                            id: docSnap.id,
-                            ...data,
-                            addedAt: data.addedAt?.toDate?.()?.toISOString() || data.addedAt,
-                            startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
-                            finishedAt: data.finishedAt?.toDate?.()?.toISOString() || data.finishedAt,
-                            pausedAt: data.pausedAt?.toDate?.()?.toISOString() || data.pausedAt,
-                            dnfAt: data.dnfAt?.toDate?.()?.toISOString() || data.dnfAt,
-                            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-                            readingLogs: data.readingLogs || [],
-                            notes: data.notes || [],
-                            language: data.language || 'English'
-                        };
-                    });
-                    setBooks(appBooks);
-                } else {
-                    setBooks([]);
+                    if (!snapshot.empty) {
+                        const appBooks = snapshot.docs.map(docSnap => {
+                            const data = docSnap.data();
+                            // Convert Firestore Timestamps to ISO strings
+                            return {
+                                id: docSnap.id,
+                                ...data,
+                                addedAt: data.addedAt?.toDate?.()?.toISOString() || data.addedAt,
+                                startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
+                                finishedAt: data.finishedAt?.toDate?.()?.toISOString() || data.finishedAt,
+                                pausedAt: data.pausedAt?.toDate?.()?.toISOString() || data.pausedAt,
+                                dnfAt: data.dnfAt?.toDate?.()?.toISOString() || data.dnfAt,
+                                updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+                                readingLogs: data.readingLogs || [],
+                                notes: data.notes || [],
+                                language: data.language || 'English'
+                            };
+                        });
+                        console.log(`✅ Loaded ${appBooks.length} books from Firestore`);
+                        setBooks(appBooks);
+                    } else {
+                        console.log('📭 No books found in Firestore');
+                        setBooks([]);
+                    }
+                } catch (error) {
+                    console.error('❌ Error fetching books from Firestore:', error);
+                    console.error('Error details:', JSON.stringify(error, null, 2));
+                    // Fallback to localStorage if Firestore fails
+                    const savedBooks = localStorage.getItem('book-tracker-data-v3');
+                    if (savedBooks) {
+                        const parsedBooks = JSON.parse(savedBooks);
+                        console.log(`⚠️ Fallback to localStorage: ${parsedBooks.length} books`);
+                        setBooks(parsedBooks);
+                    }
                 }
-            } catch (error) {
-                console.error('Error fetching books from Firestore:', error);
-                console.error('Error details:', JSON.stringify(error, null, 2));
-                // Fallback to localStorage if Firestore fails
+            }
+            // 2. Offline Mode (Logged out but keeping data visible)
+            else if (isOfflineMode) {
                 const savedBooks = localStorage.getItem('book-tracker-data-v3');
-                if (savedBooks) setBooks(JSON.parse(savedBooks));
-            }
-        }
-        // 2. Offline Mode (Logged out but keeping data visible)
-        else if (isOfflineMode) {
-            const savedBooks = localStorage.getItem('book-tracker-data-v3');
-            const savedGoal = localStorage.getItem('reading-goal');
-            if (savedBooks) setBooks(JSON.parse(savedBooks));
-            if (savedGoal) {
-                try {
-                    const parsed = JSON.parse(savedGoal);
-                    setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
-                } catch (e) {
-                    // Default handled in useState
+                const savedGoal = localStorage.getItem('reading-goal');
+                if (savedBooks) {
+                    const parsedBooks = JSON.parse(savedBooks);
+                    console.log(`📱 Offline mode: ${parsedBooks.length} books from localStorage`);
+                    setBooks(parsedBooks);
+                }
+                if (savedGoal) {
+                    try {
+                        const parsed = JSON.parse(savedGoal);
+                        setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
+                    } catch (e) {
+                        // Default handled in useState
+                    }
                 }
             }
-        }
-        // 3. Guest / First Load -> Local Storage
-        else {
-            const savedBooks = localStorage.getItem('book-tracker-data-v3');
-            const savedGoal = localStorage.getItem('reading-goal');
-            if (savedBooks) setBooks(JSON.parse(savedBooks));
-            if (savedGoal) {
-                try {
-                    const parsed = JSON.parse(savedGoal);
-                    setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
-                } catch (e) {
-                    // Default handled in useState
+            // 3. Guest / First Load -> Local Storage
+            else {
+                const savedBooks = localStorage.getItem('book-tracker-data-v3');
+                const savedGoal = localStorage.getItem('reading-goal');
+                if (savedBooks) {
+                    const parsedBooks = JSON.parse(savedBooks);
+                    console.log(`👤 Guest mode: ${parsedBooks.length} books from localStorage`);
+                    setBooks(parsedBooks);
+                }
+                if (savedGoal) {
+                    try {
+                        const parsed = JSON.parse(savedGoal);
+                        setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
+                    } catch (e) {
+                        // Default handled in useState
+                    }
                 }
             }
+        } catch (error) {
+            console.error('❌ Critical error in loadBooks:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }, [user, isOfflineMode]);
 
     // Initial Load - Fetch from Firestore OR LocalStorage
@@ -247,8 +268,7 @@ export const BookProvider = ({ children }) => {
         setBooks(prev => [...prev, newBook]);
     };
 
-    // Celebration State (Share Modal)
-    const [celebrationBook, setCelebrationBook] = useState(null);
+    // Celebration State (Share Modal) - closeCelebration helper
     const closeCelebration = () => setCelebrationBook(null);
 
     const updateBook = async (id, updates) => {
@@ -451,11 +471,15 @@ export const BookProvider = ({ children }) => {
     };
 
     const syncLocalToCloud = async () => {
+        console.log('🔄 syncLocalToCloud called');
+
         if (!user) {
+            console.log('❌ No user logged in');
             return { success: false, message: 'Please log in to sync to cloud' };
         }
 
         try {
+            console.log('📡 Fetching existing books from Firestore...');
             // First, fetch existing books from Firestore
             const booksRef = collection(db, 'users', user.uid, 'books');
             const snapshot = await getDocs(booksRef);
@@ -463,14 +487,17 @@ export const BookProvider = ({ children }) => {
                 id: doc.id,
                 ...doc.data()
             }));
+            console.log(`📚 Found ${existingBooks.length} existing books in Firestore`);
 
             // Get local books from state (only those with numeric IDs = not from Firestore)
             const localBooks = books.filter(book => {
                 // Firestore IDs are alphanumeric strings, local IDs are numeric timestamps
                 return /^\d+$/.test(book.id);
             });
+            console.log(`💾 Found ${localBooks.length} local books to potentially sync`);
 
             if (localBooks.length === 0) {
+                console.log('✅ No local data to sync');
                 return { success: true, message: 'No local data to sync' };
             }
 
@@ -485,22 +512,25 @@ export const BookProvider = ({ children }) => {
                     const isDuplicate = existingBooks.some(existingBook => {
                         // Check by ISBN if both have ISBN
                         if (book.isbn && existingBook.isbn && book.isbn === existingBook.isbn) {
+                            console.log(`🔍 Duplicate found by ISBN: ${book.title} (${book.isbn})`);
                             return true;
                         }
                         // Check by exact title match (case-insensitive)
                         if (book.title && existingBook.title &&
                             book.title.toLowerCase().trim() === existingBook.title.toLowerCase().trim()) {
+                            console.log(`🔍 Duplicate found by title: ${book.title}`);
                             return true;
                         }
                         return false;
                     });
 
                     if (isDuplicate) {
-                        console.log(`Skipping duplicate book: ${book.title}`);
+                        console.log(`⏭️ Skipping duplicate book: ${book.title}`);
                         skippedCount++;
                         continue;
                     }
 
+                    console.log(`➕ Syncing new book: ${book.title}`);
                     const insertData = {
                         title: book.title,
                         author: book.author,
@@ -532,20 +562,24 @@ export const BookProvider = ({ children }) => {
 
                     await addDoc(booksRef, insertData);
                     syncedCount++;
+                    console.log(`✅ Successfully synced: ${book.title}`);
                 } catch (error) {
-                    console.error(`Error syncing book ${book.title}:`, error);
+                    console.error(`❌ Error syncing book ${book.title}:`, error);
                     errors.push({ title: book.title, error: error.message });
                 }
             }
 
             // Reload books from Firestore
+            console.log('🔄 Reloading books from Firestore...');
             await loadBooks();
+            console.log('✅ Books reloaded successfully');
 
             let message = `Successfully synced ${syncedCount} book${syncedCount !== 1 ? 's' : ''} to cloud`;
             if (skippedCount > 0) {
                 message += `. Skipped ${skippedCount} duplicate${skippedCount !== 1 ? 's' : ''}`;
             }
 
+            console.log(`🎉 Sync complete: ${message}`);
             return {
                 success: true,
                 message,
@@ -554,7 +588,7 @@ export const BookProvider = ({ children }) => {
                 errors
             };
         } catch (error) {
-            console.error('Sync failed:', error);
+            console.error('❌ Sync failed:', error);
             return { success: false, message: 'Sync failed: ' + error.message };
         }
     };

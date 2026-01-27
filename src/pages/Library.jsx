@@ -30,13 +30,15 @@ const Library = () => {
     const [newProgress, setNewProgress] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
-    // useEffect(() => {
-    //     if (location.state?.statusFilter) {
-    //         setStatusFilter(location.state.statusFilter);
-    //         // Clear location state to prevent filter sticking after navigation
-    //         navigate(location.pathname, { replace: true, state: {} });
-    //     }
-    // }, [location.state, navigate, location.pathname]);
+    // Handle filter from navigation state (e.g., from Dashboard stats cards)
+    useEffect(() => {
+        if (location.state?.statusFilter) {
+            setStatusFilter(location.state.statusFilter);
+            // Clear location state to prevent filter sticking after navigation
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, navigate, location.pathname]);
+
     const [formatFilter, setFormatFilter] = useState('All');
     const [viewMode, setViewMode] = useState('list');
     const [sortBy, setSortBy] = useState('Recently Added');
