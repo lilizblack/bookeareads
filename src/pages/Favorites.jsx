@@ -3,8 +3,11 @@ import { useBooks } from '../context/BookContext';
 import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
-import { ArrowDownUp, Loader2 } from 'lucide-react';
+import { ArrowDownUp, Loader2, Heart, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { BookListSkeleton } from '../components/BookCardSkeleton';
+import EmptyState from '../components/EmptyState';
+import FormButton from '../components/FormButton';
 
 const Favorites = () => {
     const { t } = useTranslation();
@@ -14,13 +17,7 @@ const Favorites = () => {
     const [sortBy, setSortBy] = useState('Recently Added');
     const [showSortMenu, setShowSortMenu] = useState(false);
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={40} />
-            </div>
-        );
-    }
+
 
     const sorts = ['Alphabetical', 'Recently Added', 'Recently Bought'];
     const getSortLabel = (s) => {
@@ -83,7 +80,11 @@ const Favorites = () => {
             </div>
 
             {/* Book List */}
-            {favoriteBooks.length > 0 ? (
+            {loading ? (
+                <div className="px-1">
+                    <BookListSkeleton count={4} />
+                </div>
+            ) : favoriteBooks.length > 0 ? (
                 <div className="space-y-3">
                     {favoriteBooks.map(book => (
                         <BookCard
@@ -95,17 +96,13 @@ const Favorites = () => {
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="text-slate-400 dark:text-slate-500 mb-4">
-                        <svg className="w-24 h-24 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">{t('favorites.noFavorites')}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                        {t('favorites.noFavoritesDesc')}
-                    </p>
-                </div>
+                <EmptyState
+                    title={t('favorites.noFavorites')}
+                    message={t('favorites.noFavoritesDesc')}
+                    icon={<Heart size={48} className="text-slate-300 dark:text-slate-600" />}
+                    actionLabel={t('favorites.browseLibrary') || t('library.mode')}
+                    actionPath="/library"
+                />
             )}
         </div>
     );

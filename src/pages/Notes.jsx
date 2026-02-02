@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Edit2, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Calendar as CalendarIcon, X, Notebook } from 'lucide-react';
 import CoverImage from '../components/CoverImage';
+import EmptyState from '../components/EmptyState';
 import { format, isToday, isSameDay, subDays, parseISO } from 'date-fns';
 
 const Notes = () => {
@@ -115,11 +116,13 @@ const Notes = () => {
 
                 {/* Notes Grid */}
                 {filteredNotes.length === 0 ? (
-                    <div className="text-center py-12 opacity-50">
-                        <CalendarIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                        <p className="font-bold text-slate-400">{t('notes.noNotes')}</p>
-                        <p className="text-xs text-slate-400 mt-1">{t('notes.noNotesDesc')}</p>
-                    </div>
+                    <EmptyState
+                        title={t('notes.noNotes')}
+                        message={t('notes.noNotesDesc')}
+                        icon={<Notebook size={48} className="text-slate-300 dark:text-slate-600" />}
+                        actionLabel={t('notes.modal.newNote')}
+                        onAction={() => setIsAddingNote(true)}
+                    />
                 ) : (
                     <div className="space-y-4">
                         {filteredNotes.map(note => (

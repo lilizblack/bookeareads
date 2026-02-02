@@ -13,6 +13,11 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
     const [theme, setTheme] = useState(() => {
         const saved = localStorage.getItem('theme');
+        const savedPreset = localStorage.getItem('themePreset') || 'default';
+
+        // If saved preset is not default, force light mode regardless of what was saved
+        if (savedPreset !== 'default') return 'light';
+
         if (saved) return saved;
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     });
@@ -20,6 +25,14 @@ export const ThemeProvider = ({ children }) => {
     const [themePreset, setThemePreset] = useState(() => {
         return localStorage.getItem('themePreset') || 'default';
     });
+
+    // Enforce light mode if themePreset is changed to something other than default
+    const updateThemePreset = (newPreset) => {
+        setThemePreset(newPreset);
+        if (newPreset !== 'default') {
+            setTheme('light');
+        }
+    };
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -35,11 +48,19 @@ export const ThemeProvider = ({ children }) => {
     }, [theme, themePreset]);
 
     const toggleTheme = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+        // Only allow toggling if we are in the default theme
+        if (themePreset === 'default') {
+            setTheme(prev => prev === 'light' ? 'dark' : 'light');
+        }
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, themePreset, setThemePreset }}>
+        <ThemeContext.Provider value={{
+            theme,
+            toggleTheme,
+            themePreset,
+            setThemePreset: updateThemePreset
+        }}>
             {children}
         </ThemeContext.Provider>
     );

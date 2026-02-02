@@ -7,7 +7,7 @@ import logo from '../assets/logo.png';
 import logoDark from '../assets/logo-dark.png';
 
 const Header = () => {
-    const { exportData, importData, userProfile } = useBooks(); // Added userProfile
+    const { exportData, importData, userProfile } = useBooks();
     const { user } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);

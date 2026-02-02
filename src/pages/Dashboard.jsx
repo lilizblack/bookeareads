@@ -8,8 +8,10 @@ import CoverImage from '../components/CoverImage';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer } from 'lucide-react';
+import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer, Book } from 'lucide-react';
 import { getBookProgressPercentage } from '../utils/bookUtils';
+import Skeleton from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 
 const Dashboard = () => {
     const { loading, readingBooks, getYearlyStats, wantToReadBooks, logReading, readingGoal, setReadingGoal, userProfile, activeTimer, startTimer, stopTimer, updateBook } = useBooks();
@@ -61,13 +63,7 @@ const Dashboard = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={40} />
-            </div>
-        );
-    }
+
 
     const handleBookClick = (book) => {
         navigate(`/book/${book.id}`);
@@ -260,30 +256,38 @@ const Dashboard = () => {
 
             {/* Stats Cards Row */}
             <div className="grid grid-cols-4 gap-3 mb-8">
-                <StatsCard
-                    label={t('dashboard.reading')}
-                    count={stats.reading}
-                    colorClass="bg-[var(--color-pastel-blue)] dark:bg-blue-900/40"
-                    onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
-                />
-                <StatsCard
-                    label={t('dashboard.read')}
-                    count={stats.read}
-                    colorClass="bg-[var(--color-pastel-green)] dark:bg-emerald-900/40"
-                    onClick={() => navigate('/library', { state: { statusFilter: 'Read' } })}
-                />
-                <StatsCard
-                    label={t('dashboard.tbr')}
-                    count={stats.tbr}
-                    colorClass="bg-[var(--color-pastel-pink)] dark:bg-fuchsia-900/40"
-                    onClick={() => navigate('/library', { state: { statusFilter: 'Want to Read' } })}
-                />
-                <StatsCard
-                    label={t('dashboard.added')}
-                    count={stats.addedThisMonth}
-                    colorClass="bg-[var(--color-pastel-orange)] dark:bg-amber-900/40"
-                    onClick={() => navigate('/library')}
-                />
+                {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-20 sm:h-24 rounded-2xl" />
+                    ))
+                ) : (
+                    <>
+                        <StatsCard
+                            label={t('dashboard.reading')}
+                            count={stats.reading}
+                            colorClass="bg-[var(--color-pastel-blue)] dark:bg-blue-900/40"
+                            onClick={() => navigate('/library', { state: { statusFilter: 'Reading' } })}
+                        />
+                        <StatsCard
+                            label={t('dashboard.read')}
+                            count={stats.read}
+                            colorClass="bg-[var(--color-pastel-green)] dark:bg-emerald-900/40"
+                            onClick={() => navigate('/library', { state: { statusFilter: 'Read' } })}
+                        />
+                        <StatsCard
+                            label={t('dashboard.tbr')}
+                            count={stats.tbr}
+                            colorClass="bg-[var(--color-pastel-pink)] dark:bg-fuchsia-900/40"
+                            onClick={() => navigate('/library', { state: { statusFilter: 'Want to Read' } })}
+                        />
+                        <StatsCard
+                            label={t('dashboard.added')}
+                            count={stats.addedThisMonth}
+                            colorClass="bg-[var(--color-pastel-orange)] dark:bg-amber-900/40"
+                            onClick={() => navigate('/library')}
+                        />
+                    </>
+                )}
             </div>
 
             {/* Goals Section (Special Bar) */}
@@ -359,7 +363,13 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {readingBooks.length > 0 ? (
+                {loading ? (
+                    <div className="flex gap-4 overflow-hidden">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="flex-none w-[280px] h-[180px] rounded-2xl" />
+                        ))}
+                    </div>
+                ) : readingBooks.length > 0 ? (
                     <div ref={scrollRef} className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
                         {readingBooks.map((book) => (
                             <div
@@ -411,7 +421,15 @@ const Dashboard = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-slate-400 text-sm italic py-4">{t('dashboard.noBooksReading')}</div>
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700/50">
+                        <EmptyState
+                            title={t('dashboard.noBooksReading')}
+                            message={t('dashboard.noBooksReadingMessage') || "Pick up a book from your TBR to start reading!"}
+                            icon={<Book size={32} className="text-slate-300 dark:text-slate-600" />}
+                            actionLabel={t('dashboard.browseLibrary')}
+                            actionPath="/library"
+                        />
+                    </div>
                 )}
             </div>
 
@@ -425,9 +443,21 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                    {wantToReadBooks.slice(0, 3).map(book => (
-                        <BookCard key={book.id} book={book} onClick={handleBookClick} variant="next-up" />
-                    ))}
+                    {loading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="h-20 rounded-xl" />
+                        ))
+                    ) : wantToReadBooks.length > 0 ? (
+                        wantToReadBooks.slice(0, 3).map(book => (
+                            <BookCard key={book.id} book={book} onClick={handleBookClick} variant="next-up" />
+                        ))
+                    ) : (
+                        <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                            <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">
+                                {t('dashboard.noTBR') || "Add some books to your TBR list!"}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

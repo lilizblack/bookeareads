@@ -139,13 +139,14 @@
         "welcomeBack": "¡Bienvenido de nuevo! Sesión iniciada exitosamente.",
         "welcomeGoogle": "¡Bienvenido! Sesión iniciada con Google exitosamente.",
         "loginSuccess": "Sesión iniciada exitosamente",
-        "signupSuccess": "Cuenta creada exitosamente",
-        "welcomeBackTitle": "Bienvenido de Nuevo",
-        "loginSubtitle": "Inicia sesión para sincronizar tu biblioteca",
+        "signupSuccess": "¡Cuenta creada exitosamente!",
+        "welcomeBackTitle": "¡Bienvenido de vuelta!",
+        "loginSubtitle": "Inicia sesión para continuar tu viaje de lectura",
         "createAccountTitle": "Crear Cuenta",
-        "signupSubtitle": "Comienza a sincronizar tus libros hoy",
-        "emailPlaceholder": "nombre@ejemplo.com",
-        "passwordPlaceholder": "••••••••",
+        "signupSubtitle": "Únete a nosotros y comienza tu viaje de lectura",
+        "emailPlaceholder": "Correo electrónico",
+        "passwordPlaceholder": "Contraseña",
+        "confirmPasswordPlaceholder": "Confirmar contraseña",
         "signIn": "Iniciar Sesión",
         "signUp": "Registrarse",
         "orContinueWith": "O continuar con",
@@ -153,11 +154,11 @@
         "signUpWithGoogle": "Registrarse con Google",
         "dontHaveAccount": "¿No tienes una cuenta?",
         "alreadyHaveAccount": "¿Ya tienes una cuenta?",
-        "logIn": "Iniciar Sesión",
+        "logIn": "Iniciar sesión",
         "passwordsDoNotMatch": "Las contraseñas no coinciden",
         "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
-        "emailAlreadyRegistered": "Este correo ya está registrado. Por favor inicia sesión.",
-        "checkEmailConfirmation": "¡Revisa tu correo para el enlace de confirmación!"
+        "emailAlreadyRegistered": "Este correo electrónico ya está registrado",
+        "checkEmailConfirmation": "Por favor revisa tu correo para confirmar tu cuenta"
     },
     "app": {
         "title": "Bookea Reads",
@@ -190,6 +191,9 @@
         "currentlyReading": "Leyendo Actualmente",
         "seeAll": "Ver todo",
         "noBooksReading": "No estás leyendo nada aún.",
+        "noBooksReadingMessage": "¡Elige un libro de tu biblioteca para empezar a leer!",
+        "browseLibrary": "Explorar Biblioteca",
+        "noTBR": "No hay libros en tu lista de pendientes aún.",
         "nextUp": "Siguiente",
         "addBookShort": "+ Agregar libro",
         "modals": {
@@ -233,6 +237,10 @@
         "all": "Todos los Libros",
         "noBooks": "No se encontraron libros",
         "addFirst": "¡Agrega tu primer libro para comenzar!",
+        "emptyTitle": "Tu Biblioteca está Vacía",
+        "emptyMessage": "Comienza a construir tu biblioteca digital agregando tu primer libro.",
+        "noResultsTitle": "No se Encontraron Libros",
+        "noResultsMessage": "No pudimos encontrar libros que coincidan con tus filtros actuales.",
         "bookCount_one": "{{count}} Libro",
         "bookCount_other": "{{count}} Libros",
         "mode": "Modo",
@@ -295,7 +303,8 @@
     "favorites": {
         "title": "Favoritos",
         "noFavorites": "No hay favoritos aún",
-        "noFavoritesDesc": "Marca libros como favoritos tocando el icono del corazón en su página de detalles."
+        "noFavoritesDesc": "Marca libros como favoritos tocando el icono del corazón en su página de detalles.",
+        "browseLibrary": "Explorar Biblioteca"
     },
     "notes": {
         "bookNotFound": "Libro no encontrado",
@@ -348,6 +357,7 @@
             "spicyContent": "¿Contenido Picante?",
             "intensity": "Intensidad:",
             "save": "Guardar Libro",
+            "successMessage": "¡Libro agregado exitosamente!",
             "errorTitle": "El título es obligatorio",
             "errorAuthor": "El autor es obligatorio",
             "errorPages": "El total de páginas es obligatorio",
@@ -418,27 +428,5 @@
         "minutes": "minutos",
         "min": "min",
         "avg": "prom"
-    },
-    "auth": {
-        "welcomeBackTitle": "¡Bienvenido de vuelta!",
-        "loginSubtitle": "Inicia sesión para continuar tu viaje de lectura",
-        "createAccountTitle": "Crear Cuenta",
-        "signupSubtitle": "Únete a nosotros y comienza tu viaje de lectura",
-        "emailPlaceholder": "Correo electrónico",
-        "passwordPlaceholder": "Contraseña",
-        "confirmPasswordPlaceholder": "Confirmar contraseña",
-        "signIn": "Iniciar Sesión",
-        "signUp": "Registrarse",
-        "signInWithGoogle": "Iniciar sesión con Google",
-        "signUpWithGoogle": "Registrarse con Google",
-        "orContinueWith": "O continuar con",
-        "dontHaveAccount": "¿No tienes una cuenta?",
-        "alreadyHaveAccount": "¿Ya tienes una cuenta?",
-        "logIn": "Iniciar sesión",
-        "passwordsDoNotMatch": "Las contraseñas no coinciden",
-        "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
-        "emailAlreadyRegistered": "Este correo electrónico ya está registrado",
-        "checkEmailConfirmation": "Por favor revisa tu correo para confirmar tu cuenta",
-        "signupSuccess": "¡Cuenta creada exitosamente!"
     }
 }

@@ -38,6 +38,7 @@ const TimerBanner = () => {
     return (
         <div
             className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-red-600 to-rose-500 text-white py-3 px-4 shadow-lg animate-slide-down flex items-center justify-between backdrop-blur-md bg-opacity-90"
+            style={{ paddingTop: 'calc(var(--safe-area-top, 0px) + 0.75rem)' }}
         >
             <div className="flex items-center gap-3 overflow-hidden">
                 <div className="bg-white/20 p-1.5 rounded-lg animate-pulse">

@@ -188,6 +188,9 @@
         "currentlyReading": "Currently Reading",
         "seeAll": "See all",
         "noBooksReading": "Not reading anything yet.",
+        "noBooksReadingMessage": "Pick up a book from your library to start reading!",
+        "browseLibrary": "Browse Library",
+        "noTBR": "No books in your TBR list yet.",
         "nextUp": "Next Up",
         "addBookShort": "+ Add book",
         "modals": {
@@ -231,6 +234,10 @@
         "all": "All Books",
         "noBooks": "No books found",
         "addFirst": "Add your first book to get started!",
+        "emptyTitle": "Your Library is Empty",
+        "emptyMessage": "Start building your digital library by adding your first book.",
+        "noResultsTitle": "No Books Found",
+        "noResultsMessage": "We couldn't find any books matching your current filters.",
         "bookCount_one": "{{count}} Book",
         "bookCount_other": "{{count}} Books",
         "mode": "Mode",
@@ -293,7 +300,8 @@
     "favorites": {
         "title": "Favorites",
         "noFavorites": "No Favorites Yet",
-        "noFavoritesDesc": "Mark books as favorites by tapping the heart icon in their details page."
+        "noFavoritesDesc": "Mark books as favorites by tapping the heart icon in their details page.",
+        "browseLibrary": "Browse Library"
     },
     "notes": {
         "bookNotFound": "Book not found",
@@ -346,6 +354,7 @@
             "spicyContent": "Spicy Content?",
             "intensity": "Intensity:",
             "save": "Save Book",
+            "successMessage": "Book added successfully!",
             "errorTitle": "Title is required",
             "errorAuthor": "Author is required",
             "errorPages": "Total Pages is required",

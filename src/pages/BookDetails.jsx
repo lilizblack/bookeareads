@@ -331,7 +331,7 @@ const BookDetails = () => {
                             <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-violet-400/20 rounded-full blur-3xl pointer-events-none"></div>
                             <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
-                            <div className="flex justify-between items-center mb-6 z-10">
+                            <header className="flex justify-between items-center mb-6 pt-2">
                                 <div>
                                     <h3 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">{t('dashboard.modals.logProgress')}</h3>
                                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('dashboard.modals.updateJourney')}</p>
@@ -342,7 +342,7 @@ const BookDetails = () => {
                                 >
                                     <CloseIcon size={24} />
                                 </button>
-                            </div>
+                            </header>
 
                             <div className="mb-8 z-10">
                                 <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">
@@ -387,7 +387,7 @@ const BookDetails = () => {
                 )
             }
             {/* Header */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-4 pt-2">
                 <button onClick={() => navigate(-1)} className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center">
                     ← {t('actions.back')}
                 </button>

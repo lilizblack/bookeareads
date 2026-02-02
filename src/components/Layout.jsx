@@ -12,7 +12,14 @@ const Layout = () => {
         <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] pb-20 transition-colors duration-300">
             <TimerBanner />
 
-            <main className={`container mx-auto px-4 max-w-md animate-fade-in relative transition-all duration-300 ${activeTimer ? 'pt-20' : 'pt-4'}`}>
+            <main
+                className={`container mx-auto px-4 max-w-md animate-fade-in relative transition-all duration-300`}
+                style={{
+                    paddingTop: activeTimer
+                        ? 'calc(var(--safe-area-top, 0px) + 5rem)'
+                        : 'calc(var(--safe-area-top, 0px) + 1.25rem)'
+                }}
+            >
                 <Outlet />
             </main>
 

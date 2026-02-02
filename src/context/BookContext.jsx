@@ -92,10 +92,11 @@ export const BookProvider = ({ children }) => {
     const [readingGoal, setReadingGoal] = useState({ yearly: 15, monthly: 2 });
     const [activeTimer, setActiveTimer] = useState(null);
     const [celebrationBook, setCelebrationBook] = useState(null);
+    const [isSyncingState, setIsSyncingState] = useState(false);
 
-    // Load books function - defined early so it can be reused by syncLocalToCloud and importData
-    const loadBooks = useCallback(async () => {
-        console.log('📚 loadBooks called - user:', user?.uid, 'isOfflineMode:', isOfflineMode);
+    // Fetch books function - defined early so it can be reused by syncLocalToCloud and importData
+    const fetchBooksFromDB = useCallback(async () => {
+        console.log('📚 fetchBooksFromDB called - user:', user?.uid, 'isOfflineMode:', isOfflineMode);
         setLoading(true);
 
         try {
@@ -179,16 +180,19 @@ export const BookProvider = ({ children }) => {
                 }
             }
         } catch (error) {
-            console.error('❌ Critical error in loadBooks:', error);
+            console.error('❌ Critical error in fetchBooksFromDB:', error);
         } finally {
             setLoading(false);
         }
     }, [user, isOfflineMode]);
 
+    // Backward compatibility alias for any cached components using the old name
+    const loadBooks = fetchBooksFromDB;
+
     // Initial Load - Fetch from Firestore OR LocalStorage
     useEffect(() => {
-        loadBooks();
-    }, [user, isOfflineMode]);
+        fetchBooksFromDB();
+    }, [user, isOfflineMode, fetchBooksFromDB]);
 
     // Save to localStorage for offline access (always persist)
     useEffect(() => {
@@ -310,7 +314,7 @@ export const BookProvider = ({ children }) => {
                 }
                 if (user) {
                     const bookRef = doc(db, 'users', user.uid, 'books', id);
-                    updateDoc(bookRef, {
+                    const syncData = {
                         status: updated.status,
                         progress: updated.progress,
                         rating: updated.rating,
@@ -325,8 +329,26 @@ export const BookProvider = ({ children }) => {
                         title: updated.title,
                         author: updated.author,
                         updatedAt: serverTimestamp(),
-                        language: updated.language || 'English'
-                    }).catch((error) => {
+                        language: updated.language || 'English',
+                        // Add missing fields for full sync
+                        genres: updated.genres || [],
+                        format: updated.format || null,
+                        price: updated.price || null,
+                        isbn: updated.isbn || null,
+                        totalTimeRead: updated.totalTimeRead || 0,
+                        totalTimedProgress: updated.totalTimedProgress || 0,
+                        readingLogs: updated.readingLogs || [],
+                        progressMode: updated.progressMode || 'pages',
+                        totalPages: updated.totalPages || null,
+                        totalChapters: updated.totalChapters || null,
+                        isWantToBuy: updated.isWantToBuy || false,
+                        boughtDate: updated.boughtDate ? Timestamp.fromDate(new Date(updated.boughtDate)) : null,
+                        ownershipStatus: updated.ownershipStatus || 'kept',
+                        purchaseLocation: updated.purchaseLocation || '',
+                        otherVersions: updated.otherVersions || []
+                    };
+
+                    updateDoc(bookRef, syncData).catch((error) => {
                         console.error('Firestore update failed:', error);
                     });
                 }
@@ -365,36 +387,40 @@ export const BookProvider = ({ children }) => {
 
     // V3 Logic: Log Reading for Streak
     const logReading = async (bookId, pagesRead) => {
-        // Check for completion via progress logging
-        const currentBook = books.find(b => b.id === bookId);
-        if (currentBook) {
-            const target = currentBook.totalPages || currentBook.totalChapters || 100;
-            if (pagesRead >= target && currentBook.status === 'reading') {
-                // Auto-finish logic could go here, but usually we let the user explicitly finish.
-                // However, if we do updateBook to 'read', it will trigger celebration.
-                // For now, assume explicit status change or separate flow for log-completion.
-            }
+        const bookToUpdate = books.find(b => b.id === bookId);
+        if (!bookToUpdate) return;
+
+        const today = new Date().toISOString();
+        const existingLogIndex = (bookToUpdate.readingLogs || []).findIndex(log => isSameDay(parseISO(log.date), new Date()));
+
+        let newLogs = [...(bookToUpdate.readingLogs || [])];
+        if (existingLogIndex >= 0) {
+            newLogs[existingLogIndex] = { ...newLogs[existingLogIndex], pagesRead: pagesRead };
+        } else {
+            newLogs.push({ date: today, pagesRead });
         }
 
+        const updatedAt = new Date().toISOString();
+
+        // Update local state
         setBooks(prev => prev.map(book => {
             if (book.id !== bookId) return book;
-
-            const today = new Date().toISOString();
-            const existingLogIndex = book.readingLogs?.findIndex(log => isSameDay(parseISO(log.date), new Date()));
-
-            let newLogs = [...(book.readingLogs || [])];
-
-            if (existingLogIndex >= 0) {
-                newLogs[existingLogIndex] = { ...newLogs[existingLogIndex], pagesRead: pagesRead };
-            } else {
-                newLogs.push({ date: today, pagesRead });
-            }
-
-            // If completed via pages
-            const updatedBook = { ...book, readingLogs: newLogs, progress: pagesRead };
-
-            return updatedBook;
+            return { ...book, readingLogs: newLogs, progress: pagesRead, updatedAt };
         }));
+
+        // Sync to Firestore
+        if (user) {
+            try {
+                const bookRef = doc(db, 'users', user.uid, 'books', bookId);
+                await updateDoc(bookRef, {
+                    progress: pagesRead,
+                    readingLogs: newLogs,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Firestore logReading sync failed:', error);
+            }
+        }
     };
 
     const startTimer = (bookId) => {
@@ -405,10 +431,13 @@ export const BookProvider = ({ children }) => {
     };
 
     const stopTimer = async (bookId, minutesSpent, sessionProgress = 0) => {
+        const bookToUpdate = books.find(b => b.id === bookId);
+        if (!bookToUpdate) return;
+
         const endTime = new Date();
         const startTime = activeTimer ? new Date(activeTimer.startTime) : endTime;
 
-        // Create reading session in Supabase if user is logged in
+        // Create reading session subcollection entry
         if (user && activeTimer) {
             await createReadingSession(
                 bookId,
@@ -419,36 +448,58 @@ export const BookProvider = ({ children }) => {
             );
         }
 
+        const today = new Date().toISOString();
+        const existingLogIndex = (bookToUpdate.readingLogs || []).findIndex(log => isSameDay(parseISO(log.date), new Date()));
+        let newLogs = [...(bookToUpdate.readingLogs || [])];
+
+        if (existingLogIndex >= 0) {
+            newLogs[existingLogIndex] = {
+                ...newLogs[existingLogIndex],
+                minutesRead: (newLogs[existingLogIndex].minutesRead || 0) + minutesSpent,
+                pagesRead: Math.max(newLogs[existingLogIndex].pagesRead || 0, (bookToUpdate.progress || 0) + sessionProgress)
+            };
+        } else {
+            newLogs.push({
+                date: today,
+                minutesRead: minutesSpent,
+                pagesRead: (bookToUpdate.progress || 0) + sessionProgress
+            });
+        }
+
+        const totalTimeRead = (bookToUpdate.totalTimeRead || 0) + minutesSpent;
+        const totalTimedProgress = (bookToUpdate.totalTimedProgress || 0) + sessionProgress;
+        const newProgress = Math.max(bookToUpdate.progress || 0, (bookToUpdate.progress || 0) + sessionProgress);
+        const updatedAt = new Date().toISOString();
+
+        // Update local state
         setBooks(prev => prev.map(book => {
             if (book.id !== bookId) return book;
-
-            const today = new Date().toISOString();
-            const existingLogIndex = (book.readingLogs || []).findIndex(log => isSameDay(parseISO(log.date), new Date()));
-
-            let newLogs = [...(book.readingLogs || [])];
-
-            if (existingLogIndex >= 0) {
-                newLogs[existingLogIndex] = {
-                    ...newLogs[existingLogIndex],
-                    minutesRead: (newLogs[existingLogIndex].minutesRead || 0) + minutesSpent,
-                    pagesRead: Math.max(newLogs[existingLogIndex].pagesRead || 0, (book.progress || 0) + sessionProgress)
-                };
-            } else {
-                newLogs.push({
-                    date: today,
-                    minutesRead: minutesSpent,
-                    pagesRead: (book.progress || 0) + sessionProgress
-                });
-            }
-
             return {
                 ...book,
-                totalTimeRead: (book.totalTimeRead || 0) + minutesSpent,
-                totalTimedProgress: (book.totalTimedProgress || 0) + sessionProgress,
+                totalTimeRead,
+                totalTimedProgress,
                 readingLogs: newLogs,
-                progress: Math.max(book.progress || 0, (book.progress || 0) + sessionProgress)
+                progress: newProgress,
+                updatedAt
             };
         }));
+
+        // Sync to Firestore
+        if (user) {
+            try {
+                const bookRef = doc(db, 'users', user.uid, 'books', bookId);
+                await updateDoc(bookRef, {
+                    totalTimeRead,
+                    totalTimedProgress,
+                    readingLogs: newLogs,
+                    progress: newProgress,
+                    updatedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Firestore stopTimer sync failed:', error);
+            }
+        }
+
         setActiveTimer(null);
     };
 
@@ -470,34 +521,60 @@ export const BookProvider = ({ children }) => {
         }));
     };
 
-    const syncLocalToCloud = async () => {
-        console.log('🔄 syncLocalToCloud called');
+    const syncLocalToCloud = useCallback(async () => {
+        if (isSyncingState) return { success: false, message: 'Sync already in progress' };
+
+        console.log('🔄 syncLocalToCloud started');
+        setIsSyncingState(true);
 
         if (!user) {
             console.log('❌ No user logged in');
+            setIsSyncingState(false);
             return { success: false, message: 'Please log in to sync to cloud' };
         }
 
         try {
             console.log('📡 Fetching existing books from Firestore...');
-            // First, fetch existing books from Firestore
             const booksRef = collection(db, 'users', user.uid, 'books');
             const snapshot = await getDocs(booksRef);
-            const existingBooks = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`📚 Found ${existingBooks.length} existing books in Firestore`);
+
+            // Keep track of titles and ISBNs already in Firestore
+            const existingISBNs = new Set();
+            const existingTitles = new Set();
+
+            snapshot.docs.forEach(docSnap => {
+                const d = docSnap.data();
+                if (d.isbn) existingISBNs.add(d.isbn.toString());
+                if (d.title) existingTitles.add(d.title.toLowerCase().trim());
+            });
+
+            console.log(`📚 Found ${snapshot.docs.length} existing books in Firestore`);
 
             // Get local books from state (only those with numeric IDs = not from Firestore)
-            const localBooks = books.filter(book => {
-                // Firestore IDs are alphanumeric strings, local IDs are numeric timestamps
-                return /^\d+$/.test(book.id);
-            });
-            console.log(`💾 Found ${localBooks.length} local books to potentially sync`);
+            // AND deduplicate them within the local list first
+            const localBooksRaw = books.filter(book => /^\d+$/.test(book.id));
+            const localBooks = [];
+            const seenInLocalLoop = new Set();
+
+            for (const book of localBooksRaw) {
+                const normalizedTitle = book.title?.toLowerCase().trim();
+                const isbn = book.isbn?.toString();
+
+                const isDuplicateLocally = (isbn && seenInLocalLoop.has(`isbn:${isbn}`)) ||
+                    (normalizedTitle && seenInLocalLoop.has(`title:${normalizedTitle}`));
+
+                if (!isDuplicateLocally) {
+                    localBooks.push(book);
+                    if (isbn) seenInLocalLoop.add(`isbn:${isbn}`);
+                    if (normalizedTitle) seenInLocalLoop.add(`title:${normalizedTitle}`);
+                }
+            }
+
+            console.log(`💾 Found ${localBooks.length} unique local books to potentially sync`);
 
             if (localBooks.length === 0) {
                 console.log('✅ No local data to sync');
+                setIsSyncingState(false);
                 return { success: true, message: 'No local data to sync' };
             }
 
@@ -508,21 +585,11 @@ export const BookProvider = ({ children }) => {
             // Sync each local book to Firestore (with duplicate checking)
             for (const book of localBooks) {
                 try {
-                    // Check if book already exists in Firestore by ISBN or title
-                    const isDuplicate = existingBooks.some(existingBook => {
-                        // Check by ISBN if both have ISBN
-                        if (book.isbn && existingBook.isbn && book.isbn === existingBook.isbn) {
-                            console.log(`🔍 Duplicate found by ISBN: ${book.title} (${book.isbn})`);
-                            return true;
-                        }
-                        // Check by exact title match (case-insensitive)
-                        if (book.title && existingBook.title &&
-                            book.title.toLowerCase().trim() === existingBook.title.toLowerCase().trim()) {
-                            console.log(`🔍 Duplicate found by title: ${book.title}`);
-                            return true;
-                        }
-                        return false;
-                    });
+                    const normalizedTitle = book.title?.toLowerCase().trim();
+                    const isbn = book.isbn?.toString();
+
+                    const isDuplicate = (isbn && existingISBNs.has(isbn)) ||
+                        (normalizedTitle && existingTitles.has(normalizedTitle));
 
                     if (isDuplicate) {
                         console.log(`⏭️ Skipping duplicate book: ${book.title}`);
@@ -532,9 +599,9 @@ export const BookProvider = ({ children }) => {
 
                     console.log(`➕ Syncing new book: ${book.title}`);
                     const insertData = {
-                        title: book.title,
-                        author: book.author,
-                        cover: book.cover,
+                        title: book.title || 'Untitled',
+                        author: book.author || 'Unknown Author',
+                        cover: book.cover || null,
                         isbn: book.isbn || null,
                         status: book.status || 'want-to-read',
                         progress: book.progress || 0,
@@ -562,6 +629,11 @@ export const BookProvider = ({ children }) => {
 
                     await addDoc(booksRef, insertData);
                     syncedCount++;
+
+                    // Add to tracked existing so we don't duplicate if another version is in the list
+                    if (isbn) existingISBNs.add(isbn);
+                    if (normalizedTitle) existingTitles.add(normalizedTitle);
+
                     console.log(`✅ Successfully synced: ${book.title}`);
                 } catch (error) {
                     console.error(`❌ Error syncing book ${book.title}:`, error);
@@ -569,9 +641,9 @@ export const BookProvider = ({ children }) => {
                 }
             }
 
-            // Reload books from Firestore
+            // Reload books from Firestore to replace local numeric-ID books with Firebase-ID books
             console.log('🔄 Reloading books from Firestore...');
-            await loadBooks();
+            await fetchBooksFromDB();
             console.log('✅ Books reloaded successfully');
 
             let message = `Successfully synced ${syncedCount} book${syncedCount !== 1 ? 's' : ''} to cloud`;
@@ -580,6 +652,7 @@ export const BookProvider = ({ children }) => {
             }
 
             console.log(`🎉 Sync complete: ${message}`);
+            setIsSyncingState(false);
             return {
                 success: true,
                 message,
@@ -589,9 +662,10 @@ export const BookProvider = ({ children }) => {
             };
         } catch (error) {
             console.error('❌ Sync failed:', error);
+            setIsSyncingState(false);
             return { success: false, message: 'Sync failed: ' + error.message };
         }
-    };
+    }, [user, books, fetchBooksFromDB, isSyncingState]);
 
     // Global Streak Calculation
     const getStreak = () => {
@@ -729,7 +803,7 @@ export const BookProvider = ({ children }) => {
         URL.revokeObjectURL(url);
     };
 
-    const importData = (file) => {
+    const importData = useCallback((file) => {
         return new Promise(async (resolve, reject) => {
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -813,7 +887,7 @@ export const BookProvider = ({ children }) => {
                                 console.log(`Imported ${uniqueBooks.length} unique books to Firestore`);
 
                                 // Reload books from Firestore
-                                await loadBooks();
+                                await fetchBooksFromDB();
                             } catch (error) {
                                 console.error('Error importing books to Firestore:', error);
                                 reject(new Error('Import failed: ' + error.message));
@@ -844,7 +918,7 @@ export const BookProvider = ({ children }) => {
             reader.onerror = () => reject(new Error('Failed to read file'));
             reader.readAsText(file);
         });
-    };
+    }, [user, fetchBooksFromDB]);
 
     const checkDuplicate = (title, isbn, excludeId = null) => {
         const titleMatch = books.some(b =>
@@ -1145,6 +1219,9 @@ export const BookProvider = ({ children }) => {
             exportData,
             importData,
             syncLocalToCloud,
+            isSyncing: isSyncingState,
+            fetchBooksFromDB,
+            loadBooks, // Backward compatibility alias
             checkDuplicate,
             userProfile,
             updateUserProfile,

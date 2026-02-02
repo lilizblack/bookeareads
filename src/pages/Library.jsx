@@ -4,8 +4,11 @@ import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book } from 'lucide-react';
+import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book, Plus } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { BookListSkeleton } from '../components/BookCardSkeleton';
+import EmptyState from '../components/EmptyState';
+import FormButton from '../components/FormButton';
 
 const Library = () => {
     const { books, loading, bulkDeleteBooks, activeTimer, startTimer, stopTimer, updateBook, logReading } = useBooks();
@@ -68,13 +71,7 @@ const Library = () => {
         };
     }, [activeTimer]);
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={40} />
-            </div>
-        );
-    }
+
 
     const statuses = ['All', 'Reading', 'Read', 'Want to Read', 'Paused', 'DNF', 'Owned', 'Sold', 'To Buy', 'Spicy', 'Worst Review'];
     const formats = ['All', 'Physical', 'Ebook', 'Audiobook'];
@@ -381,25 +378,38 @@ const Library = () => {
             )}
 
             {/* Book List */}
-            <div className={
-                viewMode === 'spine'
-                    ? "flex flex-wrap items-end gap-x-0 gap-y-12 px-8 py-12 bg-slate-50 dark:bg-[#1a1a1a] rounded-sm border-[16px] border-white dark:border-[#2a2a2a] shadow-[inset_0_2px_10px_rgba(0,0,0,0.05),0_10px_30px_rgba(0,0,0,0.1)] min-h-[500px]" // Built-in Bookshelf look
-                    : viewMode === 'grid'
-                        ? "grid grid-cols-2 gap-3"
-                        : "space-y-3"
-            }>
-                {filteredBooks.map(book => (
-                    <BookCard
-                        key={book.id}
-                        book={book}
-                        variant={viewMode === 'spine' ? 'spine' : viewMode === 'grid' ? 'grid' : 'list'}
-                        onClick={() => navigate(`/book/${book.id}`)}
-                        selectable={isSelectMode}
-                        selected={selectedIds.includes(book.id)}
-                        onSelect={toggleSelection}
-                    />
-                ))}
-            </div>
+            {loading ? (
+                <div className="px-1">
+                    <BookListSkeleton count={6} />
+                </div>
+            ) : filteredBooks.length > 0 ? (
+                <div className={
+                    viewMode === 'spine'
+                        ? "flex flex-wrap items-end gap-x-0 gap-y-12 px-8 py-12 bg-slate-50 dark:bg-[#1a1a1a] rounded-sm border-[16px] border-white dark:border-[#2a2a2a] shadow-[inset_0_2px_10px_rgba(0,0,0,0.05),0_10px_30px_rgba(0,0,0,0.1)] min-h-[500px]" // Built-in Bookshelf look
+                        : viewMode === 'grid'
+                            ? "grid grid-cols-2 gap-3"
+                            : "space-y-3"
+                }>
+                    {filteredBooks.map(book => (
+                        <BookCard
+                            key={book.id}
+                            book={book}
+                            variant={viewMode === 'spine' ? 'spine' : viewMode === 'grid' ? 'grid' : 'list'}
+                            onClick={() => navigate(`/book/${book.id}`)}
+                            selectable={isSelectMode}
+                            selected={selectedIds.includes(book.id)}
+                            onSelect={toggleSelection}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <EmptyState
+                    title={statusFilter === 'All' ? t('library.emptyTitle') : t('library.noResultsTitle')}
+                    message={statusFilter === 'All' ? t('library.emptyMessage') : t('library.noResultsMessage')}
+                    actionLabel={statusFilter === 'All' ? t('library.addFirst') : null}
+                    actionPath="/add"
+                />
+            )}
         </div>
     );
 };

@@ -14,6 +14,7 @@ import CustomSelect from '../components/CustomSelect';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
+import SuccessAnimation from '../components/SuccessAnimation';
 
 const AddBook = () => {
     const { t } = useTranslation();
@@ -24,6 +25,7 @@ const AddBook = () => {
     const [coverError, setCoverError] = useState('');
     const [duplicateError, setDuplicateError] = useState(null); // { type: 'Title' | 'ISBN' }
     const [errors, setErrors] = useState({});
+    const [showSuccess, setShowSuccess] = useState(false);
     const [searchMode, setSearchMode] = useState('isbn'); // 'isbn' or 'title'
     const [searchQuery, setSearchQuery] = useState('');
     const fileInputRef = useRef(null);
@@ -98,6 +100,10 @@ const AddBook = () => {
         };
 
         addBook(newBook);
+        setShowSuccess(true);
+    };
+
+    const handleSuccessComplete = () => {
         navigate('/');
     };
 
@@ -172,6 +178,12 @@ const AddBook = () => {
 
     return (
         <div className="pb-10 pt-2">
+            {showSuccess && (
+                <SuccessAnimation
+                    message={t('addBook.form.successMessage') || "Book added successfully!"}
+                    onComplete={handleSuccessComplete}
+                />
+            )}
             {/* Duplicate Warning Modal */}
             {duplicateError && (
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
