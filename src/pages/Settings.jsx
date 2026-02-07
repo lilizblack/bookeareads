@@ -137,7 +137,7 @@ const Settings = () => {
                     icon: <Edit2 size={20} />,
                     label: t('settings.themePreset'),
                     value: (
-                        <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                        <div className="min-w-[140px]">
                             <CustomSelect
                                 value={themePreset}
                                 onChange={(e) => setThemePreset(e.target.value)}

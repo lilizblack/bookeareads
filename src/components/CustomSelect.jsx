@@ -14,20 +14,19 @@ const CustomSelect = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
 
     // Update isMobile on resize
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth <= 640);
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const toggleDropdown = useCallback((e) => {
         if (e) {
-            e.preventDefault();
             e.stopPropagation();
         }
         if (!disabled) {
@@ -35,28 +34,32 @@ const CustomSelect = ({
         }
     }, [disabled]);
 
-    // Close dropdown when clicking outside (Desktop/Tablet)
+    // Close dropdown when clicking outside
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            // Check if click is outside BOTH the trigger and the dropdown
-            const isClickInsideTrigger = triggerRef.current && triggerRef.current.contains(event.target);
-            const isClickInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+        if (!isOpen) return;
 
-            if (!isClickInsideTrigger && !isClickInsideDropdown) {
-                setIsOpen(false);
-                setSearchTerm('');
-            }
-        };
+        // Use a timer to wait for the next tick to avoid capturing the triggering event
+        const timer = setTimeout(() => {
+            const handleClickOutside = (event) => {
+                const isClickInsideTrigger = triggerRef.current?.contains(event.target);
+                const isClickInsideDropdown = dropdownRef.current?.contains(event.target);
 
-        if (isOpen) {
+                if (!isClickInsideTrigger && !isClickInsideDropdown) {
+                    setIsOpen(false);
+                    setSearchTerm('');
+                }
+            };
+
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside);
-        }
 
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('touchstart', handleClickOutside);
-        };
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+                document.removeEventListener('touchstart', handleClickOutside);
+            };
+        }, 50); // Slightly longer delay for safer touch handling
+
+        return () => clearTimeout(timer);
     }, [isOpen]);
 
     const handleSelect = (optionValue) => {
@@ -66,13 +69,13 @@ const CustomSelect = ({
     };
 
     const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+        String(option.label || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const selectedOption = options.find(opt => opt.value === value);
     const displayText = selectedOption ? selectedOption.label : placeholder;
 
-    // Calculate inline position for non-mobile (Desktop/Tablet)
+    // Fixed positioning for desktop dropdowns
     const [dropdownStyle, setDropdownStyle] = useState({});
 
     useEffect(() => {
@@ -89,14 +92,19 @@ const CustomSelect = ({
     }, [isOpen, isMobile]);
 
     const dropdownContent = (
-        <div className="custom-select-portal-root">
-            {/* Backdrop for mobile */}
-            {isMobile && <div className="custom-select-backdrop" onClick={() => setIsOpen(false)} />}
+        <div className="custom-select-portal-wrapper">
+            {isMobile && (
+                <div
+                    className="custom-select-backdrop"
+                    onClick={() => setIsOpen(false)}
+                    style={{ zIndex: 9998 }}
+                />
+            )}
 
             <div
                 ref={dropdownRef}
                 className={`custom-select-dropdown ${isMobile ? 'mobile-sheet' : ''}`}
-                style={isMobile ? {} : dropdownStyle}
+                style={isMobile ? { zIndex: 9999 } : dropdownStyle}
                 onClick={(e) => e.stopPropagation()}
             >
                 {options.length > 8 && (
@@ -144,9 +152,12 @@ const CustomSelect = ({
                 type="button"
                 className={`custom-select-trigger ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
                 onClick={toggleDropdown}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') setIsOpen(false);
+                }}
                 disabled={disabled}
             >
-                <span className={`custom-select-value ${!selectedOption ? 'placeholder' : ''}`}>
+                <span className={`custom-select-value ${!selectedOption ? 'placeholder' : ''} truncate`}>
                     {displayText}
                 </span>
                 <ChevronDown
