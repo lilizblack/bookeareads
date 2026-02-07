@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBooks } from '../context/BookContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Calendar, TrendingUp, Award, Clock, PauseCircle, XCircle, AlertTriangle, Trophy, Star, Library, DollarSign, Heart, ArrowLeft } from 'lucide-react';
 import ChilliIcon from '../components/ChilliIcon';
@@ -11,6 +12,7 @@ import CustomSelect from '../components/CustomSelect';
 const AnnualReport = () => {
     const { books, getYearlyStats } = useBooks();
     const { themePreset } = useTheme();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [hoveredMonth, setHoveredMonth] = useState(null);
 
@@ -61,14 +63,36 @@ const AnnualReport = () => {
     // Best Month Calculation
     const bestMonth = monthlyData.reduce((max, current) => current.count > max.count ? current : max, { month: '-', count: 0 });
 
-    // Aggregation for Charts
-    const readBooks = books.filter(b => {
-        if (b.status !== 'read' || !b.finishedAt) return false;
-        return new Date(b.finishedAt).getFullYear() === selectedYear;
+    // Base collection for yearly analytics - includes books finished, started, or with logged logs in this year
+    const activeBooksThisYear = books.filter(b => {
+        // Finished this year
+        const isFinishedThisYear = b.status === 'read' &&
+            b.finishedAt &&
+            new Date(b.finishedAt).getFullYear() === selectedYear;
+
+        // Logged activity this year
+        const hasActivityThisYear = b.readingLogs?.some(l => {
+            const d = new Date(l.date);
+            return d.getFullYear() === selectedYear;
+        });
+
+        // Started this year
+        const isStartedThisYear = b.startedAt &&
+            new Date(b.startedAt).getFullYear() === selectedYear;
+
+        return isFinishedThisYear || hasActivityThisYear || isStartedThisYear;
     });
 
-    // Spicy Books Stats
-    const spicyBooksReadThisYear = readBooks.filter(b => b.hasSpice).length;
+    const readBooks = activeBooksThisYear.filter(b => b.status === 'read' && b.finishedAt && new Date(b.finishedAt).getFullYear() === selectedYear);
+
+    // Spicy Books Stats (from all active books)
+    const spicyBooksReadThisYear = activeBooksThisYear.filter(b => !!b.hasSpice || b.spiceRating > 0).length;
+
+    // Average Rating Calculation
+    const ratingsThisYear = readBooks.filter(b => b.rating > 0).map(b => b.rating);
+    const averageRating = ratingsThisYear.length > 0
+        ? (ratingsThisYear.reduce((acc, curr) => acc + curr, 0) / ratingsThisYear.length).toFixed(1)
+        : '0.0';
 
     // Favorites Added This Year
     const favoritesThisYear = books.filter(b => {
@@ -94,17 +118,9 @@ const AnnualReport = () => {
             return new Date(b.pausedAt).getFullYear() === selectedYear;
         }).length,
         spent: books.filter(b => {
-            // Include books that have a price set
-            if (!b.price || parseFloat(b.price) === 0) return false;
-            // If boughtDate exists, check if it's in the selected year
-            if (b.boughtDate) {
-                return new Date(b.boughtDate).getFullYear() === selectedYear;
-            }
-            // If no boughtDate but has price, include if book was added this year
-            if (b.addedAt) {
-                return new Date(b.addedAt).getFullYear() === selectedYear;
-            }
-            return false;
+            if (!b.isOwned) return false;
+            const purchaseDate = b.boughtDate ? new Date(b.boughtDate) : (b.addedAt ? new Date(b.addedAt) : null);
+            return purchaseDate && purchaseDate.getFullYear() === selectedYear;
         }).reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0),
         worstBook: booksReadThisYear.filter(b => b.rating > 0).sort((a, b) => a.rating - b.rating)[0]
     };
@@ -121,6 +137,25 @@ const AnnualReport = () => {
     }, 0);
 
     const yearlyPagesRead = books.reduce((total, book) => {
+        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        if (mode !== 'pages') return total;
+        const logs = book.readingLogs || [];
+        const thisYearLogs = logs.filter(l => new Date(l.date).getFullYear() === selectedYear);
+
+        if (thisYearLogs.length === 0) return total;
+
+        const maxThisYear = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
+        const prevYearLogs = logs.filter(l => new Date(l.date).getFullYear() < selectedYear);
+        const maxBeforeYear = prevYearLogs.length > 0
+            ? Math.max(...prevYearLogs.map(l => l.pagesRead || 0))
+            : 0;
+
+        return total + Math.max(0, maxThisYear - maxBeforeYear);
+    }, 0);
+
+    const yearlyChaptersRead = books.reduce((total, book) => {
+        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        if (mode !== 'chapters') return total;
         const logs = book.readingLogs || [];
         const thisYearLogs = logs.filter(l => new Date(l.date).getFullYear() === selectedYear);
 
@@ -142,11 +177,14 @@ const AnnualReport = () => {
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
 
-    // Genre distribution
+    // Genre distribution (from all active books this year)
     const genreCounts = {};
-    readBooks.forEach(b => {
-        (b.genres || []).forEach(g => {
-            genreCounts[g] = (genreCounts[g] || 0) + 1;
+    activeBooksThisYear.forEach(b => {
+        const genres = Array.isArray(b.genres) ? b.genres : (b.genres ? [b.genres] : []);
+        genres.forEach(g => {
+            if (!g) return;
+            const localizedGenre = t(`book.genres.${g}`, { defaultValue: g });
+            genreCounts[localizedGenre] = (genreCounts[localizedGenre] || 0) + 1;
         });
     });
     const topGenres = Object.entries(genreCounts)
@@ -154,32 +192,33 @@ const AnnualReport = () => {
         .slice(0, 5)
         .map(([name, value]) => ({ name, value }));
 
-    // Format distribution
-    const formatCounts = {};
-    readBooks.forEach(b => {
-        const f = b.format || 'Unknown';
-        formatCounts[f] = (formatCounts[f] || 0) + 1;
-    });
-    const formatData = Object.entries(formatCounts)
-        .map(([name, value]) => ({ name, value }));
-
-    // Purchase Location distribution (for owned books) - sum of money spent
+    // Purchase Location distribution (for owned books) - acquired this year
     const locationCounts = {};
-    books.filter(b => {
+    const acquiredBooksThisYear = books.filter(b => {
         if (!b.isOwned || !b.purchaseLocation) return false;
-        if (b.boughtDate) {
-            return new Date(b.boughtDate).getFullYear() === selectedYear;
-        }
-        if (b.addedAt) {
-            return new Date(b.addedAt).getFullYear() === selectedYear;
-        }
-        return false;
-    }).forEach(b => {
+        const purchaseDate = b.boughtDate ? new Date(b.boughtDate) : (b.addedAt ? new Date(b.addedAt) : null);
+        return purchaseDate && purchaseDate.getFullYear() === selectedYear;
+    });
+
+    acquiredBooksThisYear.forEach(b => {
         const loc = b.purchaseLocation;
         const price = parseFloat(b.price) || 0;
         locationCounts[loc] = (locationCounts[loc] || 0) + price;
     });
     const locationData = Object.entries(locationCounts)
+        .sort((a, b) => b[1] - a[1]) // Sort by highest spend
+        .slice(0, 5) // Top 5 locations
+        .map(([name, value]) => ({ name, value }));
+
+    // Format distribution (Translated, from all active books this year)
+    const formatCounts = {};
+    activeBooksThisYear.forEach(b => {
+        const formatKey = (b.format || 'Physical').toLowerCase().replace('e-book', 'ebook');
+        const localizedFormat = t(`book.formats.${formatKey}`, { defaultValue: b.format || t('common.noData') });
+        formatCounts[localizedFormat] = (formatCounts[localizedFormat] || 0) + 1;
+    });
+    const formatData = Object.entries(formatCounts)
+        .sort((a, b) => b[1] - a[1])
         .map(([name, value]) => ({ name, value }));
 
     return (
@@ -266,23 +305,37 @@ const AnnualReport = () => {
 
             {/* Grid Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <Clock size={24} />
+                {yearlyTimeRead > 0 && (
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <Clock size={24} />
+                        </div>
+                        <div>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Time Read</p>
+                            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{formatTime(yearlyTimeRead)}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Time Read</p>
-                        <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{formatTime(yearlyTimeRead)}</p>
-                    </div>
-                </div>
+                )}
 
+                {/* Yearly Pages Card */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
                     <div className="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-xl flex items-center justify-center text-violet-600 dark:text-violet-400">
                         <BookOpen size={24} />
                     </div>
                     <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Pages Read</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('book.fields.pagesRead', 'Pages Read')}</p>
                         <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{yearlyPagesRead.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                {/* Yearly Chapters Card */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
+                    <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Calendar size={24} />
+                    </div>
+                    <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('calendar.chaptersRead', 'Chapters Read')}</p>
+                        <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{yearlyChaptersRead.toLocaleString()}</p>
                     </div>
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
@@ -382,13 +435,17 @@ const AnnualReport = () => {
                 <div className="flex items-center justify-between">
                     <div>
                         <div className="text-amber-500 mb-2"><Star size={24} /></div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white">4.5</div>
-                        <div className="text-xs text-slate-400">Rating Avg</div>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">{averageRating}</div>
+                        <div className="text-xs text-slate-400">{t('annualReport.ratingAvg', 'Rating Avg')}</div>
                     </div>
                     {/* Progress bar visual */}
                     <div className="flex-1 ml-6 space-y-2">
-                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-amber-400 w-3/4 h-full" /></div>
-                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-amber-400 w-1/2 h-full" /></div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div
+                                className="bg-amber-400 h-full transition-all duration-1000"
+                                style={{ width: `${(parseFloat(averageRating) / 5) * 100}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

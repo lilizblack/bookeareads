@@ -9,18 +9,22 @@ export const getBookProgressPercentage = (book) => {
     if (book.status === 'want-to-read') return 0;
 
     const currentProgress = book.progress || 0;
+    const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
 
-    // Primary: Use totalPages if available
-    if (book.totalPages > 0) {
-        return Math.round((currentProgress / book.totalPages) * 100);
+    if (mode === 'chapters') {
+        if (book.totalChapters > 0) {
+            return Math.round((currentProgress / book.totalChapters) * 100);
+        }
+    } else {
+        if (book.totalPages > 0) {
+            return Math.round((currentProgress / book.totalPages) * 100);
+        }
     }
 
-    // Fallback: Use totalChapters
-    if (book.totalChapters > 0) {
-        return Math.round((currentProgress / book.totalChapters) * 100);
-    }
+    // Generic fallback if primary fails
+    const total = (mode === 'chapters' ? book.totalChapters : book.totalPages) || book.totalPages || book.totalChapters || 0;
+    if (total > 0) return Math.round((currentProgress / total) * 100);
 
-    // If no totals set, assume progress is a percentage
     return Math.min(Number(currentProgress) || 0, 100);
 };
 
@@ -116,7 +120,8 @@ export const getReadingSpeed = (book, globalSpeed = 1.0) => {
  */
 export const getEstimatedTimeLeft = (book, globalSpeed = 1.0) => {
     if (!book) return 0;
-    const total = book.totalPages || book.totalChapters || 0;
+    const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+    const total = mode === 'chapters' ? (book.totalChapters || book.totalPages || 0) : (book.totalPages || book.totalChapters || 0);
     const remaining = total - (book.progress || 0);
     if (remaining <= 0) return 0;
 

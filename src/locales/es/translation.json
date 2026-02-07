@@ -282,7 +282,8 @@
         "tbrAdded": "Pila Agregada",
         "tbrTotal": "Total por Leer",
         "spicyReads": "Lecturas Picantes",
-        "timeRead": "Tiempo de Lectura"
+        "timeRead": "Tiempo de Lectura",
+        "chaptersRead": "Capítulos leídos"
     },
     "settings": {
         "title": "Configuración",
@@ -335,6 +336,9 @@
         "additionalInfo": "Información Adicional",
         "form": {
             "titlePlaceholder": "Introduce el título del libro",
+            "searchTip": "Consejo: Incluye título y autor para mejores resultados",
+            "pagesTip": "Nota: No todos los libros tienen la información de páginas, por favor complétala para contar tu lectura después",
+            "genresTip": "Nota: No todos los libros tienen sus géneros disponibles, si lo conoces puedes elegirlo",
             "authorPlaceholder": "Introduce el nombre del autor",
             "isbnPlaceholder": "Introduce el ISBN o escanea",
             "noCover": "Sin Portada",

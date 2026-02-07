@@ -15,7 +15,7 @@ const Navbar = () => {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/98 dark:bg-slate-950/98 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50 shadow-soft-lg">
+        <nav className="fixed bottom-0 left-0 right-0 bg-[var(--color-bg-primary)] border-t border-slate-200 dark:border-slate-800 z-50 shadow-soft-lg transition-colors duration-300">
             {/* Safe area padding for devices with home indicators */}
             <div className="pb-safe-bottom">
                 <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">

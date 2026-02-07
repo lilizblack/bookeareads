@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import './CustomSelect.css';
 
@@ -13,7 +14,15 @@ const CustomSelect = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
     const dropdownRef = useRef(null);
+
+    // Update isMobile on resize
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 640);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -24,7 +33,7 @@ const CustomSelect = ({
             }
         };
 
-        if (isOpen) {
+        if (isOpen && !isMobile) {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside);
         }
@@ -33,7 +42,7 @@ const CustomSelect = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
         };
-    }, [isOpen]);
+    }, [isOpen, isMobile]);
 
     const handleSelect = (optionValue) => {
         onChange({ target: { value: optionValue } });
@@ -48,8 +57,52 @@ const CustomSelect = ({
     const selectedOption = options.find(opt => opt.value === value);
     const displayText = selectedOption ? selectedOption.label : placeholder;
 
+    const dropdownContent = (
+        <>
+            {isMobile && <div className="custom-select-backdrop" onClick={() => setIsOpen(false)} />}
+            <div
+                className={`custom-select-dropdown ${isMobile ? 'mobile-sheet' : ''}`}
+                onClick={(e) => isMobile && e.stopPropagation()}
+                ref={!isMobile ? dropdownRef : null}
+            >
+                {options.length > 8 && (
+                    <div className="custom-select-search">
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="custom-select-search-input"
+                            autoFocus
+                        />
+                    </div>
+                )}
+
+                <div className="custom-select-options">
+                    {filteredOptions.length === 0 ? (
+                        <div className="custom-select-option-empty">No options found</div>
+                    ) : (
+                        filteredOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                className={`custom-select-option ${option.value === value ? 'selected' : ''}`}
+                                onClick={() => handleSelect(option.value)}
+                            >
+                                <span>{option.label}</span>
+                                {option.value === value && (
+                                    <Check size={16} className="custom-select-check" />
+                                )}
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+        </>
+    );
+
     return (
-        <div className={`custom-select-wrapper ${className}`} ref={dropdownRef}>
+        <div className={`custom-select-wrapper ${className}`} ref={isMobile ? null : dropdownRef}>
             {label && <label className="custom-select-label">{label}</label>}
 
             <button
@@ -67,42 +120,7 @@ const CustomSelect = ({
                 />
             </button>
 
-            {isOpen && (
-                <div className="custom-select-dropdown">
-                    {options.length > 8 && (
-                        <div className="custom-select-search">
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="custom-select-search-input"
-                                autoFocus
-                            />
-                        </div>
-                    )}
-
-                    <div className="custom-select-options">
-                        {filteredOptions.length === 0 ? (
-                            <div className="custom-select-option-empty">No options found</div>
-                        ) : (
-                            filteredOptions.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={`custom-select-option ${option.value === value ? 'selected' : ''}`}
-                                    onClick={() => handleSelect(option.value)}
-                                >
-                                    <span>{option.label}</span>
-                                    {option.value === value && (
-                                        <Check size={16} className="custom-select-check" />
-                                    )}
-                                </button>
-                            ))
-                        )}
-                    </div>
-                </div>
-            )}
+            {isOpen && (isMobile ? createPortal(dropdownContent, document.body) : dropdownContent)}
         </div>
     );
 };

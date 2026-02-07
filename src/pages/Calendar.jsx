@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useBooks } from '../context/BookContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, addDays } from 'date-fns';
-import { Check, X, Target, DollarSign, BookOpen, Clock, Library, PauseCircle, XCircle, Star, Heart, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { Check, X, Target, DollarSign, BookOpen, Clock, Library, PauseCircle, XCircle, Star, Heart, ChevronLeft, ChevronRight, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 import ChilliIcon from '../components/ChilliIcon';
 import StatsCard from '../components/StatsCard';
 import CoverImage from '../components/CoverImage';
@@ -60,11 +60,31 @@ const Calendar = () => {
     const currentYear_num = selectedDate.getFullYear();
     const currentMonth_num = selectedDate.getMonth();
 
-    const readBooksThisMonth = books.filter(b => {
-        if (b.status !== 'read' || !b.finishedAt) return false;
-        const finishedDate = new Date(b.finishedAt);
-        return finishedDate.getFullYear() === currentYear_num && finishedDate.getMonth() === currentMonth_num;
+    // Base collections for monthly analysis
+    const activeBooksThisMonth = books.filter(b => {
+        // Condition 1: Finished this month
+        const isFinishedThisMonth = b.status === 'read' &&
+            b.finishedAt &&
+            new Date(b.finishedAt).getFullYear() === currentYear_num &&
+            new Date(b.finishedAt).getMonth() === currentMonth_num;
+
+        // Condition 2: Logged activity this month
+        const hasActivityThisMonth = b.readingLogs?.some(l => {
+            const d = new Date(l.date);
+            return d.getFullYear() === currentYear_num && d.getMonth() === currentMonth_num;
+        });
+
+        // Condition 3: Started this month
+        const isStartedThisMonth = b.startedAt &&
+            new Date(b.startedAt).getFullYear() === currentYear_num &&
+            new Date(b.startedAt).getMonth() === currentMonth_num;
+
+        return isFinishedThisMonth || hasActivityThisMonth || isStartedThisMonth;
     });
+
+    const readBooksThisMonth = activeBooksThisMonth.filter(b => b.status === 'read');
+
+    const spicyBooksReadThisMonth = activeBooksThisMonth.filter(b => !!b.hasSpice || (b.spiceRating > 0)).length;
 
     // Worst Review Count (rating <= 2)
     const worstReviewCount = readBooksThisMonth.filter(b => b.rating > 0 && b.rating <= 2).length;
@@ -76,11 +96,14 @@ const Calendar = () => {
         return addedDate.getFullYear() === currentYear_num && addedDate.getMonth() === currentMonth_num;
     }).length;
 
-    // Monthly Genre distribution
+    // Monthly Genre distribution (from all active books this month)
     const genreCounts = {};
-    readBooksThisMonth.forEach(b => {
-        (b.genres || []).forEach(g => {
-            genreCounts[g] = (genreCounts[g] || 0) + 1;
+    activeBooksThisMonth.forEach(b => {
+        const genres = Array.isArray(b.genres) ? b.genres : (b.genres ? [b.genres] : []);
+        genres.forEach(g => {
+            if (!g) return;
+            const localizedGenre = t(`book.genres.${g}`, { defaultValue: g });
+            genreCounts[localizedGenre] = (genreCounts[localizedGenre] || 0) + 1;
         });
     });
     const monthlyTopGenres = Object.entries(genreCounts)
@@ -88,42 +111,70 @@ const Calendar = () => {
         .slice(0, 5)
         .map(([name, value]) => ({ name, value }));
 
-    // Monthly Format distribution
+    // Monthly Format distribution (from all active books this month)
     const formatCounts = {};
-    readBooksThisMonth.forEach(b => {
-        const formatKey = b.format?.toLowerCase() || 'physical';
+    activeBooksThisMonth.forEach(b => {
+        const formatKey = (b.format || 'Physical').toLowerCase().replace('e-book', 'ebook');
         const localizedFormat = t(`book.formats.${formatKey}`, { defaultValue: b.format || t('common.noData') });
         formatCounts[localizedFormat] = (formatCounts[localizedFormat] || 0) + 1;
     });
     const monthlyFormatData = Object.entries(formatCounts)
         .map(([name, value]) => ({ name, value }));
 
-    // Monthly Purchase Location distribution (for owned books) - sum of money spent
+    // Monthly Purchase Location distribution (for owned books) - acquired this month
     const locationCounts = {};
-    books.filter(b => {
-        if (!b.isOwned || !b.purchaseLocation) return false;
-        if (b.boughtDate) {
-            const boughtDate = new Date(b.boughtDate);
-            return boughtDate.getFullYear() === currentYear_num && boughtDate.getMonth() === currentMonth_num;
-        }
-        if (b.addedAt) {
-            const addedDate = new Date(b.addedAt);
-            return addedDate.getFullYear() === currentYear_num && addedDate.getMonth() === currentMonth_num;
-        }
-        return false;
-    }).forEach(b => {
+    const acquiredBooksThisMonth = books.filter(b => {
+        if (!b.isOwned) return false;
+        const purchaseDate = b.boughtDate ? new Date(b.boughtDate) : (b.addedAt ? new Date(b.addedAt) : null);
+        if (!purchaseDate) return false;
+        return purchaseDate.getFullYear() === currentYear_num && purchaseDate.getMonth() === currentMonth_num;
+    });
+
+    acquiredBooksThisMonth.forEach(b => {
+        if (!b.purchaseLocation) return;
         const loc = b.purchaseLocation;
         const price = parseFloat(b.price) || 0;
         locationCounts[loc] = (locationCounts[loc] || 0) + price;
     });
+
     const monthlyLocationData = Object.entries(locationCounts)
+        .sort((a, b) => b[1] - a[1]) // Sort by highest spend
+        .slice(0, 5) // Top 5 locations
         .map(([name, value]) => ({ name, value }));
 
-    // Monthly Spend Calculation
-    const monthlySpent = readBooksThisMonth.reduce((acc, b) => acc + (b.isOwned ? (parseFloat(b.price) || 0) : 0), 0);
+    // Monthly Spend Calculation (Based on acquired books)
+    const monthlySpent = acquiredBooksThisMonth.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0);
 
     // Monthly Pages Read Calculation (Sum of increments this month)
     const monthlyPagesRead = books.reduce((total, book) => {
+        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        if (mode !== 'pages') return total;
+        const logs = book.readingLogs || [];
+        const thisMonthLogs = logs.filter(l => {
+            const date = new Date(l.date);
+            return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
+        });
+
+        if (thisMonthLogs.length === 0) return total;
+
+        const maxThisMonth = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
+
+        const prevMonthLogs = logs.filter(l => {
+            const date = new Date(l.date);
+            return date < new Date(currentYear_num, currentMonth_num, 1);
+        });
+
+        const maxBeforeMonth = prevMonthLogs.length > 0
+            ? Math.max(...prevMonthLogs.map(l => l.pagesRead || 0))
+            : 0;
+
+        return total + Math.max(0, maxThisMonth - maxBeforeMonth);
+    }, 0);
+
+    // Monthly Chapters Read Calculation
+    const monthlyChaptersRead = books.reduce((total, book) => {
+        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        if (mode !== 'chapters') return total;
         const logs = book.readingLogs || [];
         const thisMonthLogs = logs.filter(l => {
             const date = new Date(l.date);
@@ -180,9 +231,7 @@ const Calendar = () => {
 
     const totalTBRRemaining = books.filter(b => b.status === 'want-to-read').length;
 
-    // Monthly Spicy Books
-    const spicyBooksReadThisMonth = readBooksThisMonth.filter(b => b.hasSpice).length;
-
+    // Monthly Spicy Books calculation moved up to top-level aggregation area
     // Helper to find cover for a day
     const getUpdateForDay = (date) => {
         // Find a book logged on this day
@@ -581,19 +630,21 @@ const Calendar = () => {
                 </div>
 
                 {/* Monthly Time Read Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-violet-100 dark:bg-violet-900/30 p-3 rounded-xl">
-                            <Clock className="text-violet-600 dark:text-violet-400" size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.timeRead')}</h3>
-                            <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
-                                {formatTime(monthlyTimeRead)}
-                            </p>
+                {monthlyTimeRead > 0 && (
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-violet-100 dark:bg-violet-900/30 p-3 rounded-xl">
+                                <Clock className="text-violet-600 dark:text-violet-400" size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.timeRead')}</h3>
+                                <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
+                                    {formatTime(monthlyTimeRead)}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Monthly Pages Card */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
@@ -602,9 +653,24 @@ const Calendar = () => {
                             <BookOpen className="text-blue-600 dark:text-blue-400" size={24} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.pagesRead')}</h3>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.pagesRead', 'Pages Read')}</h3>
                             <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
                                 {monthlyPagesRead.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Monthly Chapters Card */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-xl">
+                            <CalendarIcon className="text-indigo-600 dark:text-indigo-400" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.chaptersRead', 'Chapters Read')}</h3>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
+                                {monthlyChaptersRead.toLocaleString()}
                             </p>
                         </div>
                     </div>

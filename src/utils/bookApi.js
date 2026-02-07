@@ -12,11 +12,12 @@ const PLACEHOLDER_COVER = 'https://via.placeholder.com/300x450/8b5cf6/ffffff?tex
  * @property {string} title - Book title
  * @property {string} author - First author name
  * @property {string} cover - Cover image URL
- * @property {number} totalPages - Number of pages
+ * @property {number|string} totalPages - Number of pages
  * @property {string} isbn - ISBN number
  * @property {string} publisher - Publisher name
  * @property {string} publishedDate - Publication date
  * @property {string} genres - Genre/category
+ * @property {string} description - Book description
  */
 
 /**
@@ -108,6 +109,30 @@ const searchGoogleBooks = async (query, searchType) => {
         // Normalize Google Books data
         const normalizedData = normalizeGoogleBooksData(book);
 
+        // EXTRA VALIDATION: If searching by ISBN, ensure the result actually contains that ISBN
+        if (searchType === 'isbn') {
+            const cleanISBN = cleanQuery.replace(/[-\s]/g, '');
+            const resultISBN = normalizedData.isbn.replace(/[-\s]/g, '');
+            if (resultISBN && !resultISBN.includes(cleanISBN) && !cleanISBN.includes(resultISBN)) {
+                return { success: false, error: 'Book not found (ISBN mismatch)' };
+            }
+        }
+
+        // EXTRA VALIDATION: If searching by title, do a basic keyword match
+        if (searchType === 'title') {
+            const queryKeywords = cleanQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+            const titleLower = normalizedData.title.toLowerCase();
+            const authorLower = normalizedData.author.toLowerCase();
+
+            // Check if at least some significant keywords are in title or author
+            const keywordMatch = queryKeywords.every(k => titleLower.includes(k) || authorLower.includes(k));
+
+            if (!keywordMatch && queryKeywords.length > 0) {
+                // If it's not even a partial keyword match, it's likely a "random" related book
+                return { success: false, error: 'Book not found (Title mismatch)' };
+            }
+        }
+
         return { success: true, data: normalizedData };
 
     } catch (error) {
@@ -172,6 +197,18 @@ const searchOpenLibrary = async (query, searchType) => {
         }
 
         const normalizedData = normalizeOpenLibraryDataSearch(book);
+
+        // EXTRA VALIDATION: Basic keyword match for Title search
+        const queryKeywords = cleanQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+        const titleLower = normalizedData.title.toLowerCase();
+        const authorLower = normalizedData.author.toLowerCase();
+
+        const keywordMatch = queryKeywords.every(k => titleLower.includes(k) || authorLower.includes(k));
+
+        if (!keywordMatch && queryKeywords.length > 0) {
+            return { success: false, error: 'Book not found (Title mismatch)' };
+        }
+
         return { success: true, data: normalizedData };
 
     } catch (error) {
@@ -192,11 +229,12 @@ const normalizeGoogleBooksData = (book) => {
         cover: book.imageLinks?.thumbnail?.replace('http:', 'https:') ||
             book.imageLinks?.smallThumbnail?.replace('http:', 'https:') ||
             PLACEHOLDER_COVER,
-        totalPages: book.pageCount || 0,
+        totalPages: book.pageCount || book.printedPageCount || '',
         isbn: extractISBN(book.industryIdentifiers) || '',
         publisher: book.publisher || '',
         publishedDate: book.publishedDate || '',
-        genres: book.categories?.[0] || ''
+        genres: book.categories?.[0] || '',
+        description: book.description || ''
     };
 };
 
@@ -214,11 +252,12 @@ const normalizeOpenLibraryDataISBN = (book, isbn) => {
             book.cover?.medium ||
             book.cover?.small ||
             PLACEHOLDER_COVER,
-        totalPages: book.number_of_pages || 0,
+        totalPages: book.number_of_pages || (book.pagination ? parseInt(book.pagination) : ''),
         isbn: isbn || '',
         publisher: book.publishers?.[0]?.name || '',
         publishedDate: book.publish_date || '',
-        genres: extractGenres(book.subjects)
+        genres: extractGenres(book.subjects),
+        description: book.notes || ''
     };
 };
 
@@ -240,11 +279,12 @@ const normalizeOpenLibraryDataSearch = (book) => {
         title: book.title || '',
         author: book.author_name?.[0] || '',
         cover: coverUrl,
-        totalPages: book.number_of_pages_median || 0,
+        totalPages: book.number_of_pages_median || '',
         isbn: book.isbn?.[0] || '',
         publisher: book.publisher?.[0] || '',
         publishedDate: book.first_publish_year?.toString() || '',
-        genres: book.subject?.[0] || ''
+        genres: (book.subject && book.subject[0]) || '',
+        description: '' // Search API doesn't usually provide descriptions
     };
 };
 

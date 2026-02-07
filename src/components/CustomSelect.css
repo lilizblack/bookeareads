@@ -224,15 +224,39 @@
 
 /* Mobile optimizations */
 @media (max-width: 640px) {
+    .custom-select-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 9998;
+        animation: fadeIn 0.2s ease-out;
+    }
+
     .custom-select-dropdown {
         position: fixed;
         top: auto;
         bottom: 0;
         left: 0;
         right: 0;
-        max-height: 60vh;
-        border-radius: 16px 16px 0 0;
-        animation: slideUp 0.3s ease-out;
+        max-height: 70vh;
+        border-radius: 20px 20px 0 0;
+        z-index: 9999;
+        margin: 0;
+        border: none;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
     @keyframes slideUp {
@@ -246,6 +270,23 @@
     }
 
     .custom-select-options {
-        max-height: calc(60vh - 60px);
+        max-height: calc(70vh - 80px);
+        padding: 0.5rem;
+    }
+
+    .custom-select-option {
+        padding: 1rem;
+        margin-bottom: 0.25rem;
+        border-radius: 12px;
+    }
+
+    .custom-select-search {
+        padding: 1rem;
+        position: sticky;
+        top: 0;
+        background: inherit;
+        z-index: 10;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
     }
 }

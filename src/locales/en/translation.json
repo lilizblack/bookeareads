@@ -279,7 +279,8 @@
         "tbrAdded": "TBR Added",
         "tbrTotal": "TBR Total",
         "spicyReads": "Spicy Reads",
-        "timeRead": "Time Read"
+        "timeRead": "Time Read",
+        "chaptersRead": "Chapters Read"
     },
     "settings": {
         "title": "Settings",
@@ -332,6 +333,9 @@
         "additionalInfo": "Additional Information",
         "form": {
             "titlePlaceholder": "Enter book title",
+            "searchTip": "Tip: Include both title and author for best results",
+            "pagesTip": "Note: Not all books have the pages information, please fill in to count your reading later",
+            "genresTip": "Note: Not all books have their genres available, if you know you can choose it",
             "authorPlaceholder": "Enter author name",
             "isbnPlaceholder": "Enter ISBN or Scan",
             "noCover": "No Cover",

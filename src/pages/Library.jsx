@@ -89,7 +89,7 @@ const Library = () => {
             else if (statusFilter === 'Want to Read') statusMatch = book.status === 'want-to-read';
             else if (statusFilter === 'Paused') statusMatch = book.status === 'paused';
             else if (statusFilter === 'DNF') statusMatch = book.status === 'dnf';
-            else if (statusFilter === 'Spicy') statusMatch = book.hasSpice;
+            else if (statusFilter === 'Spicy') statusMatch = (book.hasSpice || book.spiceRating > 0);
             else if (statusFilter === 'Worst Review') statusMatch = book.rating > 0 && book.rating <= 2;
         }
 

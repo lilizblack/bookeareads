@@ -114,6 +114,8 @@ export const BookProvider = ({ children }) => {
                             return {
                                 id: docSnap.id,
                                 ...data,
+                                genres: Array.isArray(data.genres) ? data.genres : (data.genres ? [data.genres] : []),
+                                format: data.format || 'Physical',
                                 addedAt: data.addedAt?.toDate?.()?.toISOString() || data.addedAt,
                                 startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
                                 finishedAt: data.finishedAt?.toDate?.()?.toISOString() || data.finishedAt,
@@ -122,7 +124,8 @@ export const BookProvider = ({ children }) => {
                                 updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
                                 readingLogs: data.readingLogs || [],
                                 notes: data.notes || [],
-                                language: data.language || 'English'
+                                language: data.language || 'English',
+                                hasSpice: data.hasSpice ?? (data.spiceRating > 0)
                             };
                         });
                         console.log(`✅ Loaded ${appBooks.length} books from Firestore`);
@@ -166,7 +169,12 @@ export const BookProvider = ({ children }) => {
                 const savedBooks = localStorage.getItem('book-tracker-data-v3');
                 const savedGoal = localStorage.getItem('reading-goal');
                 if (savedBooks) {
-                    const parsedBooks = JSON.parse(savedBooks);
+                    const parsedBooks = JSON.parse(savedBooks).map(b => ({
+                        ...b,
+                        genres: Array.isArray(b.genres) ? b.genres : (b.genres ? [b.genres] : []),
+                        format: b.format || 'Physical',
+                        hasSpice: b.hasSpice ?? (b.spiceRating > 0)
+                    }));
                     console.log(`👤 Guest mode: ${parsedBooks.length} books from localStorage`);
                     setBooks(parsedBooks);
                 }
@@ -223,6 +231,14 @@ export const BookProvider = ({ children }) => {
             }
         }
 
+        // Initialize reading logs with starting progress if provided
+        if (newBook.progress > 0) {
+            newBook.readingLogs = [{
+                date: newBook.addedAt,
+                pagesRead: newBook.progress
+            }];
+        }
+
 
 
         if (user) {
@@ -253,7 +269,14 @@ export const BookProvider = ({ children }) => {
                 updatedAt: serverTimestamp(),
                 readingLogs: [],
                 notes: [],
-                language: newBook.language || 'English'
+                language: newBook.language || 'English',
+                hasSpice: newBook.hasSpice || false,
+                isWantToBuy: newBook.isWantToBuy || false,
+                progressMode: newBook.progressMode || (newBook.format === 'Audiobook' ? 'chapters' : 'pages'),
+                ownershipStatus: newBook.ownershipStatus || 'kept',
+                purchaseLocation: newBook.purchaseLocation || '',
+                otherVersions: newBook.otherVersions || [],
+                boughtDate: newBook.boughtDate ? Timestamp.fromDate(new Date(newBook.boughtDate)) : null
             };
 
             try {
@@ -306,6 +329,29 @@ export const BookProvider = ({ children }) => {
                         updated.progress = 100;
                     }
                 }
+
+                // NEW: If progress was updated (either manually or via status change), update reading logs
+                if (updated.progress !== book.progress) {
+                    const today = new Date();
+                    const todayStr = today.toISOString();
+                    const logs = updated.readingLogs || [];
+                    const existingLogIndex = logs.findIndex(l => isSameDay(parseISO(l.date), today));
+
+                    let newLogs = [...logs];
+                    if (existingLogIndex >= 0) {
+                        newLogs[existingLogIndex] = {
+                            ...newLogs[existingLogIndex],
+                            pagesRead: updated.progress
+                        };
+                    } else {
+                        newLogs.push({
+                            date: todayStr,
+                            pagesRead: updated.progress
+                        });
+                    }
+                    updated.readingLogs = newLogs;
+                }
+
                 if (updates.status === 'paused' && book.status !== 'paused') {
                     updated.pausedAt = new Date().toISOString();
                 }
@@ -319,6 +365,7 @@ export const BookProvider = ({ children }) => {
                         progress: updated.progress,
                         rating: updated.rating,
                         spiceRating: updated.spiceRating,
+                        hasSpice: updated.hasSpice || false,
                         isFavorite: updated.isFavorite,
                         isOwned: updated.isOwned,
                         finishedAt: updated.finishedAt ? Timestamp.fromDate(new Date(updated.finishedAt)) : null,
@@ -624,7 +671,14 @@ export const BookProvider = ({ children }) => {
                         updatedAt: serverTimestamp(),
                         readingLogs: book.readingLogs || [],
                         notes: book.notes || [],
-                        language: book.language || 'English'
+                        language: book.language || 'English',
+                        hasSpice: book.hasSpice || (book.spiceRating > 0),
+                        isWantToBuy: book.isWantToBuy || false,
+                        progressMode: book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages'),
+                        ownershipStatus: book.ownershipStatus || 'kept',
+                        purchaseLocation: book.purchaseLocation || '',
+                        otherVersions: book.otherVersions || [],
+                        boughtDate: book.boughtDate ? Timestamp.fromDate(new Date(book.boughtDate)) : null
                     };
 
                     await addDoc(booksRef, insertData);
@@ -760,6 +814,57 @@ export const BookProvider = ({ children }) => {
         const ratedBooksThisYear = booksReadThisYear.filter(b => b.rating > 0);
         const worstBook = ratedBooksThisYear.sort((a, b) => a.rating - b.rating)[0];
 
+        // Calculate total time spent reading and pages/chapters read
+        let totalMinutesYear = 0;
+        let totalMinutesMonth = 0;
+        let pagesYear = 0;
+        let pagesMonth = 0;
+        let chaptersYear = 0;
+        let chaptersMonth = 0;
+
+        books.forEach(book => {
+            const logs = book.readingLogs || [];
+            // Determine progress mode with smart fallback for older books
+            const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+            const isChapters = mode === 'chapters';
+            const isPages = mode === 'pages';
+
+            // Yearly activity
+            const yearLogs = logs.filter(l => new Date(l.date).getFullYear() === currentYear);
+            if (yearLogs.length > 0) {
+                const maxThisYear = Math.max(...yearLogs.map(l => l.pagesRead || 0));
+                const prevYearLogs = logs.filter(l => new Date(l.date).getFullYear() < currentYear);
+                const maxBeforeYear = prevYearLogs.length > 0 ? Math.max(...prevYearLogs.map(l => l.pagesRead || 0)) : 0;
+                const readInYear = Math.max(0, maxThisYear - maxBeforeYear);
+
+                if (isChapters) chaptersYear += readInYear;
+                if (isPages) pagesYear += readInYear;
+
+                // Time calculation
+                yearLogs.forEach(log => {
+                    totalMinutesYear += (log.minutesRead || 0);
+                    if (new Date(log.date).getMonth() === currentMonth) {
+                        totalMinutesMonth += (log.minutesRead || 0);
+                    }
+                });
+            }
+
+            // Monthly activity
+            const monthLogs = yearLogs.filter(l => new Date(l.date).getMonth() === currentMonth);
+            if (monthLogs.length > 0) {
+                const maxThisMonth = Math.max(...monthLogs.map(l => l.pagesRead || 0));
+                const prevMonthLogs = logs.filter(l => {
+                    const d = new Date(l.date);
+                    return d.getFullYear() < currentYear || (d.getFullYear() === currentYear && d.getMonth() < currentMonth);
+                });
+                const maxBeforeMonth = prevMonthLogs.length > 0 ? Math.max(...prevMonthLogs.map(l => l.pagesRead || 0)) : 0;
+                const readInMonth = Math.max(0, maxThisMonth - maxBeforeMonth);
+
+                if (isChapters) chaptersMonth += readInMonth;
+                if (isPages) pagesMonth += readInMonth;
+            }
+        });
+
         return {
             read: readThisYear,
             readThisYear,
@@ -775,6 +880,12 @@ export const BookProvider = ({ children }) => {
             dnfThisMonth,
             addedThisMonth,
             worstBook,
+            timeReadThisYear: totalMinutesYear,
+            timeReadThisMonth: totalMinutesMonth,
+            pagesReadThisYear: pagesYear,
+            pagesReadThisMonth: pagesMonth,
+            chaptersReadThisYear: chaptersYear,
+            chaptersReadThisMonth: chaptersMonth,
             spent: books.reduce((acc, b) => acc + (b.isOwned ? (parseFloat(b.price) || 0) : 0), 0)
         };
     };

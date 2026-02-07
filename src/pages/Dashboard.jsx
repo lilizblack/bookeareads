@@ -8,7 +8,7 @@ import CoverImage from '../components/CoverImage';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer, Book } from 'lucide-react';
+import { Sun, Moon, ArrowRight, Plus, X, Download, Upload, Loader2, User, BarChart2, Target, Check, Timer, Book, BookOpen, Calendar as CalendarIcon } from 'lucide-react';
 import { getBookProgressPercentage } from '../utils/bookUtils';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -337,6 +337,24 @@ const Dashboard = () => {
                             <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
                             <span className="text-xs font-bold text-slate-400">/ {readingGoal.yearly}</span>
                         </div>
+                    </div>
+                </div>
+
+                {/* Monthly Activity Quick Stats */}
+                <div className="mt-3 flex gap-3">
+                    <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10 shadow-sm contrast-card">
+                        <div className="flex items-center gap-2">
+                            <BookOpen size={16} className="text-blue-500" />
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('book.fields.pagesRead', 'Pages Read')}</span>
+                        </div>
+                        <span className="text-base font-black dark:text-white">{stats.pagesReadThisMonth.toLocaleString()}</span>
+                    </div>
+                    <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10 shadow-sm contrast-card">
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon size={16} className="text-indigo-500" />
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('calendar.chaptersRead', 'Chapters Read')}</span>
+                        </div>
+                        <span className="text-base font-black dark:text-white">{stats.chaptersReadThisMonth.toLocaleString()}</span>
                     </div>
                 </div>
             </div>

@@ -83,7 +83,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                 {/* Cover */}
                 <div className="w-20 aspect-[2/3] rounded-md overflow-hidden bg-slate-200 flex-shrink-0 relative">
                     {renderCover()}
-                    {book.hasSpice && (
+                    {(book.hasSpice || book.spiceRating > 0) && (
                         <div className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-black/40 backdrop-blur rounded-full text-orange-600 shadow-sm z-10 animate-scale-in">
                             <ChilliIcon size={10} className="fill-current" />
                         </div>
@@ -259,7 +259,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                                 <Heart size={12} fill="currentColor" />
                             </div>
                         )}
-                        {book.hasSpice && (
+                        {(book.hasSpice || book.spiceRating > 0) && (
                             <div className="p-1.5 bg-white/80 dark:bg-black/40 backdrop-blur rounded-full text-orange-600 shadow-sm z-10 animate-scale-in">
                                 <ChilliIcon size={12} className="fill-current" />
                             </div>
@@ -328,7 +328,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                     </div>
 
                     {/* Spice Icon (Bottom) */}
-                    {book.hasSpice && (
+                    {(book.hasSpice || book.spiceRating > 0) && (
                         <div className="mt-2 text-red-600/80 w-full flex justify-center shrink-0">
                             <ChilliIcon size={10} className="fill-current" />
                         </div>
@@ -342,8 +342,8 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
     return (
         <div
             className={`relative group bg-white dark:bg-slate-800 rounded-xl overflow-hidden transition-all duration-base cursor-pointer no-select touch-feedback ${selected
-                    ? 'shadow-violet ring-2 ring-violet-500'
-                    : 'shadow-soft-md hover:shadow-soft-xl hover:-translate-y-1'
+                ? 'shadow-violet ring-2 ring-violet-500'
+                : 'shadow-soft-md hover:shadow-soft-xl hover:-translate-y-1'
                 }`}
             onClick={handleCardClick}
             style={{
@@ -370,7 +370,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                             <Heart size={14} fill="currentColor" />
                         </div>
                     )}
-                    {book.hasSpice && (
+                    {(book.hasSpice || book.spiceRating > 0) && (
                         <div className="p-1.5 bg-white/90 dark:bg-black/50 backdrop-blur-sm rounded-full text-orange-600 shadow-soft-md z-10 animate-scale-in">
                             <ChilliIcon size={14} className="fill-current" />
                         </div>
@@ -461,8 +461,8 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                 <button
                     onClick={handleTimerClick}
                     className={`absolute bottom-3 right-3 min-w-touch-comfortable min-h-touch-comfortable flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-base z-10 shadow-soft-lg active:scale-95 ${isActive
-                            ? 'bg-red-500 text-white animate-pulse shadow-rose'
-                            : 'bg-white/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-300 hover:scale-110 hover:shadow-soft-xl'
+                        ? 'bg-red-500 text-white animate-pulse shadow-rose'
+                        : 'bg-white/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-300 hover:scale-110 hover:shadow-soft-xl'
                         }`}
                 >
                     <Timer size={18} className={isActive ? 'animate-spin-slow' : ''} />

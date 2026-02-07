@@ -365,3 +365,14 @@ button {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* PWA Standalone Overrides - Solid Nav Bar */
+@media (display-mode: standalone) {
+  nav.fixed.bottom-0 {
+    background-color: var(--color-bg-primary) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-top: 1px solid var(--color-bg-secondary) !important;
+    box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  }
+}
