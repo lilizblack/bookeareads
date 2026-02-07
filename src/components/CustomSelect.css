@@ -227,8 +227,11 @@
     .custom-select-backdrop {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.5);
+        /* Slightly darker for better contrast */
+        backdrop-filter: none !important;
+        /* No glass effect */
+        -webkit-backdrop-filter: none !important;
         z-index: 9998;
         animation: fadeIn 0.2s ease-out;
     }
@@ -248,29 +251,48 @@
         animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         padding-bottom: env(safe-area-inset-bottom, 16px);
     }
+}
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
+/* Ensure the fixed dropdown on larger screens looks right when portaled */
+@media (min-width: 641px) {
+    .custom-select-dropdown {
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        border: 1px solid #e2e8f0;
     }
 
-    @keyframes slideUp {
-        from {
-            transform: translateY(100%);
-        }
+    :root.dark .custom-select-dropdown {
+        border-color: #334155;
+    }
+}
 
-        to {
-            transform: translateY(0);
-        }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
     }
 
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.custom-select-options {
+    max-height: calc(70vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
     .custom-select-options {
-        max-height: calc(70vh - 80px);
         padding: 0.5rem;
     }
 
@@ -279,13 +301,18 @@
         margin-bottom: 0.25rem;
         border-radius: 12px;
     }
+}
 
+.custom-select-search {
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
+}
+
+@media (max-width: 640px) {
     .custom-select-search {
-        padding: 1rem;
-        position: sticky;
-        top: 0;
-        background: inherit;
-        z-index: 10;
         border-top-left-radius: 20px;
         border-top-right-radius: 20px;
     }

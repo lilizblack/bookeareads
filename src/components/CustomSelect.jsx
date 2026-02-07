@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import './CustomSelect.css';
@@ -15,6 +15,7 @@ const CustomSelect = ({
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+    const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
 
     // Update isMobile on resize
@@ -24,16 +25,30 @@ const CustomSelect = ({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Close dropdown when clicking outside
+    const toggleDropdown = useCallback((e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (!disabled) {
+            setIsOpen(prev => !prev);
+        }
+    }, [disabled]);
+
+    // Close dropdown when clicking outside (Desktop/Tablet)
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            // Check if click is outside BOTH the trigger and the dropdown
+            const isClickInsideTrigger = triggerRef.current && triggerRef.current.contains(event.target);
+            const isClickInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+
+            if (!isClickInsideTrigger && !isClickInsideDropdown) {
                 setIsOpen(false);
                 setSearchTerm('');
             }
         };
 
-        if (isOpen && !isMobile) {
+        if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside);
         }
@@ -42,7 +57,7 @@ const CustomSelect = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
         };
-    }, [isOpen, isMobile]);
+    }, [isOpen]);
 
     const handleSelect = (optionValue) => {
         onChange({ target: { value: optionValue } });
@@ -57,13 +72,32 @@ const CustomSelect = ({
     const selectedOption = options.find(opt => opt.value === value);
     const displayText = selectedOption ? selectedOption.label : placeholder;
 
+    // Calculate inline position for non-mobile (Desktop/Tablet)
+    const [dropdownStyle, setDropdownStyle] = useState({});
+
+    useEffect(() => {
+        if (isOpen && !isMobile && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setDropdownStyle({
+                position: 'fixed',
+                top: `${rect.bottom + 8}px`,
+                left: `${rect.left}px`,
+                width: `${rect.width}px`,
+                zIndex: 10000
+            });
+        }
+    }, [isOpen, isMobile]);
+
     const dropdownContent = (
-        <>
+        <div className="custom-select-portal-root">
+            {/* Backdrop for mobile */}
             {isMobile && <div className="custom-select-backdrop" onClick={() => setIsOpen(false)} />}
+
             <div
+                ref={dropdownRef}
                 className={`custom-select-dropdown ${isMobile ? 'mobile-sheet' : ''}`}
-                onClick={(e) => isMobile && e.stopPropagation()}
-                ref={!isMobile ? dropdownRef : null}
+                style={isMobile ? {} : dropdownStyle}
+                onClick={(e) => e.stopPropagation()}
             >
                 {options.length > 8 && (
                     <div className="custom-select-search">
@@ -98,17 +132,18 @@ const CustomSelect = ({
                     )}
                 </div>
             </div>
-        </>
+        </div>
     );
 
     return (
-        <div className={`custom-select-wrapper ${className}`} ref={isMobile ? null : dropdownRef}>
+        <div className={`custom-select-wrapper ${className}`}>
             {label && <label className="custom-select-label">{label}</label>}
 
             <button
+                ref={triggerRef}
                 type="button"
                 className={`custom-select-trigger ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
-                onClick={() => !disabled && setIsOpen(!isOpen)}
+                onClick={toggleDropdown}
                 disabled={disabled}
             >
                 <span className={`custom-select-value ${!selectedOption ? 'placeholder' : ''}`}>
@@ -120,7 +155,7 @@ const CustomSelect = ({
                 />
             </button>
 
-            {isOpen && (isMobile ? createPortal(dropdownContent, document.body) : dropdownContent)}
+            {isOpen && createPortal(dropdownContent, document.body)}
         </div>
     );
 };
