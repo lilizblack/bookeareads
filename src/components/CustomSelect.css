@@ -165,6 +165,9 @@
     transition: background 0.15s;
     text-align: left;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 :root.dark .custom-select-option {
@@ -232,8 +235,10 @@
         backdrop-filter: none !important;
         /* No glass effect */
         -webkit-backdrop-filter: none !important;
-        z-index: 9998;
+        z-index: 99998;
         animation: fadeIn 0.2s ease-out;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
     }
 
     .custom-select-dropdown {
@@ -244,12 +249,14 @@
         right: 0;
         max-height: 70vh;
         border-radius: 20px 20px 0 0;
-        z-index: 9999;
+        z-index: 99999;
         margin: 0;
         border: none;
         box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
         animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         padding-bottom: env(safe-area-inset-bottom, 16px);
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
     }
 }
 

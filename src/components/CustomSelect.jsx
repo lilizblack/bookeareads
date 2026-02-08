@@ -14,19 +14,31 @@ const CustomSelect = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [isMobile, setIsMobile] = useState(() => {
+        // Better mobile detection for PWA
+        const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isSmallScreen = window.innerWidth <= 768;
+        return hasTouchScreen || isMobileUA || isSmallScreen;
+    });
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
 
     // Update isMobile on resize
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        const handleResize = () => {
+            const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isSmallScreen = window.innerWidth <= 768;
+            setIsMobile(hasTouchScreen || isMobileUA || isSmallScreen);
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const toggleDropdown = useCallback((e) => {
         if (e) {
+            e.preventDefault();
             e.stopPropagation();
         }
         if (!disabled) {
@@ -62,7 +74,11 @@ const CustomSelect = ({
         return () => clearTimeout(timer);
     }, [isOpen]);
 
-    const handleSelect = (optionValue) => {
+    const handleSelect = (optionValue, e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         onChange({ target: { value: optionValue } });
         setIsOpen(false);
         setSearchTerm('');
@@ -96,15 +112,24 @@ const CustomSelect = ({
             {isMobile && (
                 <div
                     className="custom-select-backdrop"
-                    onClick={() => setIsOpen(false)}
-                    style={{ zIndex: 9998 }}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsOpen(false);
+                    }}
+                    onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsOpen(false);
+                    }}
+                    style={{ zIndex: 99998 }}
                 />
             )}
 
             <div
                 ref={dropdownRef}
                 className={`custom-select-dropdown ${isMobile ? 'mobile-sheet' : ''}`}
-                style={isMobile ? { zIndex: 9999 } : dropdownStyle}
+                style={isMobile ? { zIndex: 99999 } : dropdownStyle}
                 onClick={(e) => e.stopPropagation()}
             >
                 {options.length > 8 && (
@@ -129,7 +154,11 @@ const CustomSelect = ({
                                 key={option.value}
                                 type="button"
                                 className={`custom-select-option ${option.value === value ? 'selected' : ''}`}
-                                onClick={() => handleSelect(option.value)}
+                                onClick={(e) => handleSelect(option.value, e)}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    handleSelect(option.value, e);
+                                }}
                             >
                                 <span>{option.label}</span>
                                 {option.value === value && (

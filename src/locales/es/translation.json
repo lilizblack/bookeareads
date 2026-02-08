@@ -222,7 +222,9 @@
             "setManual": "Manual",
             "confirmDate": "Confirmar Fecha",
             "gotit": "Entendido",
-            "startReadingQuestion": "¿Quieres establecer la fecha de inicio como hoy?"
+            "startReadingQuestion": "¿Quieres establecer la fecha de inicio como hoy?",
+            "trackingModeTitle": "Modo de Seguimiento",
+            "trackingModeMessage": "¿Cómo quieres realizar el seguimiento de tu progreso para este libro?"
         }
     },
     "library": {

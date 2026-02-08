@@ -33,8 +33,10 @@ const BookDetails = () => {
     const [duplicateError, setDuplicateError] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
     const [showStartModal, setShowStartModal] = useState(false);
+    const [showTrackingModeModal, setShowTrackingModeModal] = useState(false);
     const [showActivityModal, setShowActivityModal] = useState(false);
     const [tempStatus, setTempStatus] = useState(null); // To store status while modal is open
+    const [tempStartTime, setTempStartTime] = useState(null); // To store start time before mode selection
     const [manualDate, setManualDate] = useState('');
     const [showDateInput, setShowDateInput] = useState(false);
     const [showLogModal, setShowLogModal] = useState(false);
@@ -175,18 +177,30 @@ const BookDetails = () => {
 
     const handleStartConfirm = (mode) => {
         if (mode === 'now') {
-            updateBook(book.id, { status: 'reading', startedAt: new Date().toISOString() });
+            setTempStartTime(new Date().toISOString());
             setShowStartModal(false);
+            setShowTrackingModeModal(true);
         } else if (mode === 'manual_input') {
             setShowDateInput(true);
         } else if (mode === 'manual_save') {
             if (manualDate) {
-                updateBook(book.id, { status: 'reading', startedAt: new Date(manualDate).toISOString() });
+                setTempStartTime(new Date(manualDate).toISOString());
                 setShowStartModal(false);
                 setShowDateInput(false);
                 setManualDate('');
+                setShowTrackingModeModal(true);
             }
         }
+    };
+
+    const handleTrackingModeConfirm = (mode) => {
+        updateBook(book.id, {
+            status: 'reading',
+            startedAt: tempStartTime,
+            progressMode: mode
+        });
+        setShowTrackingModeModal(false);
+        setTempStartTime(null);
     };
 
     // Always calculate percentage from actual pages/chapters read
@@ -252,7 +266,8 @@ const BookDetails = () => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
                         <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
                         <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-                            {t('dashboard.modals.startReadingMessage', { title: '' })} {/* title is not actually used in this message in the old code but provided for future */}
+                            {t('dashboard.modals.startReadingMessage', { title: book.title })}
+                            <br />
                             {t('dashboard.modals.startReadingQuestion', 'Do you want to set the start date to today?')}
                         </p>
 
@@ -291,6 +306,45 @@ const BookDetails = () => {
                         <button
                             onClick={() => { setShowStartModal(false); setShowDateInput(false); }}
                             className="mt-4 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            {t('app.cancel')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Tracking Mode Modal */}
+            {showTrackingModeModal && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+                            <Notebook size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.trackingModeTitle', 'Tracking Mode')}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            {t('dashboard.modals.trackingModeMessage', 'How do you want to track your progress for this book?')}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 w-full">
+                            <button
+                                onClick={() => handleTrackingModeConfirm('pages')}
+                                className="flex flex-col items-center gap-2 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 transition-all active:scale-95"
+                            >
+                                <span className="text-sm font-black text-slate-900 dark:text-white">{t('book.fields.pages')}</span>
+                                <span className="text-[10px] uppercase text-slate-400 font-bold">{book.totalPages || 0} total</span>
+                            </button>
+                            <button
+                                onClick={() => handleTrackingModeConfirm('chapters')}
+                                className="flex flex-col items-center gap-2 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 transition-all active:scale-95"
+                            >
+                                <span className="text-sm font-black text-slate-900 dark:text-white">{t('book.fields.chapters')}</span>
+                                <span className="text-[10px] uppercase text-slate-400 font-bold">{book.totalChapters || 0} total</span>
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => setShowTrackingModeModal(false)}
+                            className="mt-6 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
                         >
                             {t('app.cancel')}
                         </button>

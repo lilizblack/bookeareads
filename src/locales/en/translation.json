@@ -219,7 +219,9 @@
             "setManual": "Set Manual",
             "confirmDate": "Confirm Date",
             "gotit": "Got it",
-            "startReadingQuestion": "Do you want to set the start date to today?"
+            "startReadingQuestion": "Do you want to set the start date to today?",
+            "trackingModeTitle": "Tracking Mode",
+            "trackingModeMessage": "How do you want to track your progress for this book?"
         }
     },
     "library": {

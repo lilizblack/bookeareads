@@ -27,6 +27,8 @@ const Dashboard = () => {
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [tempGoals, setTempGoals] = useState({ yearly: readingGoal.yearly, monthly: readingGoal.monthly });
     const [pendingStartBook, setPendingStartBook] = useState(null);
+    const [showTrackingModeModal, setShowTrackingModeModal] = useState(false);
+    const [tempStartTime, setTempStartTime] = useState(null);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
     const scrollRef = useRef(null);
@@ -102,12 +104,23 @@ const Dashboard = () => {
 
     const confirmStartReading = () => {
         if (pendingStartBook) {
+            setTempStartTime(new Date().toISOString());
+            setShowTrackingModeModal(true);
+            // Don't close pendingStartBook yet, we need its data for the next modal
+        }
+    };
+
+    const handleTrackingModeConfirm = (mode) => {
+        if (pendingStartBook) {
             updateBook(pendingStartBook.id, {
                 status: 'reading',
-                startedAt: new Date().toISOString()
+                startedAt: tempStartTime,
+                progressMode: mode
             });
             startTimer(pendingStartBook.id);
             setPendingStartBook(null);
+            setShowTrackingModeModal(false);
+            setTempStartTime(null);
         }
     };
 
@@ -217,7 +230,7 @@ const Dashboard = () => {
             )}
 
             {/* Start Reading Modal Overlay */}
-            {pendingStartBook && (
+            {pendingStartBook && !showTrackingModeModal && (
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
                         <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
@@ -238,6 +251,45 @@ const Dashboard = () => {
                                 {t('dashboard.modals.no')}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tracking Mode Modal Overlay */}
+            {showTrackingModeModal && pendingStartBook && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center relative overflow-hidden">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6">
+                            <Book size={32} />
+                        </div>
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.trackingModeTitle', 'Tracking Mode')}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">
+                            {t('dashboard.modals.trackingModeMessage', 'How do you want to track your progress for this book?')}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 w-full">
+                            <button
+                                onClick={() => handleTrackingModeConfirm('pages')}
+                                className="flex flex-col items-center gap-3 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                            >
+                                <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{t('book.fields.pages')}</span>
+                                <span className="text-[10px] uppercase text-slate-400 font-bold">{pendingStartBook.totalPages || 0} total</span>
+                            </button>
+                            <button
+                                onClick={() => handleTrackingModeConfirm('chapters')}
+                                className="flex flex-col items-center gap-3 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                            >
+                                <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{t('book.fields.chapters')}</span>
+                                <span className="text-[10px] uppercase text-slate-400 font-bold">{pendingStartBook.totalChapters || 0} total</span>
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => { setShowTrackingModeModal(false); setPendingStartBook(null); }}
+                            className="mt-8 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            {t('app.cancel')}
+                        </button>
                     </div>
                 </div>
             )}
