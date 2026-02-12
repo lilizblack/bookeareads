@@ -54,7 +54,8 @@
             "spicy": "Spicy",
             "toBuy": "To Buy",
             "worstReview": "Worst Review",
-            "language": "Language"
+            "language": "Language",
+            "currency": "Currency"
         },
         "languages": {
             "English": "English",
@@ -300,7 +301,22 @@
         "cozyLofi": "Cozy Lofi",
         "paperInk": "Paper & Ink",
         "darkRomance": "Dark Romance",
-        "romance": "Romance"
+        "romance": "Romance",
+        "onlyDefaultTheme": "Only available in Default theme",
+        "cloudSyncEnabled": "(Cloud Sync Enabled ☁️)",
+        "localStorageOnly": "(Local Storage Only)",
+        "displayName": "Display Name",
+        "enterName": "Enter name",
+        "feedbackPlaceholder": "Type your message...",
+        "support": "Support",
+        "feedback": "Feedback",
+        "reportBug": "Report a Bug",
+        "guestUser": "Guest User",
+        "localProfile": "Local Profile",
+        "syncCloud": "Sync to Cloud",
+        "editProfile": "Edit Profile",
+        "feedbackEmailTip": "We'll prepare an email for you.",
+        "sendEmail": "Send Email"
     },
     "favorites": {
         "title": "Favorites",
@@ -402,6 +418,11 @@
         "confirm": {
             "deleteBook": "Are you sure you want to delete this book?",
             "importData": "Importing data will overwrite your current library. Are you sure?"
+        },
+        "info": {
+            "syncing": "Syncing with cloud...",
+            "importing": "Importing data...",
+            "exporting": "Exporting data..."
         }
     },
     "pwa": {
@@ -419,6 +440,9 @@
         "hours": "hours",
         "minutes": "minutes",
         "min": "min",
-        "avg": "avg"
+        "avg": "avg",
+        "on": "On",
+        "off": "Off",
+        "language": "Language"
     }
 }

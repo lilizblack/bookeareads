@@ -145,6 +145,23 @@ export const BookProvider = ({ children }) => {
                         setBooks(parsedBooks);
                     }
                 }
+
+                // NEW: Fetch Reading Goal for Current Year
+                try {
+                    const currentYear = new Date().getFullYear().toString();
+                    const goalRef = doc(db, 'users', user.uid, 'goals', currentYear);
+                    const goalSnap = await getDoc(goalRef);
+                    if (goalSnap.exists()) {
+                        const data = goalSnap.data();
+                        console.log('🎯 Loaded goals from Firestore:', data);
+                        setReadingGoal({
+                            yearly: data.yearlyGoal || 12,
+                            monthly: data.monthlyGoal || 1
+                        });
+                    }
+                } catch (error) {
+                    console.error('❌ Error fetching reading goal from Firestore:', error);
+                }
             }
             // 2. Offline Mode (Logged out but keeping data visible)
             else if (isOfflineMode) {
@@ -272,7 +289,7 @@ export const BookProvider = ({ children }) => {
                 language: newBook.language || 'English',
                 hasSpice: newBook.hasSpice || false,
                 isWantToBuy: newBook.isWantToBuy || false,
-                progressMode: newBook.progressMode || (newBook.format === 'Audiobook' ? 'chapters' : 'pages'),
+                progressMode: newBook.progressMode || (newBook.format === 'Audiobook' ? 'minutes' : 'pages'),
                 // New fields for multi-format time estimation
                 tracking_unit: newBook.tracking_unit || newBook.progressMode || (newBook.format === 'Audiobook' ? 'minutes' : 'pages'),
                 total_duration_minutes: newBook.total_duration_minutes || null,
@@ -328,6 +345,8 @@ export const BookProvider = ({ children }) => {
                         updated.progress = updated.totalPages;
                     } else if (updated.totalChapters) {
                         updated.progress = updated.totalChapters;
+                    } else if (updated.total_duration_minutes) {
+                        updated.progress = updated.total_duration_minutes;
                     } else {
                         updated.progress = 100;
                     }
@@ -397,7 +416,7 @@ export const BookProvider = ({ children }) => {
                         purchaseLocation: updated.purchaseLocation || '',
                         otherVersions: updated.otherVersions || [],
                         // New fields for multi-format time estimation
-                        tracking_unit: updated.tracking_unit || updated.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
+                        tracking_unit: updates.tracking_unit || updates.progressMode || book.tracking_unit || book.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
                         total_duration_minutes: updated.total_duration_minutes || null
                     };
 
@@ -701,12 +720,27 @@ export const BookProvider = ({ children }) => {
                 }
             }
 
+            // NEW: Sync Reading Goal
+            try {
+                const currentYear = new Date().getFullYear();
+                const goalRef = doc(db, 'users', user.uid, 'goals', currentYear.toString());
+                await setDoc(goalRef, {
+                    year: currentYear,
+                    yearlyGoal: readingGoal.yearly,
+                    monthlyGoal: readingGoal.monthly,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                console.log('✅ Reading goals synced to cloud');
+            } catch (error) {
+                console.error('❌ Error syncing reading goals:', error);
+            }
+
             // Reload books from Firestore to replace local numeric-ID books with Firebase-ID books
             console.log('🔄 Reloading books from Firestore...');
             await fetchBooksFromDB();
             console.log('✅ Books reloaded successfully');
 
-            let message = `Successfully synced ${syncedCount} book${syncedCount !== 1 ? 's' : ''} to cloud`;
+            let message = `Successfully synced ${syncedCount} book${syncedCount !== 1 ? 's' : ''} and goals to cloud`;
             if (skippedCount > 0) {
                 message += `. Skipped ${skippedCount} duplicate${skippedCount !== 1 ? 's' : ''}`;
             }
@@ -725,7 +759,7 @@ export const BookProvider = ({ children }) => {
             setIsSyncingState(false);
             return { success: false, message: 'Sync failed: ' + error.message };
         }
-    }, [user, books, fetchBooksFromDB, isSyncingState]);
+    }, [user, books, readingGoal, fetchBooksFromDB, isSyncingState]);
 
     // Global Streak Calculation
     const getStreak = () => {
@@ -830,12 +864,9 @@ export const BookProvider = ({ children }) => {
 
         books.forEach(book => {
             const logs = book.readingLogs || [];
-            // Determine progress mode with smart fallback - use tracking_unit first, then progressMode
+            // Determine progress mode with smart fallback
             const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-
-            // Explicitly exclude audiobooks with time tracking from chapter counts
-            const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
-            const isChapters = mode === 'chapters' && !isAudiobookWithTime;
+            const isChapters = mode === 'chapters';
             const isPages = mode === 'pages';
 
             // Sort logs by date to calculate incremental progress
@@ -856,12 +887,15 @@ export const BookProvider = ({ children }) => {
 
                 if (isChapters) chaptersYear += readInYear;
                 if (isPages) pagesYear += readInYear;
+                if (mode === 'minutes') totalMinutesYear += readInYear;
 
-                // Time calculation
+                // Additional time from sessions (timer) for books not tracking primarily by minutes
                 yearLogs.forEach(log => {
-                    totalMinutesYear += (log.minutesRead || 0);
-                    if (new Date(log.date).getMonth() === currentMonth) {
-                        totalMinutesMonth += (log.minutesRead || 0);
+                    if (mode !== 'minutes') {
+                        totalMinutesYear += (log.minutesRead || 0);
+                        if (new Date(log.date).getMonth() === currentMonth) {
+                            totalMinutesMonth += (log.minutesRead || 0);
+                        }
                     }
                 });
             }
@@ -888,6 +922,8 @@ export const BookProvider = ({ children }) => {
 
                 if (isChapters) chaptersMonth += readInMonth;
                 if (isPages) pagesMonth += readInMonth;
+                if (mode === 'minutes') chaptersMonth += 0; // Don't count minutes as chapters
+                if (mode === 'minutes') totalMinutesMonth += readInMonth;
             }
         });
 
@@ -898,8 +934,7 @@ export const BookProvider = ({ children }) => {
                 totalChaptersThisYear: chaptersYear,
                 booksCountedForChapters: books.filter(b => {
                     const mode = b.tracking_unit || b.progressMode || (b.format === 'Audiobook' ? 'minutes' : 'pages');
-                    const isAudiobookWithTime = b.format === 'Audiobook' && (b.tracking_unit === 'minutes' || !b.tracking_unit);
-                    return mode === 'chapters' && !isAudiobookWithTime;
+                    return mode === 'chapters';
                 }).map(b => ({ title: b.title, format: b.format, mode: b.tracking_unit || b.progressMode, progress: b.progress }))
             });
         }
@@ -1050,7 +1085,12 @@ export const BookProvider = ({ children }) => {
 
                         // Update reading goal
                         if (data.readingGoal) {
-                            setReadingGoal(data.readingGoal);
+                            if (user) {
+                                const currentYear = new Date().getFullYear();
+                                setReadingGoalDB(currentYear, data.readingGoal);
+                            } else {
+                                setReadingGoal(data.readingGoal);
+                            }
                         }
 
                         resolve({
@@ -1281,37 +1321,29 @@ export const BookProvider = ({ children }) => {
     // ============================================
     // READING GOALS MANAGEMENT
     // ============================================
-    const setReadingGoalDB = async (year, month = null, targetBooks = 0, targetPages = 0) => {
+    const setReadingGoalDB = async (year, goals) => {
         if (!user) {
             // Fallback to local state for guest users
-            setReadingGoal({ yearly: targetBooks, monthly: month ? targetBooks : readingGoal.monthly });
-            localStorage.setItem('reading-goal', JSON.stringify({ yearly: targetBooks, monthly: month ? targetBooks : readingGoal.monthly }));
+            const newGoal = { ...readingGoal, ...goals };
+            setReadingGoal(newGoal);
+            localStorage.setItem('reading-goal', JSON.stringify(newGoal));
             return { success: true };
         }
 
         try {
             const goalRef = doc(db, 'users', user.uid, 'goals', year.toString());
-            await updateDoc(goalRef, {
-                yearlyGoal: !month ? targetBooks : null,
-                monthlyGoal: month ? targetBooks : null,
+            const updateData = {
+                year: parseInt(year),
                 updatedAt: serverTimestamp()
-            }).catch(async () => {
-                // Document doesn't exist, create it
-                await addDoc(collection(db, 'users', user.uid, 'goals'), {
-                    year,
-                    yearlyGoal: !month ? targetBooks : null,
-                    monthlyGoal: month ? targetBooks : null,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp()
-                });
-            });
+            };
+
+            if (goals.yearly !== undefined) updateData.yearlyGoal = goals.yearly;
+            if (goals.monthly !== undefined) updateData.monthlyGoal = goals.monthly;
+
+            await setDoc(goalRef, updateData, { merge: true });
 
             // Update local state
-            if (!month) {
-                setReadingGoal(prev => ({ ...prev, yearly: targetBooks }));
-            } else {
-                setReadingGoal(prev => ({ ...prev, monthly: targetBooks }));
-            }
+            setReadingGoal(prev => ({ ...prev, ...goals }));
 
             return { success: true };
         } catch (error) {

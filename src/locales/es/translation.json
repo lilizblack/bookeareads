@@ -54,7 +54,8 @@
             "spicy": "Picante",
             "toBuy": "Para comprar",
             "worstReview": "Peor reseña",
-            "language": "Idioma"
+            "language": "Idioma",
+            "currency": "Moneda"
         },
         "languages": {
             "English": "Inglés",
@@ -303,7 +304,22 @@
         "cozyLofi": "Acogedor Lofi",
         "paperInk": "Papel y Tinta",
         "darkRomance": "Dark Romance",
-        "romance": "Romance"
+        "romance": "Romance",
+        "onlyDefaultTheme": "Solo disponible en el tema por defecto",
+        "cloudSyncEnabled": "(Sincronización en la nube habilitada ☁️)",
+        "localStorageOnly": "(Solo almacenamiento local)",
+        "displayName": "Nombre de pantalla",
+        "enterName": "Ingresa el nombre",
+        "feedbackPlaceholder": "Escribe tu mensaje...",
+        "support": "Soporte",
+        "feedback": "Enviar Comentarios",
+        "reportBug": "Reportar un Error",
+        "guestUser": "Usuario Invitado",
+        "localProfile": "Perfil Local",
+        "syncCloud": "Sincronizar a la nube",
+        "editProfile": "Editar Perfil",
+        "feedbackEmailTip": "Prepararemos un correo para ti.",
+        "sendEmail": "Enviar Correo"
     },
     "favorites": {
         "title": "Favoritos",
@@ -435,6 +451,9 @@
         "hours": "horas",
         "minutes": "minutos",
         "min": "min",
-        "avg": "prom"
+        "avg": "prom",
+        "on": "Activo",
+        "off": "Inactivo",
+        "language": "Idioma"
     }
 }

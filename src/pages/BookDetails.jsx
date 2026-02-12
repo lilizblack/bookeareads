@@ -4,7 +4,7 @@ import { useBooks } from '../context/BookContext';
 import { format, parseISO } from 'date-fns';
 import Rating from '../components/Rating';
 import SpiceRating from '../components/SpiceRating';
-import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer, Search, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer, Search, Loader2, Trash2, Check } from 'lucide-react';
 import { getReadingSpeed, getEstimatedTimeLeft } from '../utils/bookUtils';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -203,6 +203,26 @@ const BookDetails = () => {
         });
         setShowTrackingModeModal(false);
         setTempStartTime(null);
+    };
+
+    const handleMarkAsFinished = () => {
+        const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+        let totalProgress = 0;
+
+        if (trackingUnit === 'minutes') {
+            totalProgress = book.total_duration_minutes || 0;
+        } else if (trackingUnit === 'chapters') {
+            totalProgress = book.totalChapters || 0;
+        } else {
+            totalProgress = book.totalPages || 0;
+        }
+
+        updateBook(book.id, {
+            status: 'read',
+            progress: totalProgress,
+            finishedAt: new Date().toISOString()
+        });
+        setShowLogModal(false);
     };
 
     // Always calculate percentage from actual pages/chapters read
@@ -455,7 +475,8 @@ const BookDetails = () => {
                                                             setProgressHours(hours);
                                                             setNewProgress(hours * 60 + progressMinutes);
                                                         }}
-                                                        autoFocus
+                                                        disabled={book.status === 'read'}
+                                                        autoFocus={book.status !== 'read'}
                                                     />
                                                 </div>
                                                 <span className="text-3xl font-bold text-slate-400 dark:text-slate-500 pt-6">:</span>
@@ -474,6 +495,7 @@ const BookDetails = () => {
                                                             setProgressMinutes(mins);
                                                             setNewProgress(progressHours * 60 + mins);
                                                         }}
+                                                        disabled={book.status === 'read'}
                                                     />
                                                 </div>
                                             </div>
@@ -485,28 +507,43 @@ const BookDetails = () => {
                                             className="w-full text-center text-5xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
                                             value={newProgress}
                                             onChange={e => setNewProgress(Number(e.target.value))}
-                                            autoFocus
+                                            disabled={book.status === 'read'}
+                                            autoFocus={book.status !== 'read'}
                                         />
                                     );
                                 })()}
                             </div>
 
-                            <button
-                                onClick={() => {
-                                    const oldProgress = book.progress || 0;
-                                    const sessionProgress = Math.max(0, newProgress - oldProgress);
+                            <div className="flex flex-col gap-3 z-10">
+                                <button
+                                    onClick={() => {
+                                        if (book.status === 'read') return;
+                                        const oldProgress = book.progress || 0;
+                                        const sessionProgress = Math.max(0, newProgress - oldProgress);
 
-                                    logReading(book.id, newProgress);
-                                    if (elapsedMinutes > 0) {
-                                        stopTimer(book.id, elapsedMinutes, sessionProgress);
-                                        setElapsedMinutes(0);
-                                    }
-                                    setShowLogModal(false);
-                                }}
-                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-blue-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/30 active:scale-95 transition-all z-10"
-                            >
-                                {t('dashboard.modals.logProgress')}
-                            </button>
+                                        logReading(book.id, newProgress);
+                                        if (elapsedMinutes > 0) {
+                                            stopTimer(book.id, elapsedMinutes, sessionProgress);
+                                            setElapsedMinutes(0);
+                                        }
+                                        setShowLogModal(false);
+                                    }}
+                                    disabled={book.status === 'read'}
+                                    className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all ${book.status === 'read'
+                                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50'
+                                        : 'bg-gradient-to-r from-violet-600 to-blue-500 text-white shadow-violet-500/30 active:scale-95'
+                                        }`}
+                                >
+                                    {t('dashboard.modals.logProgress')}
+                                </button>
+                                <button
+                                    onClick={handleMarkAsFinished}
+                                    className="w-full py-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl font-bold active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50"
+                                >
+                                    <Check size={20} />
+                                    {t('book.status.read', 'Finished')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )
@@ -542,11 +579,13 @@ const BookDetails = () => {
                 )}
             </div>
 
-            {/* Timer Control Bar (Visible when reading/want) */}
-            {(book.status === 'reading' || book.status === 'want-to-read') && (
-                <div className={`mt-4 p-4 rounded-2xl flex items-center justify-between transition-all ${activeTimer?.bookId === book.id
-                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900 animate-pulse'
-                    : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800'
+            {/* Timer Control Bar (Visible when reading/want/read) */}
+            {(book.status === 'reading' || book.status === 'want-to-read' || book.status === 'read') && (
+                <div className={`mt-4 p-4 rounded-2xl flex items-center justify-between transition-all ${book.status === 'read'
+                    ? 'bg-slate-100 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700 opacity-75'
+                    : activeTimer?.bookId === book.id
+                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900 animate-pulse'
+                        : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800'
                     }`}>
                     <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${activeTimer?.bookId === book.id ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-800 text-slate-400 shadow-sm'}`}>
@@ -562,6 +601,7 @@ const BookDetails = () => {
 
                     <button
                         onClick={() => {
+                            if (book.status === 'read') return;
                             if (activeTimer?.bookId === book.id) {
                                 const start = new Date(activeTimer.startTime);
                                 const now = new Date();
@@ -577,12 +617,15 @@ const BookDetails = () => {
                                 }
                             }
                         }}
-                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all active:scale-95 shadow-lg ${activeTimer?.bookId === book.id
-                            ? 'bg-red-500 text-white shadow-red-500/30'
-                            : 'bg-blue-600 text-white shadow-blue-500/30'
+                        disabled={book.status === 'read'}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all active:scale-95 shadow-lg ${book.status === 'read'
+                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50'
+                            : activeTimer?.bookId === book.id
+                                ? 'bg-red-500 text-white shadow-red-500/30'
+                                : 'bg-blue-600 text-white shadow-blue-500/30'
                             }`}
                     >
-                        {activeTimer?.bookId === book.id ? t('actions.stopAndLog') : t('actions.startTimer')}
+                        {book.status === 'read' ? t('book.status.completed') : activeTimer?.bookId === book.id ? t('actions.stopAndLog') : t('actions.startTimer')}
                     </button>
                 </div>
             )}
@@ -902,11 +945,14 @@ const BookDetails = () => {
                 <div className="grid grid-cols-1 gap-4 mb-8">
                     <div>
                         <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">{t('book.fields.trackingMode', 'Tracking Mode')}</span>
-                        <div className={`grid ${(isEditing ? editData.format : book.format) === 'Audiobook' ? 'grid-cols-3' : 'grid-cols-2'} gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
+                        <div className={`grid ${(isEditing ? editData.format : book.format) === 'Audiobook' ? 'grid-cols-1' : 'grid-cols-2'} gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
                             {[
-                                { value: 'pages', label: t('book.fields.pages') },
-                                { value: 'chapters', label: t('book.fields.chapters') },
-                                ...((isEditing ? editData.format : book.format) === 'Audiobook' ? [{ value: 'minutes', label: t('book.fields.time', 'Time') }] : [])
+                                ...((isEditing ? editData.format : book.format) === 'Audiobook'
+                                    ? [{ value: 'minutes', label: t('book.fields.time', 'Time') }]
+                                    : [
+                                        { value: 'pages', label: t('book.fields.pages') },
+                                        { value: 'chapters', label: t('book.fields.chapters') }
+                                    ])
                             ].map(mode => (
                                 <button
                                     key={mode.value}
@@ -1104,7 +1150,7 @@ const BookDetails = () => {
                         onChange={e => handleChange('progress', parseInt(e.target.value))}
                         onClick={() => {
                             const status = isEditing ? editData.status : book.status;
-                            if (!isEditing && status !== 'want-to-read') {
+                            if (!isEditing && status !== 'want-to-read' && status !== 'read') {
                                 const currentProgress = book.progress || 0;
                                 setNewProgress(currentProgress);
 
@@ -1121,8 +1167,8 @@ const BookDetails = () => {
                                 setShowLogModal(true);
                             }
                         }}
-                        readOnly={!isEditing || (isEditing ? editData.status : book.status) === 'want-to-read'}
-                        className={`bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 ${!isEditing && book.status !== 'want-to-read' ? 'cursor-pointer hover:text-blue-500 transition-colors' : ''} ${(isEditing ? editData.status : book.status) === 'want-to-read' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        readOnly={!isEditing || (isEditing ? editData.status : book.status) === 'want-to-read' || (isEditing ? editData.status : book.status) === 'read'}
+                        className={`bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 ${!isEditing && book.status !== 'want-to-read' && book.status !== 'read' ? 'cursor-pointer hover:text-blue-500 transition-colors' : ''} ${(isEditing ? editData.status : book.status) === 'want-to-read' || (isEditing ? editData.status : book.status) === 'read' ? 'opacity-30 cursor-not-allowed' : ''}`}
                         placeholder="0"
                     />
                 </div>

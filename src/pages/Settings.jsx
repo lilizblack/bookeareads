@@ -131,7 +131,7 @@ const Settings = () => {
                     isToggle: true,
                     value: theme === 'dark',
                     disabled: themePreset !== 'default',
-                    description: themePreset !== 'default' ? 'Only available in Default theme' : null
+                    description: themePreset !== 'default' ? t('settings.onlyDefaultTheme', { defaultValue: 'Only available in Default theme' }) : null
                 },
                 {
                     icon: <Edit2 size={20} />,
@@ -160,7 +160,7 @@ const Settings = () => {
                     value: <LanguageSwitcher />,
                     noChevron: true
                 },
-                { icon: <CreditCard size={20} />, label: t('book.fields.currency', { defaultValue: 'Moneda' }), value: 'USD ($)' },
+                { icon: <CreditCard size={20} />, label: t('book.fields.currency'), value: 'USD ($)' },
             ]
         },
         {
@@ -171,16 +171,16 @@ const Settings = () => {
             ]
         },
         {
-            title: t('settings.support', { defaultValue: 'Soporte' }),
+            title: t('settings.support'),
             items: [
-                { icon: <MessageSquare size={20} />, label: t('settings.feedback', { defaultValue: 'Enviar Comentarios' }), action: () => handleFeedback('feedback') },
-                { icon: <Bug size={20} />, label: t('settings.reportBug', { defaultValue: 'Reportar un Error' }), action: () => handleFeedback('bug') }
+                { icon: <MessageSquare size={20} />, label: t('settings.feedback'), action: () => handleFeedback('feedback') },
+                { icon: <Bug size={20} />, label: t('settings.reportBug'), action: () => handleFeedback('bug') }
             ]
         }
     ];
 
     // Determine Display Name and Avatar
-    const displayName = userProfile.name || (user ? user.email.split('@')[0] : 'Guest User');
+    const displayName = userProfile.name || (user ? user.email.split('@')[0] : t('settings.guestUser', { defaultValue: 'Guest User' }));
     const displayAvatar = userProfile.avatar;
 
     return (
@@ -201,7 +201,7 @@ const Settings = () => {
                         {displayName}
                     </h2>
                     <p className="text-slate-500 text-sm">
-                        {user ? t('settings.account') : t('settings.localProfile', { defaultValue: 'Perfil Local' })}
+                        {user ? t('settings.account') : t('settings.localProfile')}
                     </p>
                 </div>
                 <button
@@ -240,7 +240,7 @@ const Settings = () => {
                                         {item.value !== undefined && (
                                             typeof item.value === 'boolean' ? (
                                                 <span className="text-slate-400 text-sm">
-                                                    {item.value ? t('common.on', { defaultValue: 'Activo' }) : t('common.off', { defaultValue: 'Inactivo' })}
+                                                    {item.value ? t('common.on') : t('common.off')}
                                                 </span>
                                             ) : (
                                                 <div className="flex items-center">{item.value}</div>
@@ -274,7 +274,7 @@ const Settings = () => {
                                 <div className="flex items-center gap-3 text-blue-500">
                                     <UploadCloud size={20} className={isSyncing ? 'animate-pulse' : ''} />
                                     <span className="font-medium text-slate-700 dark:text-slate-200">
-                                        {isSyncing ? t('messages.info.syncing') : t('settings.syncCloud', { defaultValue: 'Sincronizar a la nube' })}
+                                        {isSyncing ? t('messages.info.syncing') : t('settings.syncCloud')}
                                     </span>
                                 </div>
                                 {!isSyncing && <ChevronRight size={16} className="text-slate-300" />}
@@ -294,7 +294,7 @@ const Settings = () => {
             </div>
 
             <div className="text-center mt-8 text-xs text-slate-400">
-                Ver 3.2.0 {user ? '(Cloud Sync Enabled ☁️)' : '(Local Storage Only)'}
+                Version 3.2.0 {user ? t('settings.cloudSyncEnabled', { defaultValue: '(Cloud Sync Enabled ☁️)' }) : t('settings.localStorageOnly', { defaultValue: '(Local Storage Only)' })}
             </div>
 
             {/* Hidden Inputs */}
@@ -306,7 +306,7 @@ const Settings = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-scale-in flex flex-col items-center">
                         <div className="flex justify-between items-center w-full mb-6">
-                            <h3 className="text-xl font-bold dark:text-white">{t('settings.editProfile', { defaultValue: 'Editar Perfil' })}</h3>
+                            <h3 className="text-xl font-bold dark:text-white">{t('settings.editProfile')}</h3>
                             <button onClick={() => setIsProfileModalOpen(false)}><X className="text-slate-400" /></button>
                         </div>
 
@@ -330,11 +330,11 @@ const Settings = () => {
                         {/* Name Input */}
                         <div className="w-full mb-8">
                             <FormInput
-                                label="Display Name"
+                                label={t('settings.displayName', { defaultValue: 'Display Name' })}
                                 type="text"
                                 value={tempProfile.name}
                                 onChange={e => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="Enter name"
+                                placeholder={t('settings.enterName', { defaultValue: 'Enter name' })}
                                 icon={User}
                                 className="text-center text-xl font-bold"
                             />
@@ -357,10 +357,10 @@ const Settings = () => {
             {showFeedbackModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-scale-in">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? t('settings.reportBug', { defaultValue: 'Reportar un Error' }) : t('settings.feedback', { defaultValue: 'Enviar Comentarios' })}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('settings.feedbackEmailTip', { defaultValue: 'Prepararemos un correo para ti.' })}</p>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? t('settings.reportBug') : t('settings.feedback')}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('settings.feedbackEmailTip')}</p>
                         <FormTextarea
-                            placeholder="Type your message..."
+                            placeholder={t('settings.feedbackPlaceholder', { defaultValue: 'Type your message...' })}
                             value={feedbackMessage}
                             onChange={(e) => setFeedbackMessage(e.target.value)}
                             rows={6}
@@ -372,7 +372,7 @@ const Settings = () => {
                                 variant="secondary"
                                 size="md"
                             >
-                                Cancel
+                                {t('actions.cancel')}
                             </FormButton>
                             <FormButton
                                 onClick={handleSubmitFeedback}
@@ -381,7 +381,7 @@ const Settings = () => {
                                 size="md"
                                 icon={MessageSquare}
                             >
-                                {t('settings.sendEmail', { defaultValue: 'Enviar Correo' })}
+                                {t('settings.sendEmail')}
                             </FormButton>
                         </div>
                     </div>

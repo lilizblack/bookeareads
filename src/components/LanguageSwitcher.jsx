@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe, Check, X } from 'lucide-react';
 
 const LanguageSwitcher = () => {
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [isOpen, setIsOpen] = React.useState(false);
 
     const languages = [
@@ -29,7 +29,7 @@ const LanguageSwitcher = () => {
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[320px] bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-[9999] animate-scale-in">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Language</h3>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t('common.language')}</h3>
                         <button onClick={() => setIsOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                             <X size={20} />
                         </button>

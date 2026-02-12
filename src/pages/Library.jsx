@@ -5,7 +5,7 @@ import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book, Plus } from 'lucide-react';
+import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book, Plus, Check } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { BookListSkeleton } from '../components/BookCardSkeleton';
 import EmptyState from '../components/EmptyState';
@@ -33,7 +33,11 @@ const Library = () => {
     const [pendingStartBook, setPendingStartBook] = useState(null);
     const [selectedBook, setSelectedBook] = useState(null);
     const [newProgress, setNewProgress] = useState(0);
+    const [progressHours, setProgressHours] = useState(0);
+    const [progressMinutes, setProgressMinutes] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
+    const [showTrackingModeModal, setShowTrackingModeModal] = useState(false);
+    const [tempStartTime, setTempStartTime] = useState(null);
 
     // Handle filter from navigation state (e.g., from Dashboard stats cards)
     useEffect(() => {
@@ -142,12 +146,33 @@ const Library = () => {
 
     const confirmStartReading = () => {
         if (pendingStartBook) {
+            const startTime = new Date().toISOString();
+            if (pendingStartBook.format === 'Audiobook') {
+                updateBook(pendingStartBook.id, {
+                    status: 'reading',
+                    startedAt: startTime,
+                    progressMode: 'minutes'
+                });
+                startTimer(pendingStartBook.id);
+                setPendingStartBook(null);
+                return;
+            }
+            setTempStartTime(startTime);
+            setShowTrackingModeModal(true);
+        }
+    };
+
+    const handleTrackingModeConfirm = (mode) => {
+        if (pendingStartBook) {
             updateBook(pendingStartBook.id, {
                 status: 'reading',
-                startedAt: new Date().toISOString()
+                startedAt: tempStartTime,
+                progressMode: mode
             });
             startTimer(pendingStartBook.id);
             setPendingStartBook(null);
+            setShowTrackingModeModal(false);
+            setTempStartTime(null);
         }
     };
 
@@ -163,6 +188,26 @@ const Library = () => {
             }
             setSelectedBook(null);
         }
+    };
+
+    const handleMarkAsFinished = (book) => {
+        const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+        let totalProgress = 0;
+
+        if (trackingUnit === 'minutes') {
+            totalProgress = book.total_duration_minutes || 0;
+        } else if (trackingUnit === 'chapters') {
+            totalProgress = book.totalChapters || 0;
+        } else {
+            totalProgress = book.totalPages || 0;
+        }
+
+        updateBook(book.id, {
+            status: 'read',
+            progress: totalProgress,
+            finishedAt: new Date().toISOString()
+        });
+        setSelectedBook(null);
     };
 
     return (
@@ -294,28 +339,86 @@ const Library = () => {
                         )}
 
                         <div className="mb-8 overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800">
-                            <label className="text-[10px] font-bold uppercase text-slate-400 mb-2 block tracking-widest text-center">Current Progress</label>
-                            <input
-                                type="number"
-                                className="w-full text-center text-5xl font-black bg-transparent outline-none p-2 dark:text-white"
-                                value={newProgress}
-                                onChange={e => setNewProgress(Number(e.target.value))}
-                                autoFocus
-                            />
-                            <div className="text-[10px] font-bold text-slate-400 text-center mt-2">
-                                {selectedBook.format === 'Audiobook' || selectedBook.progressMode === 'chapters' ? t('book.fields.chapters').toUpperCase() : t('book.fields.pages').toUpperCase()}
-                            </div>
+                            <label className="text-[10px] font-bold uppercase text-slate-400 mb-2 block tracking-widest text-center">
+                                {selectedBook.format === 'Audiobook' ? t('dashboard.modals.timeListened', 'Time Listened') : t('dashboard.modals.currentProgress')}
+                            </label>
+                            {selectedBook.format === 'Audiobook' ? (
+                                <div className="flex gap-4 items-center justify-center">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block text-center">{t('book.fields.hours')}</label>
+                                        <input
+                                            type="number"
+                                            className="w-full text-center text-4xl font-black bg-transparent outline-none p-2 dark:text-white border-b-2 border-violet-500"
+                                            value={progressHours}
+                                            onChange={e => {
+                                                const h = parseInt(e.target.value) || 0;
+                                                setProgressHours(h);
+                                                setNewProgress(h * 60 + progressMinutes);
+                                            }}
+                                            disabled={selectedBook.status === 'read'}
+                                        />
+                                    </div>
+                                    <span className="text-3xl font-bold text-slate-300 pt-6">:</span>
+                                    <div className="flex-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block text-center">{t('book.fields.minutes')}</label>
+                                        <input
+                                            type="number"
+                                            max="59"
+                                            className="w-full text-center text-4xl font-black bg-transparent outline-none p-2 dark:text-white border-b-2 border-violet-500"
+                                            value={progressMinutes}
+                                            onChange={e => {
+                                                const m = Math.min(59, parseInt(e.target.value) || 0);
+                                                setProgressMinutes(m);
+                                                setNewProgress(progressHours * 60 + m);
+                                            }}
+                                            disabled={selectedBook.status === 'read'}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="number"
+                                        className="w-full text-center text-5xl font-black bg-transparent outline-none p-2 dark:text-white border-b-2 border-violet-500"
+                                        value={newProgress}
+                                        onChange={e => setNewProgress(Number(e.target.value))}
+                                        disabled={selectedBook.status === 'read'}
+                                        autoFocus={selectedBook.status !== 'read'}
+                                    />
+                                    <div className="text-[10px] font-bold text-slate-400 text-center mt-2">
+                                        {selectedBook.progressMode === 'chapters' || selectedBook.tracking_unit === 'chapters' ? t('book.fields.chapters').toUpperCase() :
+                                            selectedBook.progressMode === 'minutes' || selectedBook.tracking_unit === 'minutes' ? t('book.fields.minutes', 'Minutes').toUpperCase() :
+                                                t('book.fields.pages').toUpperCase()}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        <button onClick={saveProgress} className="w-full py-5 bg-gradient-to-r from-violet-600 to-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-violet-500/20 active:scale-95 transition-all">
-                            {t('actions.updateProgress')}
-                        </button>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={saveProgress}
+                                disabled={selectedBook.status === 'read'}
+                                className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl transition-all ${selectedBook.status === 'read'
+                                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50'
+                                    : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white shadow-violet-500/20 active:scale-95'
+                                    }`}
+                            >
+                                {t('actions.updateProgress')}
+                            </button>
+                            <button
+                                onClick={() => handleMarkAsFinished(selectedBook)}
+                                className="w-full py-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl font-black text-lg active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50"
+                            >
+                                <Check size={20} />
+                                {t('book.status.read', 'Finished')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Start Reading Modal Overlay */}
-            {pendingStartBook && (
+            {pendingStartBook && !showTrackingModeModal && (
                 <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
                         <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.startReadingTitle')}</h3>
@@ -336,6 +439,57 @@ const Library = () => {
                                 {t('dashboard.modals.no')}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tracking Mode Modal Overlay */}
+            {showTrackingModeModal && pendingStartBook && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-8 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center relative overflow-hidden">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6">
+                            <Book size={32} />
+                        </div>
+                        <h3 className="text-2xl font-bold dark:text-white mb-2">{t('dashboard.modals.trackingModeTitle', 'Tracking Mode')}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">
+                            {t('dashboard.modals.trackingModeMessage', 'How do you want to track your progress for this book?')}
+                        </p>
+
+                        <div className={`grid ${pendingStartBook.format === 'Audiobook' ? 'grid-cols-1' : 'grid-cols-2'} gap-4 w-full`}>
+                            {pendingStartBook.format === 'Audiobook' ? (
+                                <button
+                                    onClick={() => handleTrackingModeConfirm('minutes')}
+                                    className="flex flex-col items-center gap-3 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                                >
+                                    <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{t('book.fields.time', 'Time')}</span>
+                                    <span className="text-[10px] uppercase text-slate-400 font-bold">{Math.floor((pendingStartBook.total_duration_minutes || 0) / 60)}h {(pendingStartBook.total_duration_minutes || 0) % 60}m</span>
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => handleTrackingModeConfirm('pages')}
+                                        className="flex flex-col items-center gap-3 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                                    >
+                                        <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{t('book.fields.pages')}</span>
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold">{pendingStartBook.totalPages || 0} total</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleTrackingModeConfirm('chapters')}
+                                        className="flex flex-col items-center gap-3 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                                    >
+                                        <span className="text-sm font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{t('book.fields.chapters')}</span>
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold">{pendingStartBook.totalChapters || 0} total</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => { setShowTrackingModeModal(false); setPendingStartBook(null); }}
+                            className="mt-8 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            {t('app.cancel')}
+                        </button>
                     </div>
                 </div>
             )}

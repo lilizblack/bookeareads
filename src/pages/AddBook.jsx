@@ -147,9 +147,16 @@ const AddBook = () => {
         if (!formData.genres) newErrors.genres = t('addBook.form.errorGenre');
 
         if (formData.status !== 'want-to-read') {
-            const totalVal = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
-            if (!totalVal || totalVal <= 0) {
-                newErrors.pages = formData.format === 'Audiobook' ? t('addBook.form.errorChapters') : t('addBook.form.errorPages');
+            if (formData.format === 'Audiobook') {
+                const totalMins = durationHours * 60 + durationMinutes;
+                if (totalMins <= 0) {
+                    newErrors.duration = t('addBook.form.errorDuration', 'Please enter total duration');
+                }
+            } else {
+                const totalVal = trackByChapters ? formData.totalChapters : formData.totalPages;
+                if (!totalVal || totalVal <= 0) {
+                    newErrors.pages = trackByChapters ? t('addBook.form.errorChapters') : t('addBook.form.errorPages');
+                }
             }
             if (!formData.format) newErrors.format = t('addBook.form.errorFormat');
         }
@@ -369,24 +376,26 @@ const AddBook = () => {
                     </div>
 
                     {/* Pages/Chapters Field */}
-                    <FormInput
-                        label={formData.format === 'Audiobook' ? t('book.fields.chapters') : t('book.fields.pages')}
-                        type="number"
-                        placeholder="0"
-                        value={formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages}
-                        helperText={t('addBook.form.pagesTip')}
-                        onChange={e => {
-                            const value = parseInt(e.target.value) || '';
-                            if (formData.format === 'Audiobook') {
-                                setFormData({ ...formData, totalChapters: value });
-                            } else {
-                                setFormData({ ...formData, totalPages: value });
-                            }
-                            if (errors.pages) setErrors({ ...errors, pages: null });
-                        }}
-                        required={formData.status !== 'want-to-read'}
-                        error={errors.pages}
-                    />
+                    {(formData.format === 'Physical' || formData.format === 'Ebook' || !formData.format) && (
+                        <FormInput
+                            label={trackByChapters ? t('book.fields.chapters') : t('book.fields.pages')}
+                            type="number"
+                            placeholder="0"
+                            value={trackByChapters ? formData.totalChapters : formData.totalPages}
+                            helperText={t('addBook.form.pagesTip')}
+                            onChange={e => {
+                                const value = parseInt(e.target.value) || '';
+                                if (trackByChapters) {
+                                    setFormData({ ...formData, totalChapters: value });
+                                } else {
+                                    setFormData({ ...formData, totalPages: value });
+                                }
+                                if (errors.pages) setErrors({ ...errors, pages: null });
+                            }}
+                            required={formData.status !== 'want-to-read'}
+                            error={errors.pages}
+                        />
+                    )}
 
                     {/* Genre and Status Grid */}
                     <div className="grid grid-cols-2 gap-4">
@@ -547,7 +556,10 @@ const AddBook = () => {
                                         type="number"
                                         min="0"
                                         value={durationHours}
-                                        onChange={(e) => setDurationHours(parseInt(e.target.value) || 0)}
+                                        onChange={(e) => {
+                                            setDurationHours(parseInt(e.target.value) || 0);
+                                            if (errors.duration) setErrors({ ...errors, duration: null });
+                                        }}
                                         className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
                                         placeholder="0"
                                     />
@@ -561,12 +573,16 @@ const AddBook = () => {
                                         min="0"
                                         max="59"
                                         value={durationMinutes}
-                                        onChange={(e) => setDurationMinutes(Math.min(59, parseInt(e.target.value) || 0))}
+                                        onChange={(e) => {
+                                            setDurationMinutes(Math.min(59, parseInt(e.target.value) || 0));
+                                            if (errors.duration) setErrors({ ...errors, duration: null });
+                                        }}
                                         className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
                                         placeholder="0"
                                     />
                                 </div>
                             </div>
+                            {errors.duration && <p className="text-[10px] text-red-500 font-bold mt-2 uppercase tracking-wider text-center">{errors.duration}</p>}
                             <div className="mt-3 p-2 bg-white dark:bg-slate-800 rounded-lg">
                                 <p className="text-xs text-center font-bold text-blue-600 dark:text-blue-400">
                                     {t('addBook.form.trackingByTime', 'Progress will be tracked by listening time')}

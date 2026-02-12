@@ -127,13 +127,29 @@ const AnnualReport = () => {
 
     // Calculate yearly reading time from logs
     const yearlyTimeRead = books.reduce((total, book) => {
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
         const logs = book.readingLogs || [];
-        const thisYearLogs = logs.filter(l => {
-            const date = new Date(l.date);
-            return date.getFullYear() === selectedYear;
-        });
-        const yearTotal = thisYearLogs.reduce((acc, l) => acc + (l.minutesRead || 0), 0);
-        return total + yearTotal;
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const thisYearLogs = sortedLogs.filter(l => new Date(l.date).getFullYear() === selectedYear);
+
+        if (thisYearLogs.length === 0) return total;
+
+        let timeForThisBook = 0;
+
+        if (mode === 'minutes') {
+            // Incremental logic for time-based tracking
+            const logsBeforeYear = sortedLogs.filter(l => new Date(l.date).getFullYear() < selectedYear);
+            const startOfYearProgress = logsBeforeYear.length > 0
+                ? logsBeforeYear[logsBeforeYear.length - 1].pagesRead || 0
+                : 0;
+            const endOfYearProgress = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
+            timeForThisBook = Math.max(0, endOfYearProgress - startOfYearProgress);
+        } else {
+            // Timer logic for non-time-based tracking
+            timeForThisBook = thisYearLogs.reduce((acc, l) => acc + (l.minutesRead || 0), 0);
+        }
+
+        return total + timeForThisBook;
     }, 0);
 
     const yearlyPagesRead = books.reduce((total, book) => {
@@ -161,10 +177,7 @@ const AnnualReport = () => {
 
     const yearlyChaptersRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-
-        // Explicitly exclude audiobooks with time tracking from chapter counts
-        const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
-        if (mode !== 'chapters' || isAudiobookWithTime) return total;
+        if (mode !== 'chapters') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));

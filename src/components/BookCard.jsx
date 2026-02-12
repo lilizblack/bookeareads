@@ -457,12 +457,15 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
             </div>
 
             {/* Timer Button - Touch-Optimized */}
-            {(book.status === 'reading' || book.status === 'want-to-read') && (
+            {(book.status === 'reading' || book.status === 'want-to-read' || book.status === 'read') && (
                 <button
-                    onClick={handleTimerClick}
-                    className={`absolute bottom-3 right-3 min-w-touch-comfortable min-h-touch-comfortable flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-base z-10 shadow-soft-lg active:scale-95 ${isActive
-                        ? 'bg-red-500 text-white animate-pulse shadow-rose'
-                        : 'bg-white/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-300 hover:scale-110 hover:shadow-soft-xl'
+                    onClick={book.status === 'read' ? undefined : handleTimerClick}
+                    disabled={book.status === 'read'}
+                    className={`absolute bottom-3 right-3 min-w-touch-comfortable min-h-touch-comfortable flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-base z-10 shadow-soft-lg active:scale-95 ${book.status === 'read'
+                            ? 'bg-slate-200/50 dark:bg-slate-700/50 text-slate-400 cursor-not-allowed'
+                            : isActive
+                                ? 'bg-red-500 text-white animate-pulse shadow-rose'
+                                : 'bg-white/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-300 hover:scale-110 hover:shadow-soft-xl'
                         }`}
                 >
                     <Timer size={18} className={isActive ? 'animate-spin-slow' : ''} />

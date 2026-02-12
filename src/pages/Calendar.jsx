@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { enUS, es } from 'date-fns/locale';
 
 const Calendar = () => {
-    const { books, getYearlyStats, getStreak, readingGoal, setReadingGoal } = useBooks();
+    const { books, getYearlyStats, getStreak, readingGoal, setReadingGoal, setReadingGoalDB } = useBooks();
     const { themePreset } = useTheme();
     const { t, i18n } = useTranslation();
     const currentLocale = i18n.language.startsWith('es') ? es : enUS;
@@ -46,8 +46,9 @@ const Calendar = () => {
         setIsGoalModalOpen(true);
     };
 
-    const handleGoalSave = (newGoal) => {
-        setReadingGoal(newGoal);
+    const handleGoalSave = async (newGoal) => {
+        const currentYear = new Date().getFullYear();
+        await setReadingGoalDB(currentYear, newGoal);
         setIsGoalModalOpen(false);
     };
 
@@ -180,10 +181,7 @@ const Calendar = () => {
     // Monthly Chapters Read Calculation (Incremental progress this month)
     const monthlyChaptersRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-
-        // Explicitly exclude audiobooks with time tracking from chapter counts
-        const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
-        if (mode !== 'chapters' || isAudiobookWithTime) return total;
+        if (mode !== 'chapters') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -237,14 +235,30 @@ const Calendar = () => {
         if (mode !== 'minutes') return total;
 
         const logs = book.readingLogs || [];
-        const thisMonthLogs = logs.filter(l => {
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const thisMonthLogs = sortedLogs.filter(l => {
             const date = new Date(l.date);
             return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
         });
 
-        // Sum up the pagesRead (which contains minutes for time-based tracking) from each log entry
-        const minutesLoggedThisMonth = thisMonthLogs.reduce((sum, log) => sum + (log.pagesRead || 0), 0);
-        return total + minutesLoggedThisMonth;
+        if (thisMonthLogs.length === 0) return total;
+
+        // Get progress at start of month
+        const logsBeforeMonth = sortedLogs.filter(l => {
+            const d = new Date(l.date);
+            return d.getFullYear() < currentYear_num ||
+                (d.getFullYear() === currentYear_num && d.getMonth() < currentMonth_num);
+        });
+        const startOfMonthProgress = logsBeforeMonth.length > 0
+            ? logsBeforeMonth[logsBeforeMonth.length - 1].pagesRead || 0
+            : 0;
+
+        // Get max progress reached this month
+        const endOfMonthProgress = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
+        const minutesReadThisMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
+
+        return total + minutesReadThisMonth;
     }, 0);
 
     // Monthly Library Growth Stats
