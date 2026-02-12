@@ -70,6 +70,11 @@ const AddBook = () => {
         language: 'English'
     });
 
+    // State for tracking mode toggle and duration inputs
+    const [trackByChapters, setTrackByChapters] = useState(false);
+    const [durationHours, setDurationHours] = useState(0);
+    const [durationMinutes, setDurationMinutes] = useState(0);
+
     // Handle initial fetch of data
     const handleFetchData = async (query, mode) => {
         if (!query || !query.trim()) {
@@ -165,7 +170,15 @@ const AddBook = () => {
             ...formData,
             genres: [formData.genres],
             cover: formData.cover || generateGenericCover(formData.title, formData.author),
-            progressMode: formData.format === 'Audiobook' ? 'chapters' : 'pages',
+            // Set tracking unit based on format and user selection
+            tracking_unit: formData.format === 'Audiobook'
+                ? 'minutes' // Audiobooks track by time
+                : (trackByChapters ? 'chapters' : 'pages'),
+            progressMode: formData.format === 'Audiobook' ? 'minutes' : (trackByChapters ? 'chapters' : 'pages'), // Legacy field for compatibility
+            // Calculate total duration for audiobooks
+            total_duration_minutes: formData.format === 'Audiobook'
+                ? (durationHours * 60 + durationMinutes)
+                : null,
             updatedAt: new Date().toISOString(),
             // Ensure dates are set based on status
             startedAt: (formData.status === 'reading' || formData.status === 'read') ? (formData.startedAt || new Date().toISOString()) : null,
@@ -514,6 +527,78 @@ const AddBook = () => {
                         </div>
                         {errors.format && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">{errors.format}</p>}
                     </div>
+
+                    {/* Audiobook Duration Input - Required for time-based tracking */}
+                    {formData.format === 'Audiobook' && (
+                        <div className="animate-fade-in bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                                {t('addBook.form.totalDuration', 'Total Duration')}
+                                <span className="text-red-500 ml-1">*</span>
+                            </label>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">
+                                {t('addBook.form.durationTip', 'Required for time-based progress tracking')}
+                            </p>
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">
+                                        {t('addBook.form.hours', 'Hours')}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={durationHours}
+                                        onChange={(e) => setDurationHours(parseInt(e.target.value) || 0)}
+                                        className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">
+                                        {t('addBook.form.minutes', 'Minutes')}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        value={durationMinutes}
+                                        onChange={(e) => setDurationMinutes(Math.min(59, parseInt(e.target.value) || 0))}
+                                        className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-3 p-2 bg-white dark:bg-slate-800 rounded-lg">
+                                <p className="text-xs text-center font-bold text-blue-600 dark:text-blue-400">
+                                    {t('addBook.form.trackingByTime', 'Progress will be tracked by listening time')}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tracking Mode Toggle for Physical/Ebook */}
+                    {(formData.format === 'Physical' || formData.format === 'Ebook') && (
+                        <div className="animate-fade-in bg-violet-50 dark:bg-violet-900/20 p-4 rounded-xl border border-violet-100 dark:border-violet-800">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    {t('addBook.form.trackingMode', 'Tracking Mode')}
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setTrackByChapters(!trackByChapters)}
+                                    className={`relative w-14 h-7 rounded-full transition-colors ${trackByChapters ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-600'
+                                        }`}
+                                >
+                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${trackByChapters ? 'left-8' : 'left-1'
+                                        }`} />
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                                {trackByChapters
+                                    ? t('addBook.form.trackingChapters', 'Track progress by chapters')
+                                    : t('addBook.form.trackingPages', 'Track progress by pages')}
+                            </p>
+                        </div>
+                    )}
 
                     {/* Language Selector */}
                     <div>

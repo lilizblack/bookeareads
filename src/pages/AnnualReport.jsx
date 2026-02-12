@@ -227,7 +227,7 @@ const AnnualReport = () => {
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-800 dark:text-white">
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Annual Report</h1>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('annual.title', 'Annual Report')}</h1>
             </div>
 
             <div className="flex items-center gap-3 mb-8">
@@ -476,19 +476,19 @@ const AnnualReport = () => {
             {/* Interactive Analytics Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
                 <ChartCard
-                    title="Top Genres"
+                    title={t('annual.topGenres', 'Top Genres')}
                     data={topGenres}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#2D0E0E', '#3D1414', '#606066', '#B0AEB4'] : themePreset === 'romance' ? ['#C00645', '#D05D65', '#E1848C', '#EAA8AC', '#F3E4E5'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
                 />
                 <ChartCard
-                    title="Book Formats"
+                    title={t('calendar.formats', 'Book Formats')}
                     data={formatData}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : themePreset === 'dark-romance' ? ['#2D0E0E', '#5D2424', '#3D1414', '#B0AEB4', '#606066'] : themePreset === 'romance' ? ['#C00645', '#D05D65', '#E1848C', '#EAA8AC', '#F3E4E5'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
                 />
                 <ChartCard
-                    title="Purchase Locations"
+                    title={t('calendar.locations', 'Purchase Locations')}
                     data={locationData}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#3D1414', '#2D0E0E', '#B0AEB4', '#606066'] : themePreset === 'romance' ? ['#C00645', '#D05D65', '#E1848C', '#EAA8AC', '#F3E4E5'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
                     isCurrency={true}
                 />
             </div>

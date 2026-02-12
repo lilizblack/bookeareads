@@ -273,6 +273,9 @@ export const BookProvider = ({ children }) => {
                 hasSpice: newBook.hasSpice || false,
                 isWantToBuy: newBook.isWantToBuy || false,
                 progressMode: newBook.progressMode || (newBook.format === 'Audiobook' ? 'chapters' : 'pages'),
+                // New fields for multi-format time estimation
+                tracking_unit: newBook.tracking_unit || newBook.progressMode || (newBook.format === 'Audiobook' ? 'minutes' : 'pages'),
+                total_duration_minutes: newBook.total_duration_minutes || null,
                 ownershipStatus: newBook.ownershipStatus || 'kept',
                 purchaseLocation: newBook.purchaseLocation || '',
                 otherVersions: newBook.otherVersions || [],
@@ -392,7 +395,10 @@ export const BookProvider = ({ children }) => {
                         boughtDate: updated.boughtDate ? Timestamp.fromDate(new Date(updated.boughtDate)) : null,
                         ownershipStatus: updated.ownershipStatus || 'kept',
                         purchaseLocation: updated.purchaseLocation || '',
-                        otherVersions: updated.otherVersions || []
+                        otherVersions: updated.otherVersions || [],
+                        // New fields for multi-format time estimation
+                        tracking_unit: updated.tracking_unit || updated.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
+                        total_duration_minutes: updated.total_duration_minutes || null
                     };
 
                     updateDoc(bookRef, syncData).catch((error) => {

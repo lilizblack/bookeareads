@@ -301,7 +301,9 @@
         "themePreset": "Tema Predefinido",
         "default": "Predeterminado",
         "cozyLofi": "Acogedor Lofi",
-        "paperInk": "Papel y Tinta"
+        "paperInk": "Papel y Tinta",
+        "darkRomance": "Dark Romance",
+        "romance": "Romance"
     },
     "favorites": {
         "title": "Favoritos",

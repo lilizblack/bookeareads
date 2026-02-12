@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBooks } from '../context/BookContext';
+import { useTheme } from '../context/ThemeContext';
 import BookCard from '../components/BookCard';
 import Header from '../components/Header';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,6 +13,7 @@ import FormButton from '../components/FormButton';
 
 const Library = () => {
     const { books, loading, bulkDeleteBooks, activeTimer, startTimer, stopTimer, updateBook, logReading } = useBooks();
+    const { themePreset } = useTheme();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const location = useLocation();
@@ -385,7 +387,7 @@ const Library = () => {
             ) : filteredBooks.length > 0 ? (
                 <div className={
                     viewMode === 'spine'
-                        ? "flex flex-wrap items-end gap-x-0 gap-y-12 px-8 py-12 bg-slate-50 dark:bg-[#1a1a1a] rounded-sm border-[16px] border-white dark:border-[#2a2a2a] shadow-[inset_0_2px_10px_rgba(0,0,0,0.05),0_10px_30px_rgba(0,0,0,0.1)] min-h-[500px]" // Built-in Bookshelf look
+                        ? `flex flex-wrap items-end gap-x-0 gap-y-12 px-8 py-12 ${themePreset === 'dark-romance' ? 'bg-[#000000] border-[#2D0E0E]' : themePreset === 'romance' ? 'bg-[#E7CDCE] border-[#EAA8AC]' : 'bg-slate-50 dark:bg-[#1a1a1a] border-white dark:border-[#2a2a2a]'} rounded-sm border-[16px] shadow-[inset_0_2px_10px_rgba(0,0,0,0.05),0_10px_30px_rgba(0,0,0,0.1)] min-h-[500px]` // Built-in Bookshelf look
                         : viewMode === 'grid'
                             ? "grid grid-cols-2 gap-3"
                             : "space-y-3"

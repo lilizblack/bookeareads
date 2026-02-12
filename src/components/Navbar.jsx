@@ -45,7 +45,7 @@ const Navbar = () => {
                                         {/* Active indicator background */}
                                         {isActive && !item.isSpecial && (
                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="w-14 h-10 bg-violet-50 dark:bg-violet-900/20 rounded-xl animate-scale-in" />
+                                                <div className="active-indicator-bg w-14 h-10 bg-violet-50 dark:bg-violet-900/20 rounded-xl animate-scale-in" />
                                             </div>
                                         )}
 
@@ -98,7 +98,7 @@ const Navbar = () => {
 
                                                 {/* Active indicator dot */}
                                                 {isActive && (
-                                                    <div className="absolute bottom-0 w-1 h-1 bg-violet-600 dark:bg-violet-400 rounded-full animate-scale-in" />
+                                                    <div className="active-indicator-dot absolute bottom-0 w-1 h-1 bg-violet-600 dark:bg-violet-400 rounded-full animate-scale-in" />
                                                 )}
                                             </>
                                         )}

@@ -294,7 +294,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
         const heightVariation = 160 + (parseInt(String(book.id).slice(-2)) || 50) % 40;
         return (
             // Wrapper to enforce consistent row height for the "shelf" background effect
-            <div className="h-[200px] flex items-end border-b-[12px] border-stone-300 dark:border-stone-700 w-[42px]" onClick={handleCardClick}>
+            <div className={`h-[200px] flex items-end ${themePreset === 'dark-romance' ? 'border-[#3D1414]' : themePreset === 'romance' ? 'border-[#E1848C]' : 'border-stone-300 dark:border-stone-700'} border-b-[12px] w-[42px]`} onClick={handleCardClick}>
                 <div
                     className={`relative shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer flex flex-col items-center py-3 px-1 select-none ${spineColor} ${selected ? 'ring-2 ring-violet-500' : ''}`}
                     style={{
@@ -314,7 +314,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
                     {/* Book Title (Vertical) */}
                     <div className="flex-1 flex items-center justify-center overflow-hidden w-full px-0.5">
                         <h3
-                            className="font-bold text-slate-900 text-[10px] leading-tight tracking-tight uppercase whitespace-nowrap"
+                            className={`font-bold spine-title ${themePreset === 'dark-romance' ? 'text-[#D1D1D7]' : themePreset === 'romance' ? 'text-white' : 'text-slate-900'} text-[10px] leading-tight tracking-tight uppercase whitespace-nowrap`}
                             style={{
                                 writingMode: 'vertical-rl',
                                 textOrientation: 'mixed',
@@ -329,7 +329,7 @@ const BookCard = ({ book, onClick, variant = 'grid', selectable = false, selecte
 
                     {/* Spice Icon (Bottom) */}
                     {(book.hasSpice || book.spiceRating > 0) && (
-                        <div className="mt-2 text-red-600/80 w-full flex justify-center shrink-0">
+                        <div className={`${themePreset === 'dark-romance' ? 'text-[#A02020]' : themePreset === 'romance' ? 'text-white' : 'text-red-600/80'} w-full flex justify-center shrink-0`}>
                             <ChilliIcon size={10} className="fill-current" />
                         </div>
                     )}

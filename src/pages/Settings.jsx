@@ -144,7 +144,9 @@ const Settings = () => {
                                 options={[
                                     { value: 'default', label: t('settings.default') },
                                     { value: 'cozy-lofi', label: t('settings.cozyLofi') },
-                                    { value: 'paper-ink', label: t('settings.paperInk') }
+                                    { value: 'paper-ink', label: t('settings.paperInk') },
+                                    { value: 'dark-romance', label: t('settings.darkRomance', { defaultValue: 'Dark Romance' }) },
+                                    { value: 'romance', label: t('settings.romance', { defaultValue: 'Romance' }) }
                                 ]}
                                 className="text-sm"
                             />
@@ -158,7 +160,7 @@ const Settings = () => {
                     value: <LanguageSwitcher />,
                     noChevron: true
                 },
-                { icon: <CreditCard size={20} />, label: 'Currency', value: 'USD ($)' },
+                { icon: <CreditCard size={20} />, label: t('book.fields.currency', { defaultValue: 'Moneda' }), value: 'USD ($)' },
             ]
         },
         {
@@ -169,10 +171,10 @@ const Settings = () => {
             ]
         },
         {
-            title: 'Support',
+            title: t('settings.support', { defaultValue: 'Soporte' }),
             items: [
-                { icon: <MessageSquare size={20} />, label: 'Send Feedback', action: () => handleFeedback('feedback') },
-                { icon: <Bug size={20} />, label: 'Report a Bug', action: () => handleFeedback('bug') }
+                { icon: <MessageSquare size={20} />, label: t('settings.feedback', { defaultValue: 'Enviar Comentarios' }), action: () => handleFeedback('feedback') },
+                { icon: <Bug size={20} />, label: t('settings.reportBug', { defaultValue: 'Reportar un Error' }), action: () => handleFeedback('bug') }
             ]
         }
     ];
@@ -199,7 +201,7 @@ const Settings = () => {
                         {displayName}
                     </h2>
                     <p className="text-slate-500 text-sm">
-                        {user ? t('settings.account') : 'Local Profile'}
+                        {user ? t('settings.account') : t('settings.localProfile', { defaultValue: 'Perfil Local' })}
                     </p>
                 </div>
                 <button
@@ -238,7 +240,7 @@ const Settings = () => {
                                         {item.value !== undefined && (
                                             typeof item.value === 'boolean' ? (
                                                 <span className="text-slate-400 text-sm">
-                                                    {item.value ? 'On' : 'Off'}
+                                                    {item.value ? t('common.on', { defaultValue: 'Activo' }) : t('common.off', { defaultValue: 'Inactivo' })}
                                                 </span>
                                             ) : (
                                                 <div className="flex items-center">{item.value}</div>
@@ -272,19 +274,19 @@ const Settings = () => {
                                 <div className="flex items-center gap-3 text-blue-500">
                                     <UploadCloud size={20} className={isSyncing ? 'animate-pulse' : ''} />
                                     <span className="font-medium text-slate-700 dark:text-slate-200">
-                                        {isSyncing ? 'Syncing...' : 'Sync to Cloud'}
+                                        {isSyncing ? t('messages.info.syncing') : t('settings.syncCloud', { defaultValue: 'Sincronizar a la nube' })}
                                     </span>
                                 </div>
                                 {!isSyncing && <ChevronRight size={16} className="text-slate-300" />}
                             </div>
                             <div onClick={() => signOut()} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
-                                <div className="flex items-center gap-3 text-red-500"><LogOut size={20} /><span className="font-medium">Sign Out</span></div>
+                                <div className="flex items-center gap-3 text-red-500"><LogOut size={20} /><span className="font-medium">{t('auth.logout')}</span></div>
                                 <ChevronRight size={16} className="text-slate-300" />
                             </div>
                         </>
                     ) : (
                         <div onClick={() => navigate('/signup')} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
-                            <div className="flex items-center gap-3 text-green-500"><LogIn size={20} /><span className="font-medium">Sign In / Sign Up</span></div>
+                            <div className="flex items-center gap-3 text-green-500"><LogIn size={20} /><span className="font-medium">{t('auth.signIn')} / {t('auth.signUp')}</span></div>
                             <ChevronRight size={16} className="text-slate-300" />
                         </div>
                     )}
@@ -304,7 +306,7 @@ const Settings = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-scale-in flex flex-col items-center">
                         <div className="flex justify-between items-center w-full mb-6">
-                            <h3 className="text-xl font-bold dark:text-white">Edit Profile</h3>
+                            <h3 className="text-xl font-bold dark:text-white">{t('settings.editProfile', { defaultValue: 'Editar Perfil' })}</h3>
                             <button onClick={() => setIsProfileModalOpen(false)}><X className="text-slate-400" /></button>
                         </div>
 
@@ -345,7 +347,7 @@ const Settings = () => {
                             icon={Save}
                             className="w-full"
                         >
-                            Save Changes
+                            {t('actions.save')}
                         </FormButton>
                     </div>
                 </div>
@@ -355,8 +357,8 @@ const Settings = () => {
             {showFeedbackModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-scale-in">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? 'Report a Bug' : 'Send Feedback'}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">We'll format this into an email for you.</p>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? t('settings.reportBug', { defaultValue: 'Reportar un Error' }) : t('settings.feedback', { defaultValue: 'Enviar Comentarios' })}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('settings.feedbackEmailTip', { defaultValue: 'Prepararemos un correo para ti.' })}</p>
                         <FormTextarea
                             placeholder="Type your message..."
                             value={feedbackMessage}
@@ -379,7 +381,7 @@ const Settings = () => {
                                 size="md"
                                 icon={MessageSquare}
                             >
-                                Send Email
+                                {t('settings.sendEmail', { defaultValue: 'Enviar Correo' })}
                             </FormButton>
                         </div>
                     </div>

@@ -43,6 +43,8 @@ const BookDetails = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [newProgress, setNewProgress] = useState(0);
+    const [progressHours, setProgressHours] = useState(0);
+    const [progressMinutes, setProgressMinutes] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
     const fileInputRef = useRef(null);
 
@@ -210,16 +212,18 @@ const BookDetails = () => {
         const currentProgress = currentBook.progress || 0;
 
         // Smart fallback for mode
-        const mode = currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'chapters' : 'pages');
+        const trackingUnit = currentBook.tracking_unit || currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'minutes' : 'pages');
 
-        if (mode === 'chapters' && currentBook.totalChapters > 0) {
+        if (trackingUnit === 'minutes' && currentBook.total_duration_minutes > 0) {
+            return Math.round((currentProgress / currentBook.total_duration_minutes) * 100);
+        } else if (trackingUnit === 'chapters' && currentBook.totalChapters > 0) {
             return Math.round((currentProgress / currentBook.totalChapters) * 100);
-        } else if (mode === 'pages' && currentBook.totalPages > 0) {
+        } else if (trackingUnit === 'pages' && currentBook.totalPages > 0) {
             return Math.round((currentProgress / currentBook.totalPages) * 100);
         }
 
         // Final fallback tries both
-        const total = (mode === 'chapters' ? currentBook.totalChapters : currentBook.totalPages) || currentBook.totalPages || currentBook.totalChapters || 0;
+        const total = (trackingUnit === 'chapters' ? currentBook.totalChapters : currentBook.totalPages) || currentBook.totalPages || currentBook.totalChapters || 0;
         if (total > 0) return Math.round((currentProgress / total) * 100);
 
         return Math.min(Number(currentProgress) || 0, 100);
@@ -228,9 +232,16 @@ const BookDetails = () => {
     // Get the label text for the bookmark based on progressMode
     const getBookmarkLabel = () => {
         const currentBook = isEditing ? editData : book;
-        if (currentBook.progressMode === 'chapters') {
+        const trackingUnit = currentBook.tracking_unit || currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'minutes' : 'pages');
+
+        if (trackingUnit === 'minutes') {
+            const totalMinutes = currentBook.progress || 0;
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            return `${hours}:${mins.toString().padStart(2, '0')}`;
+        } else if (trackingUnit === 'chapters') {
             return `Ch ${currentBook.progress || 0}`;
-        } else if (currentBook.progressMode === 'pages') {
+        } else if (trackingUnit === 'pages') {
             return `${currentBook.progress || 0}p`;
         } else {
             return `${getPercentage()}%`;
@@ -418,15 +429,66 @@ const BookDetails = () => {
 
                             <div className="mb-8 z-10">
                                 <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">
-                                    {book.format === 'Audiobook' || book.progressMode === 'chapters' ? t('dashboard.modals.newChapter') : t('dashboard.modals.newPage')}
+                                    {(() => {
+                                        const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                        if (trackingUnit === 'minutes') return t('dashboard.modals.timeListened', 'Time Listened');
+                                        if (trackingUnit === 'chapters') return t('dashboard.modals.newChapter');
+                                        return t('dashboard.modals.newPage');
+                                    })()}
                                 </label>
-                                <input
-                                    type="number"
-                                    className="w-full text-center text-5xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
-                                    value={newProgress}
-                                    onChange={e => setNewProgress(Number(e.target.value))}
-                                    autoFocus
-                                />
+                                {(() => {
+                                    const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                    if (trackingUnit === 'minutes') {
+                                        return (
+                                            <div className="flex gap-4 items-center justify-center">
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block text-center">
+                                                        {t('book.fields.hours', 'Hours')}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
+                                                        value={progressHours}
+                                                        onChange={e => {
+                                                            const hours = parseInt(e.target.value) || 0;
+                                                            setProgressHours(hours);
+                                                            setNewProgress(hours * 60 + progressMinutes);
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <span className="text-3xl font-bold text-slate-400 dark:text-slate-500 pt-6">:</span>
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block text-center">
+                                                        {t('book.fields.minutes', 'Minutes')}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="59"
+                                                        className="w-full text-center text-4xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
+                                                        value={progressMinutes}
+                                                        onChange={e => {
+                                                            const mins = Math.min(59, parseInt(e.target.value) || 0);
+                                                            setProgressMinutes(mins);
+                                                            setNewProgress(progressHours * 60 + mins);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <input
+                                            type="number"
+                                            className="w-full text-center text-5xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
+                                            value={newProgress}
+                                            onChange={e => setNewProgress(Number(e.target.value))}
+                                            autoFocus
+                                        />
+                                    );
+                                })()}
                             </div>
 
                             <button
@@ -752,15 +814,41 @@ const BookDetails = () => {
                 {book.status === 'reading' && (
                     <div className="flex gap-2 mb-6 animate-fade-in">
                         <div className="flex-1 p-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded-xl flex flex-col items-center justify-center">
-                            <span className="text-[10px] uppercase text-violet-400 font-bold mb-1 tracking-widest text-center">Avg Speed</span>
+                            <span className="text-[10px] uppercase text-violet-400 font-bold mb-1 tracking-widest text-center">
+                                {(() => {
+                                    const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                    return trackingUnit === 'minutes' ? 'Progress' : 'Avg Speed';
+                                })()}
+                            </span>
                             <div className="text-sm font-black text-violet-700 dark:text-violet-300">
-                                {getReadingSpeed(book, globalSpeed)} <span className="text-[10px] opacity-70">{(book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages')) === 'chapters' ? 'CH' : 'P'}/m</span>
+                                {(() => {
+                                    const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                    if (trackingUnit === 'minutes') {
+                                        // For time-based tracking, show percentage
+                                        return <>{getPercentage()} <span className="text-[10px] opacity-70">%</span></>;
+                                    }
+                                    // For page/chapter tracking, show speed
+                                    const unit = trackingUnit === 'chapters' ? 'CH' : 'P';
+                                    return <>{getReadingSpeed(book, globalSpeed)} <span className="text-[10px] opacity-70">{unit}/m</span></>;
+                                })()}
                             </div>
                         </div>
                         <div className="flex-1 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl flex flex-col items-center justify-center">
                             <span className="text-[10px] uppercase text-blue-400 font-bold mb-1 tracking-widest text-center">Time Left</span>
                             <div className="text-sm font-black text-blue-700 dark:text-blue-300">
-                                {getEstimatedTimeLeft(book, globalSpeed)} <span className="text-[10px] opacity-70">mins</span>
+                                {(() => {
+                                    const timeLeft = getEstimatedTimeLeft(book, globalSpeed);
+                                    if (timeLeft === null) {
+                                        const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+                                        if (trackingUnit === 'minutes' && !book.total_duration_minutes) {
+                                            return <span className="text-[10px] opacity-70">Add duration</span>;
+                                        } else if (trackingUnit === 'chapters') {
+                                            return <span className="text-[10px] opacity-70">Read to estimate</span>;
+                                        }
+                                        return <span className="text-[10px] opacity-70">Start reading</span>;
+                                    }
+                                    return <>{timeLeft} <span className="text-[10px] opacity-70">mins</span></>;
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -814,15 +902,19 @@ const BookDetails = () => {
                 <div className="grid grid-cols-1 gap-4 mb-8">
                     <div>
                         <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">{t('book.fields.trackingMode', 'Tracking Mode')}</span>
-                        <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                        <div className={`grid ${(isEditing ? editData.format : book.format) === 'Audiobook' ? 'grid-cols-3' : 'grid-cols-2'} gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl`}>
                             {[
                                 { value: 'pages', label: t('book.fields.pages') },
-                                { value: 'chapters', label: t('book.fields.chapters') }
+                                { value: 'chapters', label: t('book.fields.chapters') },
+                                ...((isEditing ? editData.format : book.format) === 'Audiobook' ? [{ value: 'minutes', label: t('book.fields.time', 'Time') }] : [])
                             ].map(mode => (
                                 <button
                                     key={mode.value}
-                                    onClick={() => handleChange('progressMode', mode.value)}
-                                    className={`py-2 rounded-lg text-[10px] font-bold transition-all ${(isEditing ? (editData.progressMode || (editData.format === 'Audiobook' ? 'chapters' : 'pages')) : (book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages'))) === mode.value
+                                    onClick={() => {
+                                        handleChange('progressMode', mode.value);
+                                        handleChange('tracking_unit', mode.value); // Also update tracking_unit
+                                    }}
+                                    className={`py-2 rounded-lg text-[10px] font-bold transition-all ${(isEditing ? (editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages')) : (book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages'))) === mode.value
                                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-black'
                                         : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                         }`}
@@ -833,6 +925,52 @@ const BookDetails = () => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Audiobook Duration Input (Edit Mode Only) */}
+                    {isEditing && editData.format === 'Audiobook' && (
+                        <div className="animate-fade-in bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <span className="text-[10px] font-bold uppercase text-slate-400 block mb-3">
+                                {t('book.fields.totalDuration', 'Total Duration')}
+                            </span>
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">
+                                        {t('book.fields.hours', 'Hours')}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={Math.floor((editData.total_duration_minutes || 0) / 60)}
+                                        onChange={(e) => {
+                                            const hours = parseInt(e.target.value) || 0;
+                                            const minutes = (editData.total_duration_minutes || 0) % 60;
+                                            handleChange('total_duration_minutes', hours * 60 + minutes);
+                                        }}
+                                        className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-center text-sm font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">
+                                        {t('book.fields.minutes', 'Minutes')}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        value={(editData.total_duration_minutes || 0) % 60}
+                                        onChange={(e) => {
+                                            const hours = Math.floor((editData.total_duration_minutes || 0) / 60);
+                                            const minutes = Math.min(59, parseInt(e.target.value) || 0);
+                                            handleChange('total_duration_minutes', hours * 60 + minutes);
+                                        }}
+                                        className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-center text-sm font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Other Versions */}
@@ -949,13 +1087,37 @@ const BookDetails = () => {
                 <div>
                     <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.read')}:</span>
                     <input
-                        type="number"
-                        value={(isEditing ? editData.progress : book.progress) || 0}
+                        type={(() => {
+                            const trackingUnit = (isEditing ? (editData.tracking_unit || editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages')) : (book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages')));
+                            return trackingUnit === 'minutes' ? 'text' : 'number';
+                        })()}
+                        value={(() => {
+                            const currentProgress = (isEditing ? editData.progress : book.progress) || 0;
+                            const trackingUnit = (isEditing ? (editData.tracking_unit || editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages')) : (book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages')));
+                            if (trackingUnit === 'minutes') {
+                                const hours = Math.floor(currentProgress / 60);
+                                const mins = currentProgress % 60;
+                                return `${hours}:${mins.toString().padStart(2, '0')}`;
+                            }
+                            return currentProgress;
+                        })()}
                         onChange={e => handleChange('progress', parseInt(e.target.value))}
                         onClick={() => {
                             const status = isEditing ? editData.status : book.status;
                             if (!isEditing && status !== 'want-to-read') {
-                                setNewProgress(book.progress || 0);
+                                const currentProgress = book.progress || 0;
+                                setNewProgress(currentProgress);
+
+                                // Initialize hours and minutes for time-based tracking
+                                const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                if (trackingUnit === 'minutes') {
+                                    setProgressHours(Math.floor(currentProgress / 60));
+                                    setProgressMinutes(currentProgress % 60);
+                                } else {
+                                    setProgressHours(0);
+                                    setProgressMinutes(0);
+                                }
+
                                 setShowLogModal(true);
                             }
                         }}
@@ -966,19 +1128,63 @@ const BookDetails = () => {
                 </div>
                 <div>
                     <span className="block font-bold text-slate-900 dark:text-white mb-1">
-                        {t('book.fields.total')} {(isEditing ? (editData.progressMode || (editData.format === 'Audiobook' ? 'chapters' : 'pages')) : (book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages'))) === 'chapters' ? t('book.fields.chapters') : t('book.fields.pages')}:
+                        {(() => {
+                            const trackingUnit = (isEditing ? (editData.tracking_unit || editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages')) : (book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages')));
+                            if (trackingUnit === 'minutes') return t('book.fields.totalDuration', 'Total Duration (min)');
+                            if (trackingUnit === 'chapters') return `${t('book.fields.total')} ${t('book.fields.chapters')}`;
+                            return `${t('book.fields.total')} ${t('book.fields.pages')}`;
+                        })()}:
                     </span>
                     {isEditing ? (
-                        <input
-                            type="number"
-                            value={((editData.progressMode || (editData.format === 'Audiobook' ? 'chapters' : 'pages')) === 'chapters' ? (editData.totalChapters || 0) : (editData.totalPages || 0))}
-                            onChange={e => handleChange(((editData.progressMode || (editData.format === 'Audiobook' ? 'chapters' : 'pages')) === 'chapters' ? 'totalChapters' : 'totalPages'), parseInt(e.target.value))}
-                            className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
-                            placeholder="Total"
-                        />
+                        <>
+                            {(() => {
+                                const trackingUnit = (editData.tracking_unit || editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages'));
+                                if (trackingUnit === 'minutes') {
+                                    return (
+                                        <input
+                                            type="number"
+                                            value={editData.total_duration_minutes || 0}
+                                            onChange={e => handleChange('total_duration_minutes', parseInt(e.target.value))}
+                                            className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
+                                            placeholder="Total minutes"
+                                        />
+                                    );
+                                }
+                                if (trackingUnit === 'chapters') {
+                                    return (
+                                        <input
+                                            type="number"
+                                            value={editData.totalChapters || 0}
+                                            onChange={e => handleChange('totalChapters', parseInt(e.target.value))}
+                                            className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
+                                            placeholder="Total"
+                                        />
+                                    );
+                                }
+                                return (
+                                    <input
+                                        type="number"
+                                        value={editData.totalPages || 0}
+                                        onChange={e => handleChange('totalPages', parseInt(e.target.value))}
+                                        className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
+                                        placeholder="Total"
+                                    />
+                                );
+                            })()}
+                        </>
                     ) : (
                         <div className="bg-slate-100 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 w-full py-2 px-1 dark:text-slate-300 text-slate-500">
-                            {(book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages')) === 'chapters' ? (book.totalChapters || '-') : (book.totalPages || '-')}
+                            {(() => {
+                                const trackingUnit = (book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages'));
+                                if (trackingUnit === 'minutes') {
+                                    const totalMins = book.total_duration_minutes || 0;
+                                    const hours = Math.floor(totalMins / 60);
+                                    const mins = totalMins % 60;
+                                    return totalMins > 0 ? `${hours}:${mins.toString().padStart(2, '0')}` : '-';
+                                }
+                                if (trackingUnit === 'chapters') return book.totalChapters || '-';
+                                return book.totalPages || '-';
+                            })()}
                         </div>
                     )}
                 </div>
@@ -1016,17 +1222,19 @@ const BookDetails = () => {
                 />
             </div>
 
-            {!isEditing && book.status === 'read' && (
-                <div className="mb-8">
-                    <button
-                        onClick={() => setShowShareModal(true)}
-                        className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
-                    >
-                        <Share2 size={20} className="group-hover:rotate-12 transition-transform" />
-                        {t('actions.export', 'Share Achievement')}
-                    </button>
-                </div>
-            )}
+            {
+                !isEditing && book.status === 'read' && (
+                    <div className="mb-8">
+                        <button
+                            onClick={() => setShowShareModal(true)}
+                            className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                        >
+                            <Share2 size={20} className="group-hover:rotate-12 transition-transform" />
+                            {t('actions.export', 'Share Achievement')}
+                        </button>
+                    </div>
+                )
+            }
 
             <div className="space-y-4">
                 <h3 className="font-bold text-slate-900 dark:text-white">{t('book.fields.review')}</h3>
@@ -1068,54 +1276,60 @@ const BookDetails = () => {
                 </button>
             </div>
 
-            {!isEditing && (
-                <div className="space-y-4 mt-8">
-                    <button className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl shadow-sm active:scale-95 transition-transform" onClick={() => navigate(-1)}>
-                        {t('app.back')}
-                    </button>
-                    <button onClick={() => setShowDeleteModal(true)} className="w-full text-red-500/60 text-sm font-bold">{t('actions.delete')}</button>
-                </div>
-            )}
+            {
+                !isEditing && (
+                    <div className="space-y-4 mt-8">
+                        <button className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl shadow-sm active:scale-95 transition-transform" onClick={() => navigate(-1)}>
+                            {t('app.back')}
+                        </button>
+                        <button onClick={() => setShowDeleteModal(true)} className="w-full text-red-500/60 text-sm font-bold">{t('actions.delete')}</button>
+                    </div>
+                )
+            }
 
             {/* Delete Confirmation Modal */}
-            {showDeleteModal && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in relative overflow-hidden text-center">
-                        <div className="mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('library.confirmDeleteTitle')}</h3>
-                            <p className="text-slate-500 dark:text-slate-400">{t('library.confirmDeleteMessage', { count: 1, item: t('book.fields.title').toLowerCase() })}</p>
-                        </div>
+            {
+                showDeleteModal && (
+                    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in relative overflow-hidden text-center">
+                            <div className="mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('library.confirmDeleteTitle')}</h3>
+                                <p className="text-slate-500 dark:text-slate-400">{t('library.confirmDeleteMessage', { count: 1, item: t('book.fields.title').toLowerCase() })}</p>
+                            </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowDeleteModal(false)}
-                                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl"
-                            >
-                                {t('app.no')}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    deleteBook(book.id);
-                                    setShowDeleteModal(false);
-                                    navigate('/');
-                                }}
-                                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/30"
-                            >
-                                {t('app.yes')}, {t('actions.delete')}
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl"
+                                >
+                                    {t('app.no')}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        deleteBook(book.id);
+                                        setShowDeleteModal(false);
+                                        navigate('/');
+                                    }}
+                                    className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/30"
+                                >
+                                    {t('app.yes')}, {t('actions.delete')}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Share Modal */}
-            {showShareModal && (
-                <ShareModal
-                    book={book}
-                    onClose={() => setShowShareModal(false)}
-                />
-            )}
-        </div>
+            {
+                showShareModal && (
+                    <ShareModal
+                        book={book}
+                        onClose={() => setShowShareModal(false)}
+                    />
+                )
+            }
+        </div >
     );
 };
 

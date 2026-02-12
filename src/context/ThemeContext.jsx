@@ -37,7 +37,7 @@ export const ThemeProvider = ({ children }) => {
     useEffect(() => {
         const root = window.document.documentElement;
         // Clean up previous mode and preset classes
-        root.classList.remove('light', 'dark', 'default', 'cozy-lofi', 'paper-ink');
+        root.classList.remove('light', 'dark', 'default', 'cozy-lofi', 'paper-ink', 'dark-romance', 'romance');
 
         // Add current ones
         root.classList.add(theme);

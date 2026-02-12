@@ -597,17 +597,17 @@ const Calendar = () => {
                 <ChartCard
                     title={t('calendar.genres')}
                     data={monthlyTopGenres}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#2D0E0E', '#3D1414', '#606066', '#B0AEB4'] : ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B']}
                 />
                 <ChartCard
                     title={t('calendar.formats')}
                     data={monthlyFormatData}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#666666', '#999999', '#CCCCCC', '#EEEEEE'] : themePreset === 'dark-romance' ? ['#2D0E0E', '#5D2424', '#3D1414', '#B0AEB4', '#606066'] : ['#6366F1', '#F43F5E', '#84CC16', '#06B6D4', '#D946EF']}
                 />
                 <ChartCard
                     title={t('calendar.locations')}
                     data={monthlyLocationData}
-                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
+                    colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#3D1414', '#2D0E0E', '#B0AEB4', '#606066'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
                     isCurrency={true}
                 />
             </div>

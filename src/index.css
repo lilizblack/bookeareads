@@ -276,6 +276,389 @@
   opacity: 1 !important;
 }
 
+/* Dark Romance Theme Overrides */
+.dark-romance {
+  /* Backgrounds */
+  --color-bg-primary: #000000;
+  /* Pure black as requested */
+  --color-bg-secondary: #2D0E0E;
+  /* Deep blackish-red from image */
+  --color-bg-card: #3D1414;
+  /* Slightly lighter deep red for cards */
+
+  /* Text - High visibility for dark background */
+  --color-text-primary: #D1D1D7;
+  /* Off-white/Light gray from image */
+  --color-text-secondary: #B0AEB4;
+  /* Middle gray from image */
+
+  /* Accent Colors */
+  --color-accent-primary: #5D2424;
+  /* Deep maroon/red from image */
+  --color-accent-secondary: #606066;
+  /* Charcoal gray from image */
+  --color-accent-tertiary: #A29FA3;
+  /* Muted violet/gray */
+}
+
+/* Ensure titles and high-level text are visible */
+.dark-romance h1,
+.dark-romance h2,
+.dark-romance h3,
+.dark-romance .text-slate-900,
+.dark-romance .text-slate-800,
+.dark-romance .text-slate-700,
+.dark-romance .text-slate-200,
+.dark-romance .text-gray-900 {
+  color: #D1D1D7 !important;
+}
+
+/* Refined Logo - Grayscale/Light Gray to match titles */
+.dark-romance img[alt*="Logo"],
+.dark-romance img[src*="logo-dark"] {
+  filter: grayscale(1) brightness(1.5) contrast(1.2) !important;
+}
+
+
+/* Blue → Deep Red/Maroon (Progress bars, buttons, links) */
+.dark-romance .bg-blue-50,
+.dark-romance .bg-blue-100,
+.dark-romance .bg-blue-900\/10,
+.dark-romance .bg-blue-900\/20 {
+  background-color: #3D1414 !important;
+  /* Card background */
+  border-color: #5D2424 !important;
+}
+
+.dark-romance .bg-blue-500\/10,
+.dark-romance .bg-blue-500\/20 {
+  background-color: #B0AEB4 !important;
+  /* Silver Gray for noticeable progress fill */
+  box-shadow: 0 0 10px rgba(176, 174, 180, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.dark-romance .bg-blue-500,
+.dark-romance .bg-blue-600 {
+  background-color: #5D2424 !important;
+  /* Deep red for primary actions */
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-blue-300,
+.dark-romance .text-blue-400,
+.dark-romance .text-blue-500,
+.dark-romance .text-blue-500\/80,
+.dark-romance .text-blue-600,
+.dark-romance .text-blue-700 {
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .border-blue-100,
+.dark-romance .border-blue-200,
+.dark-romance .border-blue-800,
+.dark-romance .dark\:border-blue-800\/30 {
+  border-color: #5D2424 !important;
+}
+
+.dark-romance .ring-blue-100 {
+  --tw-ring-color: #5D242440 !important;
+}
+
+/* Sky → Red Gradient (Currently reading cards & Streak card) */
+.dark-romance .bg-sky-50,
+.dark-romance .bg-sky-200,
+.dark-romance .bg-sky-400,
+.dark-romance .bg-sky-600,
+.dark-romance .bg-sky-900,
+.dark-romance .dark\:bg-sky-900 {
+  background: linear-gradient(135deg, #2D0E0E 0%, #5D2424 100%) !important;
+  border-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .bg-sky-200 .text-slate-900,
+.dark-romance .bg-sky-200 .text-slate-600 {
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-sky-600,
+.dark-romance .text-sky-700 {
+  color: #B0AEB4 !important;
+}
+
+/* Violet → Dark Gray/Maroon (Annual report, favorites, buttons) */
+.dark-romance .bg-violet-50,
+.dark-romance .bg-violet-100,
+.dark-romance .bg-violet-900\/30,
+.dark-romance .dark\:bg-violet-900\/30 {
+  background-color: #2D0E0E !important;
+  border-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .bg-violet-500,
+.dark-romance .bg-violet-600 {
+  background-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-violet-600,
+.dark-romance .text-violet-700 {
+  color: #B0AEB4 !important;
+}
+
+.dark-romance .hover\:bg-violet-200:hover,
+.dark-romance .hover\:from-violet-700:hover,
+.dark-romance .hover\:to-violet-600:hover,
+.dark-romance .dark\:hover\:from-violet-600:hover,
+.dark-romance .dark\:hover\:to-violet-500:hover {
+  background-image: none !important;
+  background-color: #3D1414 !important;
+}
+
+/* Violet Shadows → Maroon Shadows */
+.dark-romance .shadow-violet-500\/20,
+.dark-romance .shadow-violet-500\/30,
+.dark-romance .shadow-violet-500\/40 {
+  --tw-shadow-color: rgba(93, 36, 36, 0.4) !important;
+  --tw-shadow: var(--tw-shadow-inset) 0 0 15px 0 var(--tw-shadow-color) !important;
+}
+
+/* Green/Emerald → Red (Success states, completed items) */
+.dark-romance .bg-emerald-50,
+.dark-romance .bg-emerald-100,
+.dark-romance .bg-green-50 {
+  background-color: #2D0E0E !important;
+  border-color: #5D2424 !important;
+}
+
+.dark-romance .bg-emerald-500,
+.dark-romance .bg-emerald-600,
+.dark-romance .bg-green-500 {
+  background-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-emerald-600,
+.dark-romance .text-emerald-700,
+.dark-romance .text-green-600 {
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .border-emerald-500 {
+  border-color: #5D2424 !important;
+}
+
+/* Pink/Fuchsia → Muted Red (Highlights, TBR cards) */
+.dark-romance .bg-pink-50,
+.dark-romance .bg-pink-100,
+.dark-romance .bg-fuchsia-50,
+.dark-romance .bg-fuchsia-100,
+.dark-romance .bg-fuchsia-900\/20 {
+  background-color: #3D1414 !important;
+  border-color: #5D2424 !important;
+}
+
+.dark-romance .bg-pink-500,
+.dark-romance .bg-pink-600,
+.dark-romance .bg-fuchsia-500,
+.dark-romance .bg-fuchsia-600 {
+  background-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-pink-500,
+.dark-romance .text-pink-600,
+.dark-romance .text-fuchsia-500,
+.dark-romance .text-fuchsia-600 {
+  color: #D1D1D7 !important;
+}
+
+/* Amber/Orange → Slate (Warnings, highlights) */
+.dark-romance .bg-amber-50,
+.dark-romance .bg-amber-100,
+.dark-romance .bg-orange-50 {
+  background-color: #3D1414 !important;
+  border-color: #B0AEB4 !important;
+}
+
+.dark-romance .bg-amber-500,
+.dark-romance .bg-orange-500 {
+  background-color: #B0AEB4 !important;
+  color: #000000 !important;
+}
+
+.dark-romance .text-amber-600,
+.dark-romance .text-orange-600 {
+  color: #B0AEB4 !important;
+}
+
+/* Red → Maroon (Errors, important states) */
+.dark-romance .bg-red-50,
+.dark-romance .bg-red-100 {
+  background-color: #2D0E0E !important;
+  border-color: #5D2424 !important;
+}
+
+.dark-romance .bg-red-500,
+.dark-romance .bg-red-600 {
+  background-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .text-red-500,
+.dark-romance .text-red-600 {
+  color: #D1D1D7 !important;
+}
+
+/* Slate → Gray Tones */
+.dark-romance .bg-slate-50,
+.dark-romance .bg-slate-100 {
+  background-color: #000000 !important;
+  border-color: #606066 !important;
+}
+
+.dark-romance .bg-slate-800,
+.dark-romance .bg-slate-900 {
+  background-color: #000000 !important;
+}
+
+.dark-romance .text-slate-400,
+.dark-romance .text-slate-500 {
+  color: #606066 !important;
+}
+
+.dark-romance .text-slate-600,
+.dark-romance .text-slate-700 {
+  color: #B0AEB4 !important;
+}
+
+.dark-romance .text-slate-900 {
+  color: #D1D1D7 !important;
+}
+
+.dark-romance .border-slate-200,
+.dark-romance .border-slate-300,
+.dark-romance .border-slate-700,
+.dark-romance .dark\:border-white\/10 {
+  border-color: #5D2424 !important;
+}
+
+/* White backgrounds → Card background */
+.dark-romance .bg-white {
+  background-color: #3D1414 !important;
+}
+
+/* Ensure proper text color on dark backgrounds */
+.dark-romance {
+  color: #D1D1D7 !important;
+}
+
+.dark-romance * {
+  border-color: #606066;
+}
+
+/* Icons and SVG */
+.dark-romance .lucide,
+.dark-romance svg {
+  stroke: #B0AEB4 !important;
+}
+
+/* Active/hover states */
+.dark-romance button:hover,
+.dark-romance .hover\:bg-slate-100:hover {
+  background-color: #2D0E0E !important;
+}
+
+.dark-romance button:active {
+  transform: scale(0.98);
+}
+
+/* Specific Annual Report Button Border for better visibility on black */
+.dark-romance .bg-slate-900,
+.dark-romance .dark\:bg-white {
+  border: 1px solid #5D2424 !important;
+}
+
+/* Remove border from streak icon if it inherited it */
+.dark-romance .bg-slate-900.rounded-full {
+  border: none !important;
+}
+
+/* Progress bars - Gray gradient fill (specifically for the progress div) */
+.dark-romance div.from-violet-500,
+.dark-romance div.bg-violet-500,
+.dark-romance .chart-bar-fill {
+  background: linear-gradient(135deg, #B0AEB4 0%, #606066 100%) !important;
+}
+
+/* Primary Form Buttons - Maroon Gradient (specifically for buttons) */
+.dark-romance button.bg-violet-600,
+.dark-romance button.from-violet-600,
+.dark-romance button.from-violet-500,
+.dark-romance .bg-gradient-to-r.from-violet-600,
+.dark-romance .bg-gradient-to-r.from-violet-500 {
+  background-image: linear-gradient(to right, #5D2424, #3D1414) !important;
+  background-color: #5D2424 !important;
+  border-color: #5D2424 !important;
+  color: #D1D1D7 !important;
+}
+
+/* Ensure no violet background remains on buttons */
+.dark-romance button.bg-violet-600,
+.dark-romance button.bg-violet-700:hover {
+  background-color: #5D2424 !important;
+  background-image: none !important;
+}
+
+/* Shadows with dark tones */
+.dark-romance .shadow-sm,
+.dark-romance .shadow,
+.dark-romance .shadow-lg {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Input fields */
+.dark-romance input,
+.dark-romance textarea,
+.dark-romance select {
+  background-color: #000000 !important;
+  border-color: #606066 !important;
+  color: #D1D1D7 !important;
+}
+
+.dark-romance input:focus,
+.dark-romance textarea:focus,
+.dark-romance select:focus {
+  border-color: #5D2424 !important;
+  outline-color: #5D2424 !important;
+}
+
+/* Placeholder text */
+.dark-romance input::placeholder,
+.dark-romance textarea::placeholder {
+  color: #606066 !important;
+}
+
+/* Scrollbar styling */
+.dark-romance ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark-romance ::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+.dark-romance ::-webkit-scrollbar-thumb {
+  background: #5D2424;
+  border-radius: 4px;
+}
+
+.dark-romance ::-webkit-scrollbar-thumb:hover {
+  background: #8E3232;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--color-bg-primary);
@@ -375,4 +758,389 @@ button {
     border-top: 1px solid var(--color-bg-secondary) !important;
     box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1) !important;
   }
+}
+
+/* ==========================================================================
+   ROMANCE THEME - Soft Pink & Rose Palette
+   ========================================================================== */
+
+.romance {
+  --color-bg-primary: #E7CDCE;
+  --color-bg-secondary: #EAA8AC;
+  --color-bg-card: #EAA8AC;
+}
+
+.romance body {
+  background-color: #E7CDCE !important;
+  color: #C00645 !important;
+}
+
+.romance .bg-white,
+.romance .dark\:bg-slate-900,
+.romance .bg-slate-50,
+.romance .dark\:bg-slate-800,
+.romance .bg-slate-900 {
+  background-color: #EAA8AC !important;
+}
+
+.romance .bg-slate-100,
+.romance .dark\:bg-slate-700 {
+  background-color: #E1848C !important;
+}
+
+/* Text Colors */
+.romance .text-slate-900,
+.romance .dark\:text-white,
+.romance .text-slate-800,
+.romance .text-gray-900,
+.romance h1,
+.romance h2 {
+  color: #C00645 !important;
+}
+
+/* Base h3 color for the theme, but exclude spines handled below */
+.romance h3:not(.spine-title) {
+  color: #C00645 !important;
+}
+
+.romance .text-slate-600,
+.romance .text-slate-500,
+.romance .dark\:text-slate-400,
+.romance .text-slate-400 {
+  color: #C00645 !important;
+  /* Use darker raspberry for better visibility than Rose Gold */
+  opacity: 0.9;
+}
+
+/* Primary Buttons & Raspberry Backgrounds */
+.romance .bg-violet-600,
+.romance .bg-violet-500,
+.romance .from-violet-600,
+.romance .from-violet-500,
+.romance .bg-blue-600,
+.romance .bg-blue-500,
+.romance button.bg-violet-600,
+.romance .bg-white.text-slate-900 {
+  background-color: #C00645 !important;
+  /* Active state uses Raspberry */
+  background-image: none !important;
+  color: #FFFFFF !important;
+  /* Always white text on Raspberry */
+}
+
+.romance .bg-white.text-slate-900 svg,
+.romance .bg-white.text-slate-900 .lucide {
+  stroke: #FFFFFF !important;
+}
+
+/* Secondary/Soft Pink Backgrounds (Status Cards & Analytics) */
+.romance .bg-blue-50,
+.romance .bg-blue-100,
+.romance .bg-violet-50,
+.romance .bg-violet-100,
+.romance .bg-pink-50,
+.romance .bg-pink-100,
+.romance .bg-amber-50,
+.romance .bg-amber-100,
+.romance .bg-orange-50,
+.romance .bg-orange-100,
+.romance .bg-emerald-50,
+.romance .bg-emerald-100,
+.romance .bg-red-50,
+.romance .bg-red-100,
+.romance .bg-slate-50,
+.romance .bg-slate-100 {
+  background-color: #EAA8AC !important;
+  border-color: #E1848C !important;
+}
+
+/* Icons within cards - slight contrast */
+.romance .bg-blue-100,
+.romance .bg-violet-100,
+.romance .bg-pink-100,
+.romance .bg-fuchsia-100,
+.romance .bg-amber-100,
+.romance .bg-emerald-100,
+.romance .bg-red-100,
+.romance .bg-white {
+  background-color: #F3E4E5 !important;
+  /* Lighter cream-pink for icons */
+}
+
+/* Specific Fuchsia/Purple Overrides for Stats Cards */
+.romance .bg-fuchsia-50 {
+  background-color: #EAA8AC !important;
+  border-color: #E1848C !important;
+}
+
+.romance .text-fuchsia-500,
+.romance .text-fuchsia-600,
+.romance .dark\:text-fuchsia-400 {
+  color: #C00645 !important;
+}
+
+/* Currently Reading & Sky Blue Overrides (Now Raspberry/Rose Gradient) */
+.romance .bg-sky-50,
+.romance .bg-sky-100,
+.romance .bg-sky-200,
+.romance .bg-sky-400,
+.romance .bg-sky-600,
+.romance .bg-sky-900 {
+  background: linear-gradient(135deg, #E1848C 0%, #D05D65 100%) !important;
+  border-color: #E1848C !important;
+}
+
+.romance .bg-sky-200 .text-slate-900,
+.romance .bg-sky-200 .text-slate-600 {
+  color: #C00645 !important;
+}
+
+/* Success/Completed Items (Green/Emerald -> Rose) */
+.romance .bg-emerald-50,
+.romance .bg-emerald-500,
+.romance .bg-green-500 {
+  background-color: #D05D65 !important;
+  color: #FFFFFF !important;
+}
+
+/* Progress Bars & Chart Elements */
+.romance div.from-violet-500,
+.romance div.bg-violet-500,
+.romance .chart-bar-fill,
+.romance .bg-violet-400,
+.romance .bg-blue-400,
+.romance .bg-emerald-400,
+.romance .bg-amber-400 {
+  background: linear-gradient(to right, #C00645, #D05D65) !important;
+  background-color: #C00645 !important;
+  /* Fallback */
+}
+
+.romance .bg-blue-500\/10,
+.romance .bg-blue-500\/20 {
+  background-color: #E1848C !important;
+}
+
+/* Borders */
+.romance .border-slate-100,
+.romance .border-slate-200,
+.romance .dark\:border-slate-800,
+.romance .border-stone-300,
+.romance .border-slate-300,
+.romance .border-slate-700,
+.romance .border-blue-100,
+.romance .border-sky-100,
+.romance .border-emerald-100,
+.romance .border-amber-100,
+.romance .border-red-100 {
+  border-color: #E1848C !important;
+}
+
+/* Icons and Text Colors - Link Overrides */
+.romance .lucide,
+.romance svg {
+  stroke: #C00645 !important;
+}
+
+.romance .text-red-400,
+.romance .text-red-500,
+.romance .text-red-600,
+.romance .text-violet-400,
+.romance .text-violet-500,
+.romance .text-violet-600,
+.romance .text-blue-400,
+.romance .text-blue-500,
+.romance .text-blue-600,
+.romance .text-sky-400,
+.romance .text-sky-500,
+.romance .text-sky-600,
+.romance .text-emerald-400,
+.romance .text-emerald-500,
+.romance .text-emerald-600,
+.romance .text-amber-400,
+.romance .text-amber-500,
+.romance .text-amber-600,
+.romance .text-indigo-400,
+.romance .text-indigo-500,
+.romance .text-indigo-600,
+.romance .text-fuchsia-400,
+.romance .text-fuchsia-500,
+.romance .text-fuchsia-600,
+.romance .dark\:text-blue-400,
+.romance .dark\:text-violet-400,
+.romance .group-hover\:text-violet-500:hover,
+.romance .group-hover\:text-blue-500:hover,
+.romance .group-hover\:text-fuchsia-500:hover {
+  color: #C00645 !important;
+}
+
+/* Specific Analytics Text colors */
+.romance .text-slate-500,
+.romance .text-slate-400 {
+  color: #A00539 !important;
+  /* Darker variant for better readability on pink */
+  opacity: 0.8;
+}
+
+/* Growth Chart Bar Stems - only opacity if explicitly used for charts */
+.romance .chart-bar-stem,
+.romance .bg-slate-200.h-2,
+.romance .bg-slate-100.h-2 {
+  background-color: #E1848C !important;
+  opacity: 0.5;
+}
+
+.romance .bg-slate-200:not(.h-2):not(.chart-bar-stem) {
+  background-color: #EAA8AC !important;
+  opacity: 1 !important;
+}
+
+/* Inputs */
+.romance input,
+.romance textarea,
+.romance select {
+  background-color: #E7CDCE !important;
+  border-color: #E1848C !important;
+  color: #C00645 !important;
+}
+
+.romance input::placeholder {
+  color: #D05D65 !important;
+  opacity: 0.6;
+}
+
+/* Nav Bar */
+.romance nav.fixed.bottom-0 {
+  background-color: #EAA8AC !important;
+  border-top-color: #E1848C !important;
+}
+
+.romance button:hover:not(nav button),
+.romance a:hover:not(nav a),
+.romance .custom-select-trigger:hover:not(.disabled) {
+  background-color: #A00539 !important;
+  color: #FFFFFF !important;
+  /* Ensure white text on hover */
+}
+
+.romance button:hover svg,
+.romance button:hover .lucide,
+.romance .custom-select-trigger:hover svg,
+.romance .custom-select-trigger:hover .lucide {
+  stroke: #FFFFFF !important;
+}
+
+.romance nav button:hover,
+.romance nav a:hover {
+  background-color: transparent !important;
+}
+
+/* Fix active indicator in nav */
+.romance nav .bg-violet-50,
+.romance nav .active-indicator-bg {
+  background-color: #F3E4E5 !important;
+}
+
+.romance nav .bg-violet-600,
+.romance nav .active-indicator-dot {
+  background-color: #C00645 !important;
+}
+
+/* Special button (Add) in Nav */
+.romance nav .bg-violet-600 {
+  background-color: #C00645 !important;
+  box-shadow: 0 4px 15px rgba(192, 6, 69, 0.3) !important;
+}
+
+.romance nav .text-violet-600,
+.romance nav .active {
+  color: #C00645 !important;
+}
+
+.romance nav .lucide {
+  stroke: #C00645 !important;
+}
+
+.romance nav .active-indicator-dot.bg-violet-600 {
+  background-color: #C00645 !important;
+}
+
+/* Broad link and interaction overrides */
+.romance a,
+.romance button.text-blue-600,
+.romance button.text-violet-600,
+.romance .text-blue-600,
+.romance .text-violet-600 {
+  color: #C00645 !important;
+}
+
+/* Analytics Cards backgrounds (more specific overrides for utility classes) */
+.romance div.bg-emerald-50,
+.romance div.bg-amber-50,
+.romance div.bg-red-50,
+.romance div.bg-violet-50,
+.romance div.bg-blue-50,
+.romance div.bg-slate-50,
+.romance div.bg-pink-50,
+.romance div.bg-fuchsia-50,
+.romance div.bg-indigo-50,
+.romance div.bg-indigo-100 {
+  background-color: #EAA8AC !important;
+  border-color: #E1848C !important;
+}
+
+/* Visibility for spines in shelf view (Supporting both casing for hex) */
+.romance .bg-\[\#E7CDCE\] h3,
+.romance .bg-\[\#e7cdce\] h3,
+.romance .bg-\[\#EAA8AC\] h3,
+.romance .bg-\[\#eaa8ac\] h3,
+.romance .bg-\[\#E1848C\] h3,
+.romance .bg-\[\#e1848c\] h3 {
+  color: #C00645 !important;
+}
+
+.romance .bg-\[\#C00645\] h3,
+.romance .bg-\[\#c00645\] h3,
+.romance .bg-\[\#D05D65\] h3,
+.romance .bg-\[\#d05d65\] h3 {
+  color: #FFFFFF !important;
+}
+
+/* Fix washed off covers/images */
+.romance img,
+.romance .CoverImage,
+.romance [class*="bg-slate-200"] img {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Status icon circles contrast fix */
+.romance .bg-emerald-100,
+.romance .bg-amber-100,
+.romance .bg-red-100,
+.romance .bg-blue-100,
+.romance .bg-violet-100,
+.romance .bg-pink-100,
+.romance .bg-fuchsia-100,
+.romance .bg-slate-100,
+.romance .bg-indigo-100 {
+  background-color: #F3E4E5 !important;
+}
+
+/* Specific fix for active versions and toggles in Romance */
+.romance .bg-emerald-100[checked],
+.romance .bg-emerald-100.active,
+.romance label.bg-slate-100:has(input:checked) {
+  background-color: #C00645 !important;
+  color: #FFFFFF !important;
+}
+
+.romance label.bg-slate-100:has(input:checked) span {
+  color: #FFFFFF !important;
+}
+
+/* Ensure the checkmark color is visible when checked */
+.romance input[type="checkbox"].accent-violet-600:checked {
+  accent-color: #C00645 !important;
 }
