@@ -318,6 +318,7 @@
         "localProfile": "Perfil Local",
         "syncCloud": "Sincronizar a la nube",
         "editProfile": "Editar Perfil",
+        "appVersion": "Versión de la App",
         "feedbackEmailTip": "Prepararemos un correo para ti.",
         "sendEmail": "Enviar Correo"
     },
@@ -439,7 +440,11 @@
     "pwa": {
         "installTitle": "Instalar Bookea Reads",
         "installMessage": "¡Instala nuestra aplicación para acceso rápido y lectura sin conexión!",
-        "installButton": "Instalar Aplicación"
+        "installButton": "Instalar Aplicación",
+        "updateAvailableTitle": "¡Nueva versión disponible!",
+        "updateAvailableMessage": "¡Hay una nueva versión de Bookea disponible! Actualiza ahora para obtener las últimas funciones.",
+        "offlineReadyTitle": "Listo para usar sin conexión",
+        "offlineReadyMessage": "¡La aplicación está lista para funcionar sin conexión!"
     },
     "common": {
         "loading": "Cargando...",
@@ -454,6 +459,7 @@
         "avg": "prom",
         "on": "Activo",
         "off": "Inactivo",
-        "language": "Idioma"
+        "language": "Idioma",
+        "offlineMode": "Modo sin conexión: Algunas funciones pueden estar limitadas."
     }
 }

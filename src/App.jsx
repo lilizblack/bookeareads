@@ -19,6 +19,8 @@ import Signup from './pages/Signup';
 import Favorites from './pages/Favorites';
 import Notes from './pages/Notes';
 import InstallPrompt from './components/InstallPrompt';
+import UpdateToast from './components/UpdateToast';
+import OfflineBanner from './components/OfflineBanner';
 
 function App() {
     return (
@@ -46,6 +48,8 @@ function App() {
                     </BookProvider>
                 </AuthProvider>
                 <InstallPrompt />
+                <UpdateToast />
+                <OfflineBanner />
             </ToastProvider>
         </ThemeProvider>
     );

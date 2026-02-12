@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
-import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save } from 'lucide-react';
+import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save, Users } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import CustomSelect from '../components/CustomSelect';
 import { useTranslation } from 'react-i18next';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
+import pkg from '../../package.json';
 
 const Settings = () => {
     const { t } = useTranslation();
@@ -260,6 +261,34 @@ const Settings = () => {
                     </div>
                 ))}
 
+                {/* Social & Community (Offline Feature Demo) */}
+                <div className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 ml-4">
+                        Social & Community
+                    </h2>
+                    <div className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 p-6 flex flex-col gap-4">
+                        <FormButton
+                            variant="secondary"
+                            icon={Users}
+                            requireOnline={true}
+                            className="w-full"
+                        >
+                            Add Friend
+                        </FormButton>
+                        <FormButton
+                            variant="secondary"
+                            icon={MessageSquare}
+                            requireOnline={true}
+                            className="w-full"
+                        >
+                            Post Comment
+                        </FormButton>
+                        <p className="text-[10px] text-center text-slate-400 italic">
+                            * These features require an internet connection and are disabled in offline mode.
+                        </p>
+                    </div>
+                </div>
+
                 {/* Auth Actions (Merged) */}
                 <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
                     {user ? (
@@ -293,8 +322,8 @@ const Settings = () => {
                 </div>
             </div>
 
-            <div className="text-center mt-8 text-xs text-slate-400">
-                Version 3.2.0 {user ? t('settings.cloudSyncEnabled', { defaultValue: '(Cloud Sync Enabled ☁️)' }) : t('settings.localStorageOnly', { defaultValue: '(Local Storage Only)' })}
+            <div className="text-center mt-8 text-xs text-slate-400 font-medium">
+                {t('settings.appVersion', { defaultValue: 'App Version' })}: {pkg.version} {user ? t('settings.cloudSyncEnabled', { defaultValue: '(Cloud Sync Enabled ☁️)' }) : t('settings.localStorageOnly', { defaultValue: '(Local Storage Only)' })}
             </div>
 
             {/* Hidden Inputs */}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, WifiOff } from 'lucide-react';
+import { useOffline } from '../hooks/useOffline';
 
 /**
  * Enhanced Form Button Component
@@ -20,6 +21,7 @@ const FormButton = ({
     size = 'md',
     loading = false,
     disabled = false,
+    requireOnline = false,
     type = 'button',
     onClick,
     children,
@@ -27,7 +29,8 @@ const FormButton = ({
     className = '',
     ...props
 }) => {
-    const isDisabled = disabled || loading;
+    const isOffline = useOffline();
+    const isDisabled = disabled || loading || (requireOnline && isOffline);
 
     // Variant styles
     const variantStyles = {
