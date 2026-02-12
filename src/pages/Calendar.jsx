@@ -145,56 +145,71 @@ const Calendar = () => {
     // Monthly Spend Calculation (Based on acquired books)
     const monthlySpent = acquiredBooksThisMonth.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0);
 
-    // Monthly Pages Read Calculation (Sum of increments this month)
+    // Monthly Pages Read Calculation (Incremental progress this month)
     const monthlyPagesRead = books.reduce((total, book) => {
-        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
         if (mode !== 'pages') return total;
+
         const logs = book.readingLogs || [];
-        const thisMonthLogs = logs.filter(l => {
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const thisMonthLogs = sortedLogs.filter(l => {
             const date = new Date(l.date);
             return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
         });
 
         if (thisMonthLogs.length === 0) return total;
 
-        const maxThisMonth = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
-
-        const prevMonthLogs = logs.filter(l => {
-            const date = new Date(l.date);
-            return date < new Date(currentYear_num, currentMonth_num, 1);
+        // Get progress at start of month
+        const logsBeforeMonth = sortedLogs.filter(l => {
+            const d = new Date(l.date);
+            return d.getFullYear() < currentYear_num ||
+                (d.getFullYear() === currentYear_num && d.getMonth() < currentMonth_num);
         });
-
-        const maxBeforeMonth = prevMonthLogs.length > 0
-            ? Math.max(...prevMonthLogs.map(l => l.pagesRead || 0))
+        const startOfMonthProgress = logsBeforeMonth.length > 0
+            ? logsBeforeMonth[logsBeforeMonth.length - 1].pagesRead || 0
             : 0;
 
-        return total + Math.max(0, maxThisMonth - maxBeforeMonth);
+        // Get max progress reached this month
+        const endOfMonthProgress = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
+        const pagesReadThisMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
+
+        return total + pagesReadThisMonth;
     }, 0);
 
-    // Monthly Chapters Read Calculation
+    // Monthly Chapters Read Calculation (Incremental progress this month)
     const monthlyChaptersRead = books.reduce((total, book) => {
-        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
-        if (mode !== 'chapters') return total;
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+
+        // Explicitly exclude audiobooks with time tracking from chapter counts
+        const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
+        if (mode !== 'chapters' || isAudiobookWithTime) return total;
+
         const logs = book.readingLogs || [];
-        const thisMonthLogs = logs.filter(l => {
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const thisMonthLogs = sortedLogs.filter(l => {
             const date = new Date(l.date);
             return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
         });
 
         if (thisMonthLogs.length === 0) return total;
 
-        const maxThisMonth = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
-
-        const prevMonthLogs = logs.filter(l => {
-            const date = new Date(l.date);
-            return date < new Date(currentYear_num, currentMonth_num, 1);
+        // Get progress at start of month
+        const logsBeforeMonth = sortedLogs.filter(l => {
+            const d = new Date(l.date);
+            return d.getFullYear() < currentYear_num ||
+                (d.getFullYear() === currentYear_num && d.getMonth() < currentMonth_num);
         });
-
-        const maxBeforeMonth = prevMonthLogs.length > 0
-            ? Math.max(...prevMonthLogs.map(l => l.pagesRead || 0))
+        const startOfMonthProgress = logsBeforeMonth.length > 0
+            ? logsBeforeMonth[logsBeforeMonth.length - 1].pagesRead || 0
             : 0;
 
-        return total + Math.max(0, maxThisMonth - maxBeforeMonth);
+        // Get max progress reached this month
+        const endOfMonthProgress = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
+        const chaptersReadThisMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
+
+        return total + chaptersReadThisMonth;
     }, 0);
 
     // Monthly Reading Time Calculation
@@ -215,6 +230,22 @@ const Calendar = () => {
         const m = Math.round(minutes % 60);
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
+
+    // Monthly Minutes Listened (for time-based audiobooks)
+    const monthlyMinutesListened = books.reduce((total, book) => {
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+        if (mode !== 'minutes') return total;
+
+        const logs = book.readingLogs || [];
+        const thisMonthLogs = logs.filter(l => {
+            const date = new Date(l.date);
+            return date.getFullYear() === currentYear_num && date.getMonth() === currentMonth_num;
+        });
+
+        // Sum up the pagesRead (which contains minutes for time-based tracking) from each log entry
+        const minutesLoggedThisMonth = thisMonthLogs.reduce((sum, log) => sum + (log.pagesRead || 0), 0);
+        return total + minutesLoggedThisMonth;
+    }, 0);
 
     // Monthly Library Growth Stats
     const booksAddedThisMonth = books.filter(b => {
@@ -675,6 +706,23 @@ const Calendar = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Monthly Minutes Listened Card (only show if there are minutes logged) */}
+                {monthlyMinutesListened > 0 && (
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-xl">
+                                <Clock className="text-orange-600 dark:text-orange-400" size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t('calendar.minutesListened', 'Minutes Listened')}</h3>
+                                <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">
+                                    {formatTime(monthlyMinutesListened)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Monthly Spicy Books Card */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between shadow-sm contrast-card">

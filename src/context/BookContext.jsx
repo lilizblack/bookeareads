@@ -830,18 +830,29 @@ export const BookProvider = ({ children }) => {
 
         books.forEach(book => {
             const logs = book.readingLogs || [];
-            // Determine progress mode with smart fallback for older books
-            const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
-            const isChapters = mode === 'chapters';
+            // Determine progress mode with smart fallback - use tracking_unit first, then progressMode
+            const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+
+            // Explicitly exclude audiobooks with time tracking from chapter counts
+            const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
+            const isChapters = mode === 'chapters' && !isAudiobookWithTime;
             const isPages = mode === 'pages';
 
-            // Yearly activity
-            const yearLogs = logs.filter(l => new Date(l.date).getFullYear() === currentYear);
+            // Sort logs by date to calculate incremental progress
+            const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Yearly activity - calculate incremental progress
+            const yearLogs = sortedLogs.filter(l => new Date(l.date).getFullYear() === currentYear);
             if (yearLogs.length > 0) {
-                const maxThisYear = Math.max(...yearLogs.map(l => l.pagesRead || 0));
-                const prevYearLogs = logs.filter(l => new Date(l.date).getFullYear() < currentYear);
-                const maxBeforeYear = prevYearLogs.length > 0 ? Math.max(...prevYearLogs.map(l => l.pagesRead || 0)) : 0;
-                const readInYear = Math.max(0, maxThisYear - maxBeforeYear);
+                // Get the progress at the start of the year (last log before this year)
+                const logsBeforeYear = sortedLogs.filter(l => new Date(l.date).getFullYear() < currentYear);
+                const startOfYearProgress = logsBeforeYear.length > 0
+                    ? logsBeforeYear[logsBeforeYear.length - 1].pagesRead || 0
+                    : 0;
+
+                // Get the max progress reached this year
+                const endOfYearProgress = Math.max(...yearLogs.map(l => l.pagesRead || 0));
+                const readInYear = Math.max(0, endOfYearProgress - startOfYearProgress);
 
                 if (isChapters) chaptersYear += readInYear;
                 if (isPages) pagesYear += readInYear;
@@ -855,21 +866,43 @@ export const BookProvider = ({ children }) => {
                 });
             }
 
-            // Monthly activity
-            const monthLogs = yearLogs.filter(l => new Date(l.date).getMonth() === currentMonth);
+            // Monthly activity - calculate incremental progress
+            const monthLogs = sortedLogs.filter(l => {
+                const d = new Date(l.date);
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            });
             if (monthLogs.length > 0) {
-                const maxThisMonth = Math.max(...monthLogs.map(l => l.pagesRead || 0));
-                const prevMonthLogs = logs.filter(l => {
+                // Get the progress at the start of the month (last log before this month)
+                const logsBeforeMonth = sortedLogs.filter(l => {
                     const d = new Date(l.date);
-                    return d.getFullYear() < currentYear || (d.getFullYear() === currentYear && d.getMonth() < currentMonth);
+                    return d.getFullYear() < currentYear ||
+                        (d.getFullYear() === currentYear && d.getMonth() < currentMonth);
                 });
-                const maxBeforeMonth = prevMonthLogs.length > 0 ? Math.max(...prevMonthLogs.map(l => l.pagesRead || 0)) : 0;
-                const readInMonth = Math.max(0, maxThisMonth - maxBeforeMonth);
+                const startOfMonthProgress = logsBeforeMonth.length > 0
+                    ? logsBeforeMonth[logsBeforeMonth.length - 1].pagesRead || 0
+                    : 0;
+
+                // Get the max progress reached this month
+                const endOfMonthProgress = Math.max(...monthLogs.map(l => l.pagesRead || 0));
+                const readInMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
 
                 if (isChapters) chaptersMonth += readInMonth;
                 if (isPages) pagesMonth += readInMonth;
             }
         });
+
+        // Debug logging to help identify what's being counted
+        if (chaptersMonth > 0 || chaptersYear > 0) {
+            console.log('Chapter Stats Debug:', {
+                totalChaptersThisMonth: chaptersMonth,
+                totalChaptersThisYear: chaptersYear,
+                booksCountedForChapters: books.filter(b => {
+                    const mode = b.tracking_unit || b.progressMode || (b.format === 'Audiobook' ? 'minutes' : 'pages');
+                    const isAudiobookWithTime = b.format === 'Audiobook' && (b.tracking_unit === 'minutes' || !b.tracking_unit);
+                    return mode === 'chapters' && !isAudiobookWithTime;
+                }).map(b => ({ title: b.title, format: b.format, mode: b.tracking_unit || b.progressMode, progress: b.progress }))
+            });
+        }
 
         return {
             read: readThisYear,

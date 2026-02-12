@@ -137,37 +137,52 @@ const AnnualReport = () => {
     }, 0);
 
     const yearlyPagesRead = books.reduce((total, book) => {
-        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
         if (mode !== 'pages') return total;
+
         const logs = book.readingLogs || [];
-        const thisYearLogs = logs.filter(l => new Date(l.date).getFullYear() === selectedYear);
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const thisYearLogs = sortedLogs.filter(l => new Date(l.date).getFullYear() === selectedYear);
 
         if (thisYearLogs.length === 0) return total;
 
-        const maxThisYear = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
-        const prevYearLogs = logs.filter(l => new Date(l.date).getFullYear() < selectedYear);
-        const maxBeforeYear = prevYearLogs.length > 0
-            ? Math.max(...prevYearLogs.map(l => l.pagesRead || 0))
+        // Get progress at start of year
+        const logsBeforeYear = sortedLogs.filter(l => new Date(l.date).getFullYear() < selectedYear);
+        const startOfYearProgress = logsBeforeYear.length > 0
+            ? logsBeforeYear[logsBeforeYear.length - 1].pagesRead || 0
             : 0;
 
-        return total + Math.max(0, maxThisYear - maxBeforeYear);
+        // Get max progress reached this year
+        const endOfYearProgress = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
+        const pagesReadThisYear = Math.max(0, endOfYearProgress - startOfYearProgress);
+
+        return total + pagesReadThisYear;
     }, 0);
 
     const yearlyChaptersRead = books.reduce((total, book) => {
-        const mode = book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
-        if (mode !== 'chapters') return total;
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+
+        // Explicitly exclude audiobooks with time tracking from chapter counts
+        const isAudiobookWithTime = book.format === 'Audiobook' && (book.tracking_unit === 'minutes' || !book.tracking_unit);
+        if (mode !== 'chapters' || isAudiobookWithTime) return total;
+
         const logs = book.readingLogs || [];
-        const thisYearLogs = logs.filter(l => new Date(l.date).getFullYear() === selectedYear);
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const thisYearLogs = sortedLogs.filter(l => new Date(l.date).getFullYear() === selectedYear);
 
         if (thisYearLogs.length === 0) return total;
 
-        const maxThisYear = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
-        const prevYearLogs = logs.filter(l => new Date(l.date).getFullYear() < selectedYear);
-        const maxBeforeYear = prevYearLogs.length > 0
-            ? Math.max(...prevYearLogs.map(l => l.pagesRead || 0))
+        // Get progress at start of year
+        const logsBeforeYear = sortedLogs.filter(l => new Date(l.date).getFullYear() < selectedYear);
+        const startOfYearProgress = logsBeforeYear.length > 0
+            ? logsBeforeYear[logsBeforeYear.length - 1].pagesRead || 0
             : 0;
 
-        return total + Math.max(0, maxThisYear - maxBeforeYear);
+        // Get max progress reached this year
+        const endOfYearProgress = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
+        const chaptersReadThisYear = Math.max(0, endOfYearProgress - startOfYearProgress);
+
+        return total + chaptersReadThisYear;
     }, 0);
 
     const formatTime = (minutes) => {
@@ -176,6 +191,19 @@ const AnnualReport = () => {
         const m = Math.round(minutes % 60);
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
+
+    // Yearly Minutes Listened (for time-based audiobooks)
+    const yearlyMinutesListened = books.reduce((total, book) => {
+        const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+        if (mode !== 'minutes') return total;
+
+        const logs = book.readingLogs || [];
+        const thisYearLogs = logs.filter(l => new Date(l.date).getFullYear() === selectedYear);
+
+        // Sum up the pagesRead (which contains minutes for time-based tracking) from each log entry
+        const minutesLoggedThisYear = thisYearLogs.reduce((sum, log) => sum + (log.pagesRead || 0), 0);
+        return total + minutesLoggedThisYear;
+    }, 0);
 
     // Genre distribution (from all active books this year)
     const genreCounts = {};
@@ -338,6 +366,20 @@ const AnnualReport = () => {
                         <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{yearlyChaptersRead.toLocaleString()}</p>
                     </div>
                 </div>
+
+                {/* Yearly Minutes Listened Card (only show if there are minutes logged) */}
+                {yearlyMinutesListened > 0 && (
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
+                        <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-400">
+                            <Clock size={24} />
+                        </div>
+                        <div>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('calendar.minutesListened', 'Minutes Listened')}</p>
+                            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{formatTime(yearlyMinutesListened)}</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 contrast-card">
                     <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                         <DollarSign size={24} />
