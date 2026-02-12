@@ -59,6 +59,18 @@ const ShareModal = ({ book, onClose }) => {
                     <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl" />
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-500/20 rounded-full blur-3xl" />
 
+                    {/* App Logo in Corner */}
+                    <div className="absolute top-6 right-6 z-20">
+                        <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-xl">
+                            <img
+                                src="/bookea-logo.png"
+                                alt="Bookea Reads"
+                                className="w-12 h-12 object-contain"
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+                    </div>
+
                     {/* Content Container */}
                     <div className="relative z-10 flex flex-col items-center gap-6">
                         {/* Badge */}
