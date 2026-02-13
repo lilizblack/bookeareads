@@ -317,7 +317,8 @@
         "editProfile": "Edit Profile",
         "appVersion": "App Version",
         "feedbackEmailTip": "We'll prepare an email for you.",
-        "sendEmail": "Send Email"
+        "sendEmail": "Send Email",
+        "checkUpdate": "Check for Updates"
     },
     "favorites": {
         "title": "Favorites",
@@ -407,14 +408,20 @@
             "bookDeleted": "Book deleted successfully!",
             "dataSaved": "Data saved successfully!",
             "dataExported": "Data exported successfully!",
-            "dataImported": "Data imported successfully!"
+            "dataImported": "Data imported successfully!",
+            "syncComplete": "Sync Complete!",
+            "importSuccess": "Successfully imported {{count}} unique books!",
+            "importDuplicates": "Removed {{count}} duplicate(s) from the import file."
         },
         "error": {
             "generic": "Something went wrong. Please try again.",
             "networkError": "Network error. Please check your connection.",
             "notFound": "Not found",
             "invalidData": "Invalid data format",
-            "supabaseNotConfigured": "Supabase not configured. Running in offline mode."
+            "supabaseNotConfigured": "Supabase not configured. Running in offline mode.",
+            "syncFailed": "Sync Failed",
+            "syncError": "Sync Error",
+            "importFailed": "Import Failed"
         },
         "confirm": {
             "deleteBook": "Are you sure you want to delete this book?",

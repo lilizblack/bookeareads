@@ -6,6 +6,7 @@ import {
     doc,
     getDocs,
     getDoc,
+    setDoc,
     addDoc,
     updateDoc,
     deleteDoc,
@@ -90,6 +91,7 @@ export const BookProvider = ({ children }) => {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [readingGoal, setReadingGoal] = useState({ yearly: 15, monthly: 2 });
+    const [allGoals, setAllGoals] = useState({}); // New: year-specific goals { "2024": { yearly: 12, monthly: 1 } }
     const [activeTimer, setActiveTimer] = useState(null);
     const [celebrationBook, setCelebrationBook] = useState(null);
     const [isSyncingState, setIsSyncingState] = useState(false);
@@ -146,27 +148,35 @@ export const BookProvider = ({ children }) => {
                     }
                 }
 
-                // NEW: Fetch Reading Goal for Current Year
+                // NEW: Fetch ALL Reading Goals
                 try {
+                    const goalsRef = collection(db, 'users', user.uid, 'goals');
+                    const goalsSnapshot = await getDocs(goalsRef);
+                    const goalsMap = {};
                     const currentYear = new Date().getFullYear().toString();
-                    const goalRef = doc(db, 'users', user.uid, 'goals', currentYear);
-                    const goalSnap = await getDoc(goalRef);
-                    if (goalSnap.exists()) {
-                        const data = goalSnap.data();
-                        console.log('🎯 Loaded goals from Firestore:', data);
-                        setReadingGoal({
+
+                    goalsSnapshot.docs.forEach(docSnap => {
+                        const data = docSnap.data();
+                        goalsMap[docSnap.id] = {
                             yearly: data.yearlyGoal || 12,
                             monthly: data.monthlyGoal || 1
-                        });
+                        };
+                    });
+
+                    console.log('🎯 Loaded all goals from Firestore:', goalsMap);
+                    setAllGoals(goalsMap);
+
+                    if (goalsMap[currentYear]) {
+                        setReadingGoal(goalsMap[currentYear]);
                     }
                 } catch (error) {
-                    console.error('❌ Error fetching reading goal from Firestore:', error);
+                    console.error('❌ Error fetching reading goals from Firestore:', error);
                 }
             }
             // 2. Offline Mode (Logged out but keeping data visible)
             else if (isOfflineMode) {
-                const savedBooks = localStorage.getItem('book-tracker-data-v3');
                 const savedGoal = localStorage.getItem('reading-goal');
+                const savedAllGoals = localStorage.getItem('all-reading-goals');
                 if (savedBooks) {
                     const parsedBooks = JSON.parse(savedBooks);
                     console.log(`📱 Offline mode: ${parsedBooks.length} books from localStorage`);
@@ -176,15 +186,18 @@ export const BookProvider = ({ children }) => {
                     try {
                         const parsed = JSON.parse(savedGoal);
                         setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
-                    } catch (e) {
-                        // Default handled in useState
-                    }
+                    } catch (e) { }
+                }
+                if (savedAllGoals) {
+                    try {
+                        setAllGoals(JSON.parse(savedAllGoals));
+                    } catch (e) { }
                 }
             }
             // 3. Guest / First Load -> Local Storage
             else {
-                const savedBooks = localStorage.getItem('book-tracker-data-v3');
                 const savedGoal = localStorage.getItem('reading-goal');
+                const savedAllGoals = localStorage.getItem('all-reading-goals');
                 if (savedBooks) {
                     const parsedBooks = JSON.parse(savedBooks).map(b => ({
                         ...b,
@@ -199,9 +212,12 @@ export const BookProvider = ({ children }) => {
                     try {
                         const parsed = JSON.parse(savedGoal);
                         setReadingGoal(typeof parsed === 'object' ? parsed : { yearly: 12, monthly: 1 });
-                    } catch (e) {
-                        // Default handled in useState
-                    }
+                    } catch (e) { }
+                }
+                if (savedAllGoals) {
+                    try {
+                        setAllGoals(JSON.parse(savedAllGoals));
+                    } catch (e) { }
                 }
             }
         } catch (error) {
@@ -223,9 +239,10 @@ export const BookProvider = ({ children }) => {
     useEffect(() => {
         localStorage.setItem('book-tracker-data-v3', JSON.stringify(books));
         localStorage.setItem('reading-goal', JSON.stringify(readingGoal));
+        localStorage.setItem('all-reading-goals', JSON.stringify(allGoals));
         if (activeTimer) localStorage.setItem('active-timer', JSON.stringify(activeTimer));
         else localStorage.removeItem('active-timer');
-    }, [books, readingGoal, activeTimer]);
+    }, [books, readingGoal, allGoals, activeTimer]);
 
     const addBook = async (book) => {
         const newBook = {
@@ -720,17 +737,19 @@ export const BookProvider = ({ children }) => {
                 }
             }
 
-            // NEW: Sync Reading Goal
+            // NEW: Sync All Reading Goals
             try {
-                const currentYear = new Date().getFullYear();
-                const goalRef = doc(db, 'users', user.uid, 'goals', currentYear.toString());
-                await setDoc(goalRef, {
-                    year: currentYear,
-                    yearlyGoal: readingGoal.yearly,
-                    monthlyGoal: readingGoal.monthly,
-                    updatedAt: serverTimestamp()
-                }, { merge: true });
-                console.log('✅ Reading goals synced to cloud');
+                const goalYears = Object.keys(allGoals);
+                for (const year of goalYears) {
+                    const goalRef = doc(db, 'users', user.uid, 'goals', year);
+                    await setDoc(goalRef, {
+                        year: parseInt(year),
+                        yearlyGoal: allGoals[year].yearly,
+                        monthlyGoal: allGoals[year].monthly,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                }
+                console.log('✅ All reading goals synced to cloud');
             } catch (error) {
                 console.error('❌ Error syncing reading goals:', error);
             }
@@ -885,8 +904,20 @@ export const BookProvider = ({ children }) => {
                 const endOfYearProgress = Math.max(...yearLogs.map(l => l.pagesRead || 0));
                 const readInYear = Math.max(0, endOfYearProgress - startOfYearProgress);
 
-                if (isChapters) chaptersYear += readInYear;
-                if (isPages) pagesYear += readInYear;
+                if (isChapters) {
+                    chaptersYear += readInYear;
+                    // Estimate pages if we have both totals
+                    if (book.totalPages > 0 && book.totalChapters > 0) {
+                        pagesYear += Math.round((readInYear / book.totalChapters) * book.totalPages);
+                    }
+                }
+                if (isPages) {
+                    pagesYear += readInYear;
+                    // Estimate chapters if we have both totals
+                    if (book.totalPages > 0 && book.totalChapters > 0) {
+                        chaptersYear += Math.round((readInYear / book.totalPages) * book.totalChapters);
+                    }
+                }
                 if (mode === 'minutes') totalMinutesYear += readInYear;
 
                 // Additional time from sessions (timer) for books not tracking primarily by minutes
@@ -920,24 +951,29 @@ export const BookProvider = ({ children }) => {
                 const endOfMonthProgress = Math.max(...monthLogs.map(l => l.pagesRead || 0));
                 const readInMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
 
-                if (isChapters) chaptersMonth += readInMonth;
-                if (isPages) pagesMonth += readInMonth;
-                if (mode === 'minutes') chaptersMonth += 0; // Don't count minutes as chapters
-                if (mode === 'minutes') totalMinutesMonth += readInMonth;
+                if (isChapters) {
+                    chaptersMonth += readInMonth;
+                    // Estimate pages if we have both totals
+                    if (book.totalPages > 0 && book.totalChapters > 0) {
+                        pagesMonth += Math.round((readInMonth / book.totalChapters) * book.totalPages);
+                    }
+                }
+                if (isPages) {
+                    pagesMonth += readInMonth;
+                    // Estimate chapters if we have both totals
+                    if (book.totalPages > 0 && book.totalChapters > 0) {
+                        chaptersMonth += Math.round((readInMonth / book.totalPages) * book.totalChapters);
+                    }
+                }
+                if (mode === 'minutes') {
+                    // Minutes don't count as chapters generally, unless we wanted to estimate from duration?
+                    // Safe to leave as 0 for chapters/pages for now unless explicitly requested.
+                    totalMinutesMonth += readInMonth;
+                }
             }
         });
 
-        // Debug logging to help identify what's being counted
-        if (chaptersMonth > 0 || chaptersYear > 0) {
-            console.log('Chapter Stats Debug:', {
-                totalChaptersThisMonth: chaptersMonth,
-                totalChaptersThisYear: chaptersYear,
-                booksCountedForChapters: books.filter(b => {
-                    const mode = b.tracking_unit || b.progressMode || (b.format === 'Audiobook' ? 'minutes' : 'pages');
-                    return mode === 'chapters';
-                }).map(b => ({ title: b.title, format: b.format, mode: b.tracking_unit || b.progressMode, progress: b.progress }))
-            });
-        }
+
 
         return {
             read: readThisYear,
@@ -1322,16 +1358,27 @@ export const BookProvider = ({ children }) => {
     // READING GOALS MANAGEMENT
     // ============================================
     const setReadingGoalDB = async (year, goals) => {
+        const yearStr = year.toString();
         if (!user) {
             // Fallback to local state for guest users
             const newGoal = { ...readingGoal, ...goals };
             setReadingGoal(newGoal);
+
+            const updatedAllGoals = {
+                ...allGoals,
+                [yearStr]: {
+                    yearly: goals.yearly !== undefined ? goals.yearly : (allGoals[yearStr]?.yearly || 12),
+                    monthly: goals.monthly !== undefined ? goals.monthly : (allGoals[yearStr]?.monthly || 1)
+                }
+            };
+            setAllGoals(updatedAllGoals);
             localStorage.setItem('reading-goal', JSON.stringify(newGoal));
+            localStorage.setItem('all-reading-goals', JSON.stringify(updatedAllGoals));
             return { success: true };
         }
 
         try {
-            const goalRef = doc(db, 'users', user.uid, 'goals', year.toString());
+            const goalRef = doc(db, 'users', user.uid, 'goals', yearStr);
             const updateData = {
                 year: parseInt(year),
                 updatedAt: serverTimestamp()
@@ -1343,7 +1390,20 @@ export const BookProvider = ({ children }) => {
             await setDoc(goalRef, updateData, { merge: true });
 
             // Update local state
-            setReadingGoal(prev => ({ ...prev, ...goals }));
+            const newYearly = goals.yearly !== undefined ? goals.yearly : (allGoals[yearStr]?.yearly || readingGoal.yearly);
+            const newMonthly = goals.monthly !== undefined ? goals.monthly : (allGoals[yearStr]?.monthly || readingGoal.monthly);
+
+            const goalUpdates = { yearly: newYearly, monthly: newMonthly };
+
+            // If it's the current year, also update the main readingGoal state
+            if (yearStr === new Date().getFullYear().toString()) {
+                setReadingGoal(goalUpdates);
+            }
+
+            setAllGoals(prev => ({
+                ...prev,
+                [yearStr]: goalUpdates
+            }));
 
             return { success: true };
         } catch (error) {
@@ -1425,6 +1485,7 @@ export const BookProvider = ({ children }) => {
             // Reading Goals (new table-based)
             setReadingGoalDB,
             getReadingGoalDB,
+            allGoals,
             getGoalProgress,
             // Helper filters
             readingBooks: books.filter(b => b.status === 'reading'),

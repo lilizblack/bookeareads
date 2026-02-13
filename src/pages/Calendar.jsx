@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { enUS, es } from 'date-fns/locale';
 
 const Calendar = () => {
-    const { books, getYearlyStats, getStreak, readingGoal, setReadingGoal, setReadingGoalDB } = useBooks();
+    const { books, getYearlyStats, getStreak, readingGoal, allGoals, setReadingGoal, setReadingGoalDB } = useBooks();
     const { themePreset } = useTheme();
     const { t, i18n } = useTranslation();
     const currentLocale = i18n.language.startsWith('es') ? es : enUS;
@@ -39,16 +39,22 @@ const Calendar = () => {
     const handleToday = () => {
         setSelectedDate(new Date());
     };
-    const [tempGoals, setTempGoals] = useState({ yearly: readingGoal.yearly, monthly: readingGoal.monthly });
+
+    const currentYear_num = selectedDate.getFullYear();
+    const currentMonth_num = selectedDate.getMonth();
+
+    const activeYearGoal = allGoals[currentYear_num] || readingGoal;
+
+    const [tempGoals, setTempGoals] = useState({ yearly: activeYearGoal.yearly, monthly: activeYearGoal.monthly });
 
     const openGoalModal = () => {
-        setTempGoals({ yearly: readingGoal.yearly, monthly: readingGoal.monthly });
+        const goal = allGoals[currentYear_num] || readingGoal;
+        setTempGoals({ yearly: goal.yearly, monthly: goal.monthly });
         setIsGoalModalOpen(true);
     };
 
     const handleGoalSave = async (newGoal) => {
-        const currentYear = new Date().getFullYear();
-        await setReadingGoalDB(currentYear, newGoal);
+        await setReadingGoalDB(currentYear_num, newGoal);
         setIsGoalModalOpen(false);
     };
 
@@ -56,10 +62,11 @@ const Calendar = () => {
         start: startOfMonth(selectedDate),
         end: endOfMonth(selectedDate)
     });
-
-    // Aggregation for Monthly Charts
-    const currentYear_num = selectedDate.getFullYear();
-    const currentMonth_num = selectedDate.getMonth();
+    const readBooksThisYear = books.filter(b =>
+        b.status === 'read' &&
+        b.finishedAt &&
+        new Date(b.finishedAt).getFullYear() === currentYear_num
+    );
 
     // Base collections for monthly analysis
     const activeBooksThisMonth = books.filter(b => {
@@ -149,7 +156,6 @@ const Calendar = () => {
     // Monthly Pages Read Calculation (Incremental progress this month)
     const monthlyPagesRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-        if (mode !== 'pages') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -173,15 +179,21 @@ const Calendar = () => {
 
         // Get max progress reached this month
         const endOfMonthProgress = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
-        const pagesReadThisMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
+        const progressInMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
 
-        return total + pagesReadThisMonth;
+        if (mode === 'pages') {
+            return total + progressInMonth;
+        } else if (mode === 'chapters' && book.totalChapters > 0 && book.totalPages > 0) {
+            // Estimate pages from chapters read
+            return total + Math.round((progressInMonth / book.totalChapters) * book.totalPages);
+        }
+
+        return total;
     }, 0);
 
     // Monthly Chapters Read Calculation (Incremental progress this month)
     const monthlyChaptersRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-        if (mode !== 'chapters') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -205,9 +217,16 @@ const Calendar = () => {
 
         // Get max progress reached this month
         const endOfMonthProgress = Math.max(...thisMonthLogs.map(l => l.pagesRead || 0));
-        const chaptersReadThisMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
+        const progressInMonth = Math.max(0, endOfMonthProgress - startOfMonthProgress);
 
-        return total + chaptersReadThisMonth;
+        if (mode === 'chapters') {
+            return total + progressInMonth;
+        } else if (mode === 'pages' && book.totalPages > 0 && book.totalChapters > 0) {
+            // Estimate chapters from pages read
+            return total + Math.round((progressInMonth / book.totalPages) * book.totalChapters);
+        }
+
+        return total;
     }, 0);
 
     // Monthly Reading Time Calculation
@@ -407,17 +426,17 @@ const Calendar = () => {
 
                 <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 relative overflow-hidden ring-1 ring-blue-100 dark:ring-blue-900/30 contrast-card">
                     {/* Monthly Progress Bar */}
-                    <div className="absolute left-0 top-0 bottom-0 bg-blue-500/10 dark:bg-blue-500/20 transition-all duration-1000 ease-out" style={{ width: `${Math.min((stats.readThisMonth / readingGoal.monthly) * 100, 100)}%` }} />
+                    <div className="absolute left-0 top-0 bottom-0 bg-blue-500/10 dark:bg-blue-500/20 transition-all duration-1000 ease-out" style={{ width: `${Math.min((readBooksThisMonth.length / activeYearGoal.monthly) * 100, 100)}%` }} />
 
                     <div className="flex items-center justify-between relative z-10">
                         <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-black text-blue-600 dark:text-blue-400">{stats.readThisMonth}</span>
-                            <span className="text-lg font-bold text-slate-400">/ {readingGoal.monthly}</span>
+                            <span className="text-4xl font-black text-blue-600 dark:text-blue-400">{readBooksThisMonth.length}</span>
+                            <span className="text-lg font-bold text-slate-400">/ {activeYearGoal.monthly}</span>
                         </div>
                         <div className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
                                 <span className="block text-sm font-black text-slate-800 dark:text-slate-200">{t('dashboard.booksRead')}</span>
-                                {stats.readThisMonth >= readingGoal.monthly && (
+                                {readBooksThisMonth.length >= activeYearGoal.monthly && (
                                     <div className="bg-blue-500 text-white p-0.5 rounded-full shadow-lg shadow-blue-500/40 animate-scale-in">
                                         <Check size={12} strokeWidth={4} />
                                     </div>
@@ -432,8 +451,8 @@ const Calendar = () => {
                 <div className="mt-3 bg-slate-100 dark:bg-white/5 rounded-xl py-3 px-4 flex items-center justify-between border border-slate-200 dark:border-white/10 contrast-card">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.yearlyProgress')}</span>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-base font-bold dark:text-white">{stats.readThisYear}</span>
-                        <span className="text-xs font-bold text-slate-400">/ {readingGoal.yearly}</span>
+                        <span className="text-base font-bold dark:text-white">{readBooksThisYear.length}</span>
+                        <span className="text-xs font-bold text-slate-400">/ {activeYearGoal.yearly}</span>
                     </div>
                 </div>
             </div>

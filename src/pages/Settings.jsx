@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
-import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save, Users } from 'lucide-react';
+import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save, Users, RefreshCw } from 'lucide-react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import CustomSelect from '../components/CustomSelect';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,11 @@ const Settings = () => {
     const [feedbackType, setFeedbackType] = useState('feedback'); // 'feedback' or 'bug'
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+
+    const {
+        updateServiceWorker,
+    } = useRegisterSW();
 
     // Profile Edit State
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -49,14 +55,40 @@ const Settings = () => {
         try {
             const result = await syncLocalToCloud();
             if (result.success) {
-                alert('✅ Sync Complete!\n\n' + result.message);
+                alert('✅ ' + t('messages.success.syncComplete') + '\n\n' + result.message);
             } else {
-                alert('❌ Sync Failed\n\n' + result.message);
+                alert('❌ ' + t('messages.error.syncFailed') + '\n\n' + result.message);
             }
         } catch (error) {
-            alert('❌ Sync Error\n\n' + error.message);
+            alert('❌ ' + t('messages.error.syncError') + '\n\n' + error.message);
         } finally {
             setIsSyncing(false);
+        }
+    };
+
+    const handleCheckUpdate = async () => {
+        setIsCheckingUpdate(true);
+        try {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.update();
+                    // If update found, the UpdateToast will handle showing the UI
+                    // If no update found, we can show a small message
+                    setTimeout(() => {
+                        setIsCheckingUpdate(false);
+                        // We don't easily know if an update was found or not without more complex logic
+                        // but if no toast appears after a second, it's likely up to date
+                    }, 1000);
+                } else {
+                    setIsCheckingUpdate(false);
+                }
+            } else {
+                setIsCheckingUpdate(false);
+            }
+        } catch (error) {
+            console.error('Update check failed:', error);
+            setIsCheckingUpdate(false);
         }
     };
 
@@ -71,14 +103,14 @@ const Settings = () => {
             return;
         }
 
-        const userConfirmed = confirm('Importing data will overwrite your current library. Are you sure?');
+        const userConfirmed = confirm(t('messages.confirm.importData'));
 
         if (userConfirmed) {
             try {
                 const result = await importData(file);
-                let message = `Successfully imported ${result.bookCount} unique books!`;
+                let message = t('messages.success.importSuccess', { count: result.bookCount });
                 if (result.duplicatesRemoved > 0) {
-                    message += `\n\nRemoved ${result.duplicatesRemoved} duplicate${result.duplicatesRemoved !== 1 ? 's' : ''} from the import file.`;
+                    message += '\n\n' + t('messages.success.importDuplicates', { count: result.duplicatesRemoved });
                 }
                 alert(message);
 
@@ -86,7 +118,7 @@ const Settings = () => {
                 window.location.href = '/library';
             } catch (error) {
                 console.error('❌ Import error:', error);
-                alert('Failed to import: ' + error.message);
+                alert(t('messages.error.importFailed') + ': ' + error.message);
             }
         } else {
             // User cancelled
@@ -174,6 +206,11 @@ const Settings = () => {
         {
             title: t('settings.support'),
             items: [
+                {
+                    icon: <RefreshCw size={20} className={isCheckingUpdate ? 'animate-spin' : ''} />,
+                    label: t('settings.checkUpdate', { defaultValue: 'Check for Updates' }),
+                    action: handleCheckUpdate
+                },
                 { icon: <MessageSquare size={20} />, label: t('settings.feedback'), action: () => handleFeedback('feedback') },
                 { icon: <Bug size={20} />, label: t('settings.reportBug'), action: () => handleFeedback('bug') }
             ]
@@ -261,66 +298,39 @@ const Settings = () => {
                     </div>
                 ))}
 
-                {/* Social & Community (Offline Feature Demo) */}
-                <div className="mb-10">
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 ml-4">
-                        Social & Community
-                    </h2>
-                    <div className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 p-6 flex flex-col gap-4">
-                        <FormButton
-                            variant="secondary"
-                            icon={Users}
-                            requireOnline={true}
-                            className="w-full"
-                        >
-                            Add Friend
-                        </FormButton>
-                        <FormButton
-                            variant="secondary"
-                            icon={MessageSquare}
-                            requireOnline={true}
-                            className="w-full"
-                        >
-                            Post Comment
-                        </FormButton>
-                        <p className="text-[10px] text-center text-slate-400 italic">
-                            * These features require an internet connection and are disabled in offline mode.
-                        </p>
-                    </div>
-                </div>
-
                 {/* Auth Actions (Merged) */}
                 <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
-                    {user ? (
-                        <>
-                            <div
-                                onClick={isSyncing ? undefined : handleSync}
-                                className={`flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 ${isSyncing
-                                    ? 'opacity-50 cursor-not-allowed'
-                                    : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3 text-blue-500">
-                                    <UploadCloud size={20} className={isSyncing ? 'animate-pulse' : ''} />
-                                    <span className="font-medium text-slate-700 dark:text-slate-200">
-                                        {isSyncing ? t('messages.info.syncing') : t('settings.syncCloud')}
-                                    </span>
+                    {
+                        user ? (
+                            <>
+                                <div
+                                    onClick={isSyncing ? undefined : handleSync}
+                                    className={`flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 ${isSyncing
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3 text-blue-500">
+                                        <UploadCloud size={20} className={isSyncing ? 'animate-pulse' : ''} />
+                                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                                            {isSyncing ? t('messages.info.syncing') : t('settings.syncCloud')}
+                                        </span>
+                                    </div>
+                                    {!isSyncing && <ChevronRight size={16} className="text-slate-300" />}
                                 </div>
-                                {!isSyncing && <ChevronRight size={16} className="text-slate-300" />}
-                            </div>
-                            <div onClick={() => signOut()} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
-                                <div className="flex items-center gap-3 text-red-500"><LogOut size={20} /><span className="font-medium">{t('auth.logout')}</span></div>
+                                <div onClick={() => signOut()} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
+                                    <div className="flex items-center gap-3 text-red-500"><LogOut size={20} /><span className="font-medium">{t('auth.logout')}</span></div>
+                                    <ChevronRight size={16} className="text-slate-300" />
+                                </div>
+                            </>
+                        ) : (
+                            <div onClick={() => navigate('/signup')} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
+                                <div className="flex items-center gap-3 text-green-500"><LogIn size={20} /><span className="font-medium">{t('auth.signIn')} / {t('auth.signUp')}</span></div>
                                 <ChevronRight size={16} className="text-slate-300" />
                             </div>
-                        </>
-                    ) : (
-                        <div onClick={() => navigate('/signup')} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50">
-                            <div className="flex items-center gap-3 text-green-500"><LogIn size={20} /><span className="font-medium">{t('auth.signIn')} / {t('auth.signUp')}</span></div>
-                            <ChevronRight size={16} className="text-slate-300" />
-                        </div>
-                    )}
-                </div>
-            </div>
+                        )}
+                </div >
+            </div >
 
             <div className="text-center mt-8 text-xs text-slate-400 font-medium">
                 {t('settings.appVersion', { defaultValue: 'App Version' })}: {pkg.version} {user ? t('settings.cloudSyncEnabled', { defaultValue: '(Cloud Sync Enabled ☁️)' }) : t('settings.localStorageOnly', { defaultValue: '(Local Storage Only)' })}
@@ -331,92 +341,96 @@ const Settings = () => {
             <input type="file" ref={avatarInputRef} onChange={handleAvatarFile} className="hidden" accept="image/*" />
 
             {/* Profile Edit Modal */}
-            {isProfileModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-scale-in flex flex-col items-center">
-                        <div className="flex justify-between items-center w-full mb-6">
-                            <h3 className="text-xl font-bold dark:text-white">{t('settings.editProfile')}</h3>
-                            <button onClick={() => setIsProfileModalOpen(false)}><X className="text-slate-400" /></button>
-                        </div>
-
-                        {/* Avatar Picker */}
-                        <div className="relative mb-8 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                            <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden ring-4 ring-white dark:ring-slate-700 shadow-xl">
-                                {tempProfile.avatar ? (
-                                    <img src={tempProfile.avatar} className="w-full h-full object-cover" alt="Preview" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={40} /></div>
-                                )}
+            {
+                isProfileModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-scale-in flex flex-col items-center">
+                            <div className="flex justify-between items-center w-full mb-6">
+                                <h3 className="text-xl font-bold dark:text-white">{t('settings.editProfile')}</h3>
+                                <button onClick={() => setIsProfileModalOpen(false)}><X className="text-slate-400" /></button>
                             </div>
-                            <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Camera className="text-white" />
-                            </div>
-                            <div className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full ring-2 ring-white">
-                                <Edit2 size={12} className="text-white" />
-                            </div>
-                        </div>
 
-                        {/* Name Input */}
-                        <div className="w-full mb-8">
-                            <FormInput
-                                label={t('settings.displayName', { defaultValue: 'Display Name' })}
-                                type="text"
-                                value={tempProfile.name}
-                                onChange={e => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder={t('settings.enterName', { defaultValue: 'Enter name' })}
-                                icon={User}
-                                className="text-center text-xl font-bold"
-                            />
-                        </div>
+                            {/* Avatar Picker */}
+                            <div className="relative mb-8 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                                <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden ring-4 ring-white dark:ring-slate-700 shadow-xl">
+                                    {tempProfile.avatar ? (
+                                        <img src={tempProfile.avatar} className="w-full h-full object-cover" alt="Preview" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={40} /></div>
+                                    )}
+                                </div>
+                                <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Camera className="text-white" />
+                                </div>
+                                <div className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full ring-2 ring-white">
+                                    <Edit2 size={12} className="text-white" />
+                                </div>
+                            </div>
 
-                        <FormButton
-                            onClick={handleSaveProfile}
-                            variant="primary"
-                            size="lg"
-                            icon={Save}
-                            className="w-full"
-                        >
-                            {t('actions.save')}
-                        </FormButton>
+                            {/* Name Input */}
+                            <div className="w-full mb-8">
+                                <FormInput
+                                    label={t('settings.displayName', { defaultValue: 'Display Name' })}
+                                    type="text"
+                                    value={tempProfile.name}
+                                    onChange={e => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder={t('settings.enterName', { defaultValue: 'Enter name' })}
+                                    icon={User}
+                                    className="text-center text-xl font-bold"
+                                />
+                            </div>
+
+                            <FormButton
+                                onClick={handleSaveProfile}
+                                variant="primary"
+                                size="lg"
+                                icon={Save}
+                                className="w-full"
+                            >
+                                {t('actions.save')}
+                            </FormButton>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Feedback Modal */}
-            {showFeedbackModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-scale-in">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? t('settings.reportBug') : t('settings.feedback')}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('settings.feedbackEmailTip')}</p>
-                        <FormTextarea
-                            placeholder={t('settings.feedbackPlaceholder', { defaultValue: 'Type your message...' })}
-                            value={feedbackMessage}
-                            onChange={(e) => setFeedbackMessage(e.target.value)}
-                            rows={6}
-                            className="mb-4"
-                        />
-                        <div className="flex gap-3 justify-end">
-                            <FormButton
-                                onClick={() => setShowFeedbackModal(false)}
-                                variant="secondary"
-                                size="md"
-                            >
-                                {t('actions.cancel')}
-                            </FormButton>
-                            <FormButton
-                                onClick={handleSubmitFeedback}
-                                disabled={!feedbackMessage.trim()}
-                                variant="primary"
-                                size="md"
-                                icon={MessageSquare}
-                            >
-                                {t('settings.sendEmail')}
-                            </FormButton>
+            {
+                showFeedbackModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-scale-in">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{feedbackType === 'bug' ? t('settings.reportBug') : t('settings.feedback')}</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('settings.feedbackEmailTip')}</p>
+                            <FormTextarea
+                                placeholder={t('settings.feedbackPlaceholder', { defaultValue: 'Type your message...' })}
+                                value={feedbackMessage}
+                                onChange={(e) => setFeedbackMessage(e.target.value)}
+                                rows={6}
+                                className="mb-4"
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <FormButton
+                                    onClick={() => setShowFeedbackModal(false)}
+                                    variant="secondary"
+                                    size="md"
+                                >
+                                    {t('actions.cancel')}
+                                </FormButton>
+                                <FormButton
+                                    onClick={handleSubmitFeedback}
+                                    disabled={!feedbackMessage.trim()}
+                                    variant="primary"
+                                    size="md"
+                                    icon={MessageSquare}
+                                >
+                                    {t('settings.sendEmail')}
+                                </FormButton>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

@@ -7,11 +7,24 @@ const UpdateToast = () => {
     const { t } = useTranslation();
     const {
         offlineReady: [offlineReady, setOfflineReady],
-        needUpdate: [needUpdate, setNeedUpdate],
+        needRefresh: [needRefresh, setNeedRefresh],
         updateServiceWorker,
     } = useRegisterSW({
         onRegistered(r) {
             console.log('SW Registered');
+            if (r) {
+                // Check for updates periodically (every 1 hour)
+                setInterval(() => {
+                    console.log('Checking for SW update...');
+                    r.update();
+                }, 60 * 60 * 1000);
+
+                // Also check for update when window is focused
+                window.addEventListener('focus', () => {
+                    console.log('Window focused, checking for SW update...');
+                    r.update();
+                });
+            }
         },
         onRegisterError(error) {
             console.error('SW Error', error);
@@ -20,31 +33,31 @@ const UpdateToast = () => {
 
     const close = () => {
         setOfflineReady(false);
-        setNeedUpdate(false);
+        setNeedRefresh(false);
     };
 
-    if (!offlineReady && !needUpdate) return null;
+    if (!offlineReady && !needRefresh) return null;
 
     return (
         <div className="fixed bottom-24 right-4 z-[100] max-w-[320px] animate-slide-up">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 overflow-hidden relative">
                 <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 flex-shrink-0">
-                        <RefreshCw size={20} className={needUpdate ? "animate-spin-slow" : ""} />
+                        <RefreshCw size={20} className={needRefresh ? "animate-spin-slow" : ""} />
                     </div>
                     <div>
                         <h4 className="font-bold text-slate-900 dark:text-white mb-1">
-                            {needUpdate ? t('pwa.updateAvailableTitle', { defaultValue: 'New Version Available!' }) : t('pwa.offlineReadyTitle', { defaultValue: 'Ready to use Offline' })}
+                            {needRefresh ? t('pwa.updateAvailableTitle', { defaultValue: 'New Version Available!' }) : t('pwa.offlineReadyTitle', { defaultValue: 'Ready to use Offline' })}
                         </h4>
                         <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                            {needUpdate
+                            {needRefresh
                                 ? t('pwa.updateAvailableMessage', { defaultValue: 'A new version of Bookea is available! Update now to get the latest features.' })
                                 : t('pwa.offlineReadyMessage', { defaultValue: 'App is ready to work offline!' })
                             }
                         </p>
 
                         <div className="flex gap-2 mt-4">
-                            {needUpdate && (
+                            {needRefresh && (
                                 <button
                                     onClick={() => updateServiceWorker(true)}
                                     className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"

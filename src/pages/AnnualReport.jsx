@@ -154,7 +154,6 @@ const AnnualReport = () => {
 
     const yearlyPagesRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-        if (mode !== 'pages') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -170,14 +169,20 @@ const AnnualReport = () => {
 
         // Get max progress reached this year
         const endOfYearProgress = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
-        const pagesReadThisYear = Math.max(0, endOfYearProgress - startOfYearProgress);
+        const progressInYear = Math.max(0, endOfYearProgress - startOfYearProgress);
 
-        return total + pagesReadThisYear;
+        if (mode === 'pages') {
+            return total + progressInYear;
+        } else if (mode === 'chapters' && book.totalChapters > 0 && book.totalPages > 0) {
+            // Estimate pages from chapters read
+            return total + Math.round((progressInYear / book.totalChapters) * book.totalPages);
+        }
+
+        return total;
     }, 0);
 
     const yearlyChaptersRead = books.reduce((total, book) => {
         const mode = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
-        if (mode !== 'chapters') return total;
 
         const logs = book.readingLogs || [];
         const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -193,9 +198,16 @@ const AnnualReport = () => {
 
         // Get max progress reached this year
         const endOfYearProgress = Math.max(...thisYearLogs.map(l => l.pagesRead || 0));
-        const chaptersReadThisYear = Math.max(0, endOfYearProgress - startOfYearProgress);
+        const progressInYear = Math.max(0, endOfYearProgress - startOfYearProgress);
 
-        return total + chaptersReadThisYear;
+        if (mode === 'chapters') {
+            return total + progressInYear;
+        } else if (mode === 'pages' && book.totalPages > 0 && book.totalChapters > 0) {
+            // Estimate chapters from pages read
+            return total + Math.round((progressInYear / book.totalPages) * book.totalChapters);
+        }
+
+        return total;
     }, 0);
 
     const formatTime = (minutes) => {
