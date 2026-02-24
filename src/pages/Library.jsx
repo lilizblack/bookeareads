@@ -61,11 +61,19 @@ const Library = () => {
             if (activeTimer && activeTimer.bookId === book.id) {
                 const start = new Date(activeTimer.startTime);
                 const now = new Date();
-                const diffMs = now - start;
                 const minutes = (now - start) / 60000;
+                const totalMins = book.progress || 0;
                 setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
                 setSelectedBook(book);
-                setNewProgress(book.progress || 0);
+                setNewProgress(totalMins);
+                const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                if (trackingUnit === 'minutes' || book.format === 'Audiobook') {
+                    setProgressHours(Math.floor(totalMins / 60));
+                    setProgressMinutes(totalMins % 60);
+                } else {
+                    setProgressHours(0);
+                    setProgressMinutes(0);
+                }
             }
         };
 

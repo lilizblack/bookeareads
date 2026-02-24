@@ -149,6 +149,8 @@
     max-height: 240px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 
 .custom-select-option {
@@ -239,6 +241,7 @@
         animation: fadeIn 0.2s ease-out;
         touch-action: none;
         -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: contain;
     }
 
     .custom-select-dropdown {

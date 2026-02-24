@@ -21,6 +21,31 @@ const PLACEHOLDER_COVER = 'https://via.placeholder.com/300x450/8b5cf6/ffffff?tex
  */
 
 /**
+ * Search for multiple books to provide suggestions in a dropdown
+ * @param {string} query - Search query
+ * @param {string} searchType - 'isbn' or 'title'
+ * @returns {Promise<{success: boolean, data?: BookData[], error?: string}>}
+ */
+export const searchBookSuggestions = async (query, searchType = 'title') => {
+    try {
+        console.log(`🔍 Fetching suggestions for: ${query}`);
+        const googleResult = await searchGoogleBooks(query, searchType, 5);
+
+        if (googleResult.success && googleResult.data && googleResult.data.length > 0) {
+            return googleResult;
+        }
+
+        // Fallback to Open Library search if Google Books fails
+        const openLibraryResult = await searchOpenLibrarySuggestions(query, searchType, 5);
+        return openLibraryResult;
+
+    } catch (error) {
+        console.error('Error in suggestions search:', error);
+        return { success: false, error: 'Failed to fetch suggestions' };
+    }
+};
+
+/**
  * Main waterfall search function
  * Tries Google Books API first, then Open Library API
  * @param {string} query - Search query (title, author, or ISBN)
@@ -31,11 +56,14 @@ export const fetchBookData = async (query, searchType = 'title') => {
     try {
         // Step 1: Try Google Books API
         console.log(`🔍 Searching Google Books for: ${query}`);
-        const googleResult = await searchGoogleBooks(query, searchType);
+        const googleResult = await searchGoogleBooks(query, searchType, 1);
 
         if (googleResult.success && googleResult.data) {
             console.log('✅ Found in Google Books');
-            return googleResult;
+            return {
+                ...googleResult,
+                data: Array.isArray(googleResult.data) ? googleResult.data[0] : googleResult.data
+            };
         }
 
         // Step 2: Fallback to Open Library API
@@ -67,9 +95,10 @@ export const fetchBookData = async (query, searchType = 'title') => {
  * Search Google Books API
  * @param {string} query - Search query
  * @param {string} searchType - 'isbn' or 'title'
- * @returns {Promise<{success: boolean, data?: BookData, error?: string}>}
+ * @param {number} maxResults - Number of results to return
+ * @returns {Promise<{success: boolean, data?: BookData|BookData[], error?: string}>}
  */
-const searchGoogleBooks = async (query, searchType) => {
+const searchGoogleBooks = async (query, searchType, maxResults = 1) => {
     try {
         const cleanQuery = query.trim();
         if (!cleanQuery) {
@@ -85,7 +114,7 @@ const searchGoogleBooks = async (query, searchType) => {
             searchParam = encodeURIComponent(cleanQuery);
         }
 
-        const url = `https://www.googleapis.com/books/v1/volumes?q=${searchParam}&maxResults=1`;
+        const url = `https://www.googleapis.com/books/v1/volumes?q=${searchParam}&maxResults=${maxResults}`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -99,46 +128,102 @@ const searchGoogleBooks = async (query, searchType) => {
             return { success: false, error: 'No results found' };
         }
 
-        const book = data.items[0].volumeInfo;
+        const items = data.items.map(item => normalizeGoogleBooksData(item.volumeInfo));
 
-        // Validate critical fields
-        if (!book.title) {
-            return { success: false, error: 'Missing title' };
-        }
+        if (maxResults === 1) {
+            const normalizedData = items[0];
 
-        // Normalize Google Books data
-        const normalizedData = normalizeGoogleBooksData(book);
-
-        // EXTRA VALIDATION: If searching by ISBN, ensure the result actually contains that ISBN
-        if (searchType === 'isbn') {
-            const cleanISBN = cleanQuery.replace(/[-\s]/g, '');
-            const resultISBN = normalizedData.isbn.replace(/[-\s]/g, '');
-            if (resultISBN && !resultISBN.includes(cleanISBN) && !cleanISBN.includes(resultISBN)) {
-                return { success: false, error: 'Book not found (ISBN mismatch)' };
+            // EXTRA VALIDATION: If searching by ISBN, ensure the result actually contains that ISBN
+            if (searchType === 'isbn') {
+                const cleanISBN = cleanQuery.replace(/[-\s]/g, '');
+                const resultISBN = normalizedData.isbn.replace(/[-\s]/g, '');
+                if (resultISBN && !resultISBN.includes(cleanISBN) && !cleanISBN.includes(resultISBN)) {
+                    return { success: false, error: 'Book not found (ISBN mismatch)' };
+                }
             }
-        }
 
-        // EXTRA VALIDATION: If searching by title, do a basic keyword match
-        if (searchType === 'title') {
-            const queryKeywords = cleanQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
-            const titleLower = normalizedData.title.toLowerCase();
-            const authorLower = normalizedData.author.toLowerCase();
+            // EXTRA VALIDATION: If searching by title, do a basic keyword match
+            if (searchType === 'title') {
+                const queryKeywords = cleanQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+                const titleLower = normalizedData.title.toLowerCase();
+                const authorLower = normalizedData.author.toLowerCase();
 
-            // Check if at least some significant keywords are in title or author
-            const keywordMatch = queryKeywords.every(k => titleLower.includes(k) || authorLower.includes(k));
+                // Check if at least some significant keywords are in title or author
+                const keywordMatch = queryKeywords.every(k => titleLower.includes(k) || authorLower.includes(k));
 
-            if (!keywordMatch && queryKeywords.length > 0) {
-                // If it's not even a partial keyword match, it's likely a "random" related book
-                return { success: false, error: 'Book not found (Title mismatch)' };
+                if (!keywordMatch && queryKeywords.length > 0) {
+                    // If it's not even a partial keyword match, it's likely a "random" related book
+                    return { success: false, error: 'Book not found (Title mismatch)' };
+                }
             }
+            return { success: true, data: normalizedData };
         }
 
-        return { success: true, data: normalizedData };
+        return { success: true, data: items };
 
     } catch (error) {
         console.error('Google Books API error:', error);
         return { success: false, error: error.message };
     }
+};
+
+/**
+ * Search Open Library API for multiple suggestions
+ * @param {string} query - Search query
+ * @param {string} searchType - 'isbn' or 'title'
+ * @param {number} limit - Number of results
+ * @returns {Promise<{success: boolean, data?: BookData[], error?: string}>}
+ */
+const searchOpenLibrarySuggestions = async (query, searchType, limit = 5) => {
+    try {
+        const cleanQuery = query.trim();
+        let url;
+        if (searchType === 'isbn') {
+            const cleanISBN = cleanQuery.replace(/[-\s]/g, '');
+            url = `https://openlibrary.org/search.json?isbn=${cleanISBN}&limit=${limit}`;
+        } else {
+            const searchParam = encodeURIComponent(cleanQuery);
+            url = `https://openlibrary.org/search.json?q=${searchParam}&limit=${limit}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Open Library API request failed');
+        const data = await response.json();
+
+        if (!data.docs || data.docs.length === 0) {
+            return { success: false, error: 'No results found' };
+        }
+
+        const items = data.docs.map(doc => normalizeOpenLibrarySearchDoc(doc));
+        return { success: true, data: items };
+    } catch (error) {
+        console.error('Open Library Suggestions error:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Helper to normalize Open Library search doc
+ */
+const normalizeOpenLibrarySearchDoc = (book) => {
+    let coverUrl = PLACEHOLDER_COVER;
+    if (book.cover_i) {
+        coverUrl = `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`;
+    } else if (book.isbn && book.isbn[0]) {
+        coverUrl = `https://covers.openlibrary.org/b/isbn/${book.isbn[0]}-L.jpg`;
+    }
+
+    return {
+        title: book.title || '',
+        author: book.author_name?.[0] || '',
+        cover: coverUrl,
+        totalPages: book.number_of_pages_median || '',
+        isbn: book.isbn?.[0] || '',
+        publisher: book.publisher?.[0] || '',
+        publishedDate: book.first_publish_year?.toString() || '',
+        genres: (book.subject && book.subject[0]) || '',
+        description: ''
+    };
 };
 
 /**
@@ -196,7 +281,7 @@ const searchOpenLibrary = async (query, searchType) => {
             return { success: false, error: 'Missing title' };
         }
 
-        const normalizedData = normalizeOpenLibraryDataSearch(book);
+        const normalizedData = normalizeOpenLibrarySearchDoc(book);
 
         // EXTRA VALIDATION: Basic keyword match for Title search
         const queryKeywords = cleanQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
@@ -258,33 +343,6 @@ const normalizeOpenLibraryDataISBN = (book, isbn) => {
         publishedDate: book.publish_date || '',
         genres: extractGenres(book.subjects),
         description: book.notes || ''
-    };
-};
-
-/**
- * Normalize Open Library search data to standard format
- * @param {Object} book - Open Library search result document
- * @returns {BookData}
- */
-const normalizeOpenLibraryDataSearch = (book) => {
-    // Build cover URL from cover_i
-    let coverUrl = PLACEHOLDER_COVER;
-    if (book.cover_i) {
-        coverUrl = `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`;
-    } else if (book.isbn && book.isbn[0]) {
-        coverUrl = `https://covers.openlibrary.org/b/isbn/${book.isbn[0]}-L.jpg`;
-    }
-
-    return {
-        title: book.title || '',
-        author: book.author_name?.[0] || '',
-        cover: coverUrl,
-        totalPages: book.number_of_pages_median || '',
-        isbn: book.isbn?.[0] || '',
-        publisher: book.publisher?.[0] || '',
-        publishedDate: book.first_publish_year?.toString() || '',
-        genres: (book.subject && book.subject[0]) || '',
-        description: '' // Search API doesn't usually provide descriptions
     };
 };
 

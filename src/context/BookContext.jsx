@@ -101,6 +101,8 @@ export const BookProvider = ({ children }) => {
         console.log('📚 fetchBooksFromDB called - user:', user?.uid, 'isOfflineMode:', isOfflineMode);
         setLoading(true);
 
+        const savedBooks = localStorage.getItem('book-tracker-data-v3');
+
         try {
             // 1. Authenticated User -> Fetch from Firestore
             if (user) {
@@ -140,7 +142,6 @@ export const BookProvider = ({ children }) => {
                     console.error('❌ Error fetching books from Firestore:', error);
                     console.error('Error details:', JSON.stringify(error, null, 2));
                     // Fallback to localStorage if Firestore fails
-                    const savedBooks = localStorage.getItem('book-tracker-data-v3');
                     if (savedBooks) {
                         const parsedBooks = JSON.parse(savedBooks);
                         console.log(`⚠️ Fallback to localStorage: ${parsedBooks.length} books`);

@@ -104,46 +104,63 @@ export const getSpineColor = (str, preset = 'default') => {
 };
 
 /**
- * Calculates a global reading speed from a list of books.
+ * Calculates a global reading speed from a list of books, separated by tracking unit.
  * @param {Array} books - List of books.
- * @returns {number} Global average speed.
+ * @returns {Object} Global average speeds { pages: number, chapters: number }.
  */
 export const calculateGlobalSpeed = (books) => {
-    if (!books || books.length === 0) return 1.0;
+    const defaults = { pages: 1.0, chapters: 0.1 };
+    if (!books || books.length === 0) return defaults;
 
-    let totalMinutes = 0;
-    let totalPages = 0;
+    const totals = {
+        pages: { units: 0, mins: 0 },
+        chapters: { units: 0, mins: 0 }
+    };
 
     books.forEach(b => {
-        totalMinutes += (b.totalTimeRead || 0);
-        totalPages += (b.totalTimedProgress || 0);
+        const unit = b.tracking_unit || b.progressMode || (b.format === 'Audiobook' ? 'minutes' : 'pages');
+        if (totals[unit]) {
+            totals[unit].units += (b.totalTimedProgress || 0);
+            totals[unit].mins += (b.totalTimeRead || 0);
+        }
     });
 
-    if (totalMinutes >= 15 && totalPages > 0) {
-        return parseFloat((totalPages / totalMinutes).toFixed(2));
+    const results = { ...defaults };
+    if (totals.pages.mins >= 15 && totals.pages.units > 0) {
+        results.pages = parseFloat((totals.pages.units / totals.pages.mins).toFixed(2));
+    }
+    if (totals.chapters.mins >= 15 && totals.chapters.units > 0) {
+        results.chapters = parseFloat((totals.chapters.units / totals.chapters.mins).toFixed(2));
     }
 
-    return 1.0; // Baseline
+    return results;
 };
 
 /**
- * Calculates average reading speed in pages per minute.
+ * Calculates average reading speed for a specific book.
  * @param {Object} book - The book object.
- * @param {number} globalSpeed - Global average fallback.
- * @returns {number} Pages per minute.
+ * @param {Object|number} globalSpeed - Global average fallback(s).
+ * @returns {number} Units per minute.
  */
 export const getReadingSpeed = (book, globalSpeed = 1.0) => {
     // 1. If we have reliable data for THIS specific book (at least 15 minutes tracked)
-    if (book && book.totalTimeRead >= 15 && book.totalTimedProgress > 0) {
+    if (book && (book.totalTimeRead || 0) >= 15 && (book.totalTimedProgress || 0) > 0) {
         const speed = book.totalTimedProgress / book.totalTimeRead;
         return parseFloat(speed.toFixed(2));
     }
 
-    // 2. Fallback to global speed if provided and valid
-    if (globalSpeed > 0) return globalSpeed;
+    // 2. Fallback to global speed
+    const unit = book ? (book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages')) : 'pages';
 
-    // 3. Absolute baseline (human average: 1 page per minute)
-    return 1.0;
+    if (globalSpeed && typeof globalSpeed === 'object') {
+        return globalSpeed[unit] || (unit === 'chapters' ? 0.1 : 1.0);
+    }
+
+    // Legacy support if globalSpeed is still a number
+    if (typeof globalSpeed === 'number' && globalSpeed > 0) return globalSpeed;
+
+    // 3. Absolute baseline
+    return unit === 'chapters' ? 0.1 : 1.0;
 };
 
 /**
@@ -177,20 +194,8 @@ export const getEstimatedTimeLeftMultiFormat = (book, globalSpeed = 1.0) => {
 
         if (remainingChapters <= 0) return 0;
 
-        // Need reading session data to calculate average time per chapter
-        const totalTimeRead = book.totalTimeRead || 0;
-        const chaptersCompleted = currentChapter;
-
-        // Require at least 5 minutes of reading data and at least 1 chapter completed
-        if (totalTimeRead < 5 || chaptersCompleted === 0) {
-            return null; // Not enough data - show fallback message
-        }
-
-        // Calculate average minutes per chapter based on actual reading sessions
-        const avgMinsPerChapter = totalTimeRead / chaptersCompleted;
-        const estimatedTimeLeft = Math.round(remainingChapters * avgMinsPerChapter);
-
-        return estimatedTimeLeft;
+        const speed = getReadingSpeed(book, globalSpeed);
+        return Math.round(remainingChapters / speed);
     }
 
     // Case C: Pages-based (Existing logic)

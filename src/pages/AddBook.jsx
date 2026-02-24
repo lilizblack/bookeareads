@@ -22,7 +22,7 @@ import SpiceRating from '../components/SpiceRating';
 import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
-import { fetchBookData } from '../utils/bookApi';
+import { fetchBookData, searchBookSuggestions } from '../utils/bookApi';
 import CustomSelect from '../components/CustomSelect';
 import FormInput from '../components/FormInput';
 import FormButton from '../components/FormButton';
@@ -40,7 +40,11 @@ const AddBook = () => {
     const [duplicateError, setDuplicateError] = useState(null);
     const [errors, setErrors] = useState({});
     const [showSuccess, setShowSuccess] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
     const fileInputRef = useRef(null);
+    const suggestionsRef = useRef(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -75,6 +79,17 @@ const AddBook = () => {
     const [durationHours, setDurationHours] = useState(0);
     const [durationMinutes, setDurationMinutes] = useState(0);
 
+    // Close suggestions when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // Handle initial fetch of data
     const handleFetchData = async (query, mode) => {
         if (!query || !query.trim()) {
@@ -84,30 +99,13 @@ const AddBook = () => {
 
         setFetchingCover(true);
         setCoverError('');
+        setShowSuggestions(false);
 
         try {
             const result = await fetchBookData(query.trim(), mode);
 
             if (result.success) {
-                const apiData = result.data;
-                let matchedGenre = '';
-
-                if (apiData.genres) {
-                    const genreMatch = GENRES.find(g =>
-                        apiData.genres.toLowerCase().includes(g.toLowerCase()) ||
-                        g.toLowerCase().includes(apiData.genres.toLowerCase())
-                    );
-                    matchedGenre = genreMatch || apiData.genres;
-                }
-
-                setFormData(prev => ({
-                    ...prev,
-                    ...apiData,
-                    genres: matchedGenre || prev.genres,
-                    // Auto-select Physical if pages found
-                    format: prev.format || (apiData.totalPages ? 'Physical' : prev.format)
-                }));
-                setCoverError('');
+                applyBookData(result.data);
             } else {
                 setCoverError(result.error);
             }
@@ -116,6 +114,51 @@ const AddBook = () => {
             setCoverError('Failed to fetch book data');
         } finally {
             setFetchingCover(false);
+        }
+    };
+
+    const applyBookData = (apiData) => {
+        let matchedGenre = '';
+
+        if (apiData.genres) {
+            const genreMatch = GENRES.find(g =>
+                apiData.genres.toLowerCase().includes(g.toLowerCase()) ||
+                g.toLowerCase().includes(apiData.genres.toLowerCase())
+            );
+            matchedGenre = genreMatch || apiData.genres;
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            ...apiData,
+            genres: matchedGenre || prev.genres,
+            // Auto-select Physical if pages found
+            format: prev.format || (apiData.totalPages ? 'Physical' : prev.format)
+        }));
+        setCoverError('');
+        setShowSuggestions(false);
+    };
+
+    const handleSearchSuggestions = async (query) => {
+        if (!query || query.trim().length < 3) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        setIsSearchingSuggestions(true);
+        try {
+            const result = await searchBookSuggestions(query.trim(), 'title');
+            if (result.success && result.data) {
+                setSuggestions(result.data);
+                setShowSuggestions(true);
+            } else {
+                setSuggestions([]);
+            }
+        } catch (error) {
+            console.error('Suggestions error:', error);
+        } finally {
+            setIsSearchingSuggestions(false);
         }
     };
 
@@ -301,32 +344,77 @@ const AddBook = () => {
                 {/* Form Fields Section */}
                 <div className="space-y-4">
                     {/* Title Search Group */}
-                    <div className="flex gap-2 items-end">
-                        <div className="flex-1">
-                            <FormInput
-                                label={t('book.fields.title')}
-                                type="text"
-                                placeholder={t('addBook.form.titlePlaceholder')}
-                                value={formData.title}
-                                helperText={t('addBook.form.searchTip')}
-                                onChange={e => {
-                                    setFormData({ ...formData, title: e.target.value });
-                                    if (errors.title) setErrors({ ...errors, title: null });
-                                }}
-                                required
-                                error={errors.title}
-                                icon={Book}
-                            />
+                    <div className="relative">
+                        <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                                <FormInput
+                                    label={t('book.fields.title')}
+                                    type="text"
+                                    placeholder={t('addBook.form.titlePlaceholder')}
+                                    value={formData.title}
+                                    helperText={t('addBook.form.searchTip')}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, title: val });
+                                        if (errors.title) setErrors({ ...errors, title: null });
+                                        handleSearchSuggestions(val);
+                                    }}
+                                    onFocus={() => {
+                                        if (suggestions.length > 0) setShowSuggestions(true);
+                                    }}
+                                    required
+                                    error={errors.title}
+                                    icon={Book}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleFetchData(formData.title, 'title')}
+                                disabled={fetchingCover || !formData.title.trim()}
+                                className="p-3.5 bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 rounded-xl hover:bg-violet-200 transition-colors disabled:opacity-50 h-[52px] mb-[2px]"
+                                title="Search by Title"
+                            >
+                                {fetchingCover ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => handleFetchData(formData.title, 'title')}
-                            disabled={fetchingCover || !formData.title.trim()}
-                            className="p-3.5 bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 rounded-xl hover:bg-violet-200 transition-colors disabled:opacity-50 h-[52px] mb-[2px]"
-                            title="Search by Title"
-                        >
-                            {fetchingCover ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-                        </button>
+
+                        {/* Search Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div
+                                ref={suggestionsRef}
+                                className="absolute left-0 right-14 top-[calc(100%-8px)] z-[60] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"
+                            >
+                                <div className="max-height-[300px] overflow-y-auto">
+                                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Search Results</span>
+                                        {isSearchingSuggestions && <Loader2 size={12} className="animate-spin text-violet-500" />}
+                                    </div>
+                                    {suggestions.map((book, index) => (
+                                        <button
+                                            key={`${book.isbn}-${index}`}
+                                            type="button"
+                                            onClick={() => applyBookData(book)}
+                                            className="w-full flex items-center gap-3 p-3 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors text-left border-b border-slate-50 dark:border-slate-800/50 last:border-0"
+                                        >
+                                            <div className="w-10 h-14 rounded bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden shadow-sm">
+                                                {book.cover ? (
+                                                    <img src={book.cover} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
+                                                        <Book size={16} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{book.title}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{book.author}</p>
+                                                {book.isbn && <p className="text-[9px] text-slate-400 dark:text-slate-600 mt-1 uppercase">ISBN: {book.isbn}</p>}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Author Field */}

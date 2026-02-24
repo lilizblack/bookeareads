@@ -55,7 +55,10 @@
             "toBuy": "To Buy",
             "worstReview": "Worst Review",
             "language": "Language",
-            "currency": "Currency"
+            "currency": "Currency",
+            "hours": "Hours",
+            "minutes": "Minutes",
+            "time": "Time"
         },
         "languages": {
             "English": "English",
@@ -222,7 +225,12 @@
             "gotit": "Got it",
             "startReadingQuestion": "Do you want to set the start date to today?",
             "trackingModeTitle": "Tracking Mode",
-            "trackingModeMessage": "How do you want to track your progress for this book?"
+            "trackingModeMessage": "How do you want to track your progress for this book?",
+            "formatTitle": "Select Format",
+            "formatMessage": "What format are you reading?",
+            "audiobookTitle": "Audiobook Duration",
+            "audiobookMessage": "Enter the total duration of the audiobook",
+            "timeListened": "Time Listened"
         }
     },
     "library": {

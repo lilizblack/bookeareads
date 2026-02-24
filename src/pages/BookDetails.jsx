@@ -4,7 +4,7 @@ import { useBooks } from '../context/BookContext';
 import { format, parseISO } from 'date-fns';
 import Rating from '../components/Rating';
 import SpiceRating from '../components/SpiceRating';
-import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer, Search, Loader2, Trash2, Check } from 'lucide-react';
+import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer, Search, Loader2, Trash2, Check, Book, BookOpen } from 'lucide-react';
 import { getReadingSpeed, getEstimatedTimeLeft } from '../utils/bookUtils';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -33,10 +33,15 @@ const BookDetails = () => {
     const [duplicateError, setDuplicateError] = useState(null);
     const [showScanner, setShowScanner] = useState(false);
     const [showStartModal, setShowStartModal] = useState(false);
+    const [showFormatModal, setShowFormatModal] = useState(false);
+    const [showAudiobookModal, setShowAudiobookModal] = useState(false);
     const [showTrackingModeModal, setShowTrackingModeModal] = useState(false);
     const [showActivityModal, setShowActivityModal] = useState(false);
     const [tempStatus, setTempStatus] = useState(null); // To store status while modal is open
     const [tempStartTime, setTempStartTime] = useState(null); // To store start time before mode selection
+    const [tempFormat, setTempFormat] = useState(null); // To store format selection
+    const [audiobookHours, setAudiobookHours] = useState(0);
+    const [audiobookMinutes, setAudiobookMinutes] = useState(0);
     const [manualDate, setManualDate] = useState('');
     const [showDateInput, setShowDateInput] = useState(false);
     const [showLogModal, setShowLogModal] = useState(false);
@@ -181,7 +186,7 @@ const BookDetails = () => {
         if (mode === 'now') {
             setTempStartTime(new Date().toISOString());
             setShowStartModal(false);
-            setShowTrackingModeModal(true);
+            setShowFormatModal(true);
         } else if (mode === 'manual_input') {
             setShowDateInput(true);
         } else if (mode === 'manual_save') {
@@ -190,19 +195,47 @@ const BookDetails = () => {
                 setShowStartModal(false);
                 setShowDateInput(false);
                 setManualDate('');
-                setShowTrackingModeModal(true);
+                setShowFormatModal(true);
             }
         }
+    };
+
+    const handleFormatConfirm = (format) => {
+        setTempFormat(format);
+        setShowFormatModal(false);
+        if (format === 'Audiobook') {
+            setShowAudiobookModal(true);
+        } else {
+            setShowTrackingModeModal(true);
+        }
+    };
+
+    const handleAudiobookConfirm = () => {
+        const totalMinutes = parseInt(audiobookHours) * 60 + parseInt(audiobookMinutes);
+        updateBook(book.id, {
+            status: 'reading',
+            startedAt: tempStartTime,
+            format: 'Audiobook',
+            progressMode: 'minutes',
+            tracking_unit: 'minutes',
+            total_duration_minutes: totalMinutes
+        });
+        setShowAudiobookModal(false);
+        setTempStartTime(null);
+        setTempFormat(null);
     };
 
     const handleTrackingModeConfirm = (mode) => {
         updateBook(book.id, {
             status: 'reading',
             startedAt: tempStartTime,
-            progressMode: mode
+            format: tempFormat,
+            progressMode: mode,
+            tracking_unit: mode
         });
         setShowTrackingModeModal(false);
         setTempStartTime(null);
+        setTempFormat(null);
     };
 
     const handleMarkAsFinished = () => {
@@ -337,6 +370,99 @@ const BookDetails = () => {
                         <button
                             onClick={() => { setShowStartModal(false); setShowDateInput(false); }}
                             className="mt-4 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            {t('app.cancel')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Format Modal */}
+            {showFormatModal && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+                            <BookOpen size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.formatTitle', 'Select Format')}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            {t('dashboard.modals.formatMessage', 'What format are you reading?')}
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-3 w-full">
+                            {['Physical', 'Ebook', 'Audiobook'].map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => handleFormatConfirm(f)}
+                                    className="flex items-center justify-between px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl hover:border-blue-500 transition-all active:scale-95"
+                                >
+                                    <span className="text-sm font-black text-slate-900 dark:text-white">{t(`book.formats.${f.toLowerCase()}`)}</span>
+                                    <div className="w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-600 flex items-center justify-center">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 opacity-0 transition-opacity"></div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => setShowFormatModal(false)}
+                            className="mt-6 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            {t('app.cancel')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Audiobook Duration Modal */}
+            {showAudiobookModal && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in scale-in flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+                            <Timer size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold dark:text-white mb-2">{t('dashboard.modals.audiobookTitle', 'Audiobook Duration')}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+                            {t('dashboard.modals.audiobookMessage', 'Enter the total duration of the audiobook')}
+                        </p>
+
+                        <div className="flex gap-4 w-full mb-6">
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">{t('book.fields.hours')}</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl outline-none text-center font-bold dark:text-white border-2 border-transparent focus:border-blue-500"
+                                    value={audiobookHours}
+                                    onChange={e => setAudiobookHours(e.target.value)}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">{t('book.fields.minutes')}</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl outline-none text-center font-bold dark:text-white border-2 border-transparent focus:border-blue-500"
+                                    value={audiobookMinutes}
+                                    onChange={e => setAudiobookMinutes(e.target.value)}
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleAudiobookConfirm}
+                            disabled={parseInt(audiobookHours) + parseInt(audiobookMinutes) === 0}
+                            className="w-full py-4 bg-blue-500 text-white rounded-2xl font-bold active:scale-95 transition-transform disabled:opacity-50"
+                        >
+                            {t('app.confirm')}
+                        </button>
+
+                        <button
+                            onClick={() => setShowAudiobookModal(false)}
+                            className="mt-6 text-slate-400 text-xs font-bold hover:text-slate-600 dark:hover:text-slate-300"
                         >
                             {t('app.cancel')}
                         </button>
@@ -606,8 +732,11 @@ const BookDetails = () => {
                                 const start = new Date(activeTimer.startTime);
                                 const now = new Date();
                                 const minutes = (now - start) / 60000;
+                                const totalMins = book.progress || 0;
+                                setProgressHours(Math.floor(totalMins / 60));
+                                setProgressMinutes(totalMins % 60);
                                 setElapsedMinutes(parseFloat(Math.max(0.1, minutes).toFixed(2)));
-                                setNewProgress(book.progress || 0);
+                                setNewProgress(totalMins);
                                 setShowLogModal(true);
                             } else {
                                 if (book.status === 'reading') {
@@ -877,20 +1006,29 @@ const BookDetails = () => {
                             </div>
                         </div>
                         <div className="flex-1 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl flex flex-col items-center justify-center">
-                            <span className="text-[10px] uppercase text-blue-400 font-bold mb-1 tracking-widest text-center">Time Left</span>
+                            <span className="text-[10px] uppercase text-blue-400 font-bold mb-1 tracking-widest text-center">
+                                {(() => {
+                                    const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                    if (trackingUnit === 'minutes') return t('book.fields.timeLeft', 'Time Left');
+                                    return trackingUnit === 'chapters' ? t('book.fields.chaptersLeft', 'Chapters Left') : t('book.fields.pagesLeft', 'Pages Left');
+                                })()}
+                            </span>
                             <div className="text-sm font-black text-blue-700 dark:text-blue-300">
                                 {(() => {
-                                    const timeLeft = getEstimatedTimeLeft(book, globalSpeed);
-                                    if (timeLeft === null) {
-                                        const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'chapters' : 'pages');
-                                        if (trackingUnit === 'minutes' && !book.total_duration_minutes) {
-                                            return <span className="text-[10px] opacity-70">Add duration</span>;
-                                        } else if (trackingUnit === 'chapters') {
-                                            return <span className="text-[10px] opacity-70">Read to estimate</span>;
+                                    const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
+                                    if (trackingUnit === 'minutes') {
+                                        const timeLeft = getEstimatedTimeLeft(book, globalSpeed);
+                                        if (timeLeft === null) {
+                                            return !book.total_duration_minutes ? <span className="text-[10px] opacity-70">Add duration</span> : <span className="text-[10px] opacity-70">Start reading</span>;
                                         }
-                                        return <span className="text-[10px] opacity-70">Start reading</span>;
+                                        return <>{timeLeft} <span className="text-[10px] opacity-70">mins</span></>;
                                     }
-                                    return <>{timeLeft} <span className="text-[10px] opacity-70">mins</span></>;
+
+                                    const total = trackingUnit === 'chapters' ? book.totalChapters : book.totalPages;
+                                    const currentProgress = book.progress || 0;
+                                    if (!total) return <span className="text-[10px] opacity-70">Add total</span>;
+                                    const remaining = Math.max(0, total - currentProgress);
+                                    return <>{remaining} <span className="text-[10px] opacity-70">{trackingUnit === 'chapters' ? 'CH' : 'P'}</span></>;
                                 })()}
                             </div>
                         </div>

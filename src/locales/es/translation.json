@@ -55,7 +55,10 @@
             "toBuy": "Para comprar",
             "worstReview": "Peor reseña",
             "language": "Idioma",
-            "currency": "Moneda"
+            "currency": "Moneda",
+            "hours": "Horas",
+            "minutes": "Minutos",
+            "time": "Tiempo"
         },
         "languages": {
             "English": "Inglés",
@@ -225,7 +228,12 @@
             "gotit": "Entendido",
             "startReadingQuestion": "¿Quieres establecer la fecha de inicio como hoy?",
             "trackingModeTitle": "Modo de Seguimiento",
-            "trackingModeMessage": "¿Cómo quieres realizar el seguimiento de tu progreso para este libro?"
+            "trackingModeMessage": "¿Cómo quieres realizar el seguimiento de tu progreso para este libro?",
+            "formatTitle": "Seleccionar Formato",
+            "formatMessage": "¿En qué formato estás leyendo?",
+            "audiobookTitle": "Duración del Audiolibro",
+            "audiobookMessage": "Introduce la duración total del audiolibro",
+            "timeListened": "Tiempo Escuchado"
         }
     },
     "library": {
