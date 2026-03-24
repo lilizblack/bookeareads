@@ -141,14 +141,16 @@ const Calendar = () => {
     acquiredBooksThisMonth.forEach(b => {
         if (!b.purchaseLocation) return;
         const loc = b.purchaseLocation;
-        const price = parseFloat(b.price) || 0;
-        locationCounts[loc] = (locationCounts[loc] || 0) + price;
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
     });
 
     const monthlyLocationData = Object.entries(locationCounts)
-        .sort((a, b) => b[1] - a[1]) // Sort by highest spend
+        .sort((a, b) => b[1] - a[1]) // Sort by highest count
         .slice(0, 5) // Top 5 locations
-        .map(([name, value]) => ({ name, value }));
+        .map(([name, value]) => ({
+            name: t(`calendar.locationNames.${name}`, { defaultValue: name }),
+            value
+        }));
 
     // Monthly Spend Calculation (Based on acquired books)
     const monthlySpent = acquiredBooksThisMonth.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0);
@@ -330,9 +332,13 @@ const Calendar = () => {
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
+                                        max="300"
                                         className="flex-1 min-w-0 text-center text-3xl font-black bg-slate-50 dark:bg-slate-800/50 rounded-2xl py-3 outline-none border-2 border-transparent focus:border-blue-500 transition-all dark:text-white"
                                         value={tempGoals.monthly}
-                                        onChange={e => setTempGoals(prev => ({ ...prev, monthly: Number(e.target.value) }))}
+                                        onChange={e => {
+                                            const val = Math.min(300, parseInt(e.target.value) || 0);
+                                            setTempGoals(prev => ({ ...prev, monthly: val }));
+                                        }}
                                     />
                                     <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksMo')}</span>
                                 </div>
@@ -343,9 +349,13 @@ const Calendar = () => {
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
+                                        max="999"
                                         className="flex-1 min-w-0 text-center text-3xl font-black bg-slate-50 dark:bg-slate-800/50 rounded-2xl py-3 outline-none border-2 border-transparent focus:border-emerald-500 transition-all dark:text-white"
                                         value={tempGoals.yearly}
-                                        onChange={e => setTempGoals(prev => ({ ...prev, yearly: Number(e.target.value) }))}
+                                        onChange={e => {
+                                            const val = Math.min(999, parseInt(e.target.value) || 0);
+                                            setTempGoals(prev => ({ ...prev, yearly: val }));
+                                        }}
                                     />
                                     <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksYr')}</span>
                                 </div>
@@ -672,7 +682,7 @@ const Calendar = () => {
                     title={t('calendar.locations')}
                     data={monthlyLocationData}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#3D1414', '#2D0E0E', '#B0AEB4', '#606066'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
-                    isCurrency={true}
+                    isCurrency={false}
                 />
             </div>
 

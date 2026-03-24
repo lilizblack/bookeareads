@@ -1,171 +1,362 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
-import { X, Download, Share2, Star } from 'lucide-react';
-import CoverImage from './CoverImage';
-import ChilliIcon from './ChilliIcon';
+import { X, Download, Share2, Check } from 'lucide-react';
+import { generateGenericCover } from '../utils/coverGenerator';
 
 const ShareModal = ({ book, onClose }) => {
     const cardRef = useRef(null);
     const [generating, setGenerating] = useState(false);
+    const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+    const [errorMsg, setErrorMsg] = useState(null);
+    const [coverDataUrl, setCoverDataUrl] = useState(null);
+    const [coverLoading, setCoverLoading] = useState(true);
+
+    // Pre-load cover as data URL to completely avoid CORS
+    useEffect(() => {
+        if (!book?.cover) {
+            setCoverDataUrl(generateGenericCover(book?.title, book?.author));
+            setCoverLoading(false);
+            return;
+        }
+
+        if (book.cover.startsWith('data:') || book.cover.startsWith('/') || book.cover.startsWith('./')) {
+            setCoverDataUrl(book.cover);
+            setCoverLoading(false);
+            return;
+        }
+
+        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(book.cover.replace('http://', 'https://'))}&w=512&output=jpg&q=85`;
+
+        fetch(proxyUrl)
+            .then(res => {
+                if (!res.ok) throw new Error('Fetch failed');
+                return res.blob();
+            })
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setCoverDataUrl(reader.result);
+                    setCoverLoading(false);
+                };
+                reader.readAsDataURL(blob);
+            })
+            .catch(() => {
+                setCoverDataUrl(generateGenericCover(book.title, book.author));
+                setCoverLoading(false);
+            });
+    }, [book]);
+
+    // Pre-load logo as data URL too
+    const [logoDataUrl, setLogoDataUrl] = useState(null);
+    useEffect(() => {
+        fetch('/bookea-logo.png')
+            .then(res => res.blob())
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => setLogoDataUrl(reader.result);
+                reader.readAsDataURL(blob);
+            })
+            .catch(() => setLogoDataUrl(null));
+    }, []);
+
+    const triggerDownload = (url) => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `bookea-achievement-${(book?.title || 'book').toLowerCase().replace(/\s+/g, '-')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleShare = async () => {
+        if (!generatedImageUrl) return;
+
+        try {
+            // Convert dataURL to File for sharing
+            const res = await fetch(generatedImageUrl);
+            const blob = await res.blob();
+            const file = new File([blob], 'achievement.png', { type: 'image/png' });
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'My Reading Achievement',
+                    text: `I just finished reading ${book.title}! Check out my progress on Bookea Reads.`
+                });
+            } else if (navigator.share) {
+                // Basic text share fallback
+                await navigator.share({
+                    title: 'My Reading Achievement',
+                    text: `I just finished reading ${book.title}!`,
+                    url: window.location.origin
+                });
+            } else {
+                triggerDownload(generatedImageUrl);
+            }
+        } catch (err) {
+            console.error("Sharing failed:", err);
+            triggerDownload(generatedImageUrl);
+        }
+    };
 
     const handleDownload = async () => {
         if (!cardRef.current) return;
         setGenerating(true);
+        setErrorMsg(null);
+        setGeneratedImageUrl(null);
+
         try {
-            // Wait a moment for images to render fully if needed
-            const canvas = await html2canvas(cardRef.current, {
-                scale: 2, // Retinas/High-Res
-                useCORS: true,
-                backgroundColor: null, // Transparent wrapper if any
+            // Short delay to ensure any dynamic content is settled
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const el = cardRef.current;
+            const canvas = await html2canvas(el, {
+                scale: 2, // 2 is usually enough and more stable on mobile memory
+                backgroundColor: '#0F172A',
                 logging: false,
+                useCORS: true,
+                allowTaint: true,
+                width: 340,
+                height: el.offsetHeight,
+                windowWidth: 340,
+                onclone: (clonedDoc) => {
+                    const elClone = clonedDoc.getElementById('capture-card');
+                    if (elClone) {
+                        elClone.style.margin = '0';
+                        elClone.style.transform = 'none';
+                        elClone.style.position = 'static';
+                        elClone.style.display = 'flex';
+                        // Ensure all images in clone have crossOrigin set if they are external
+                        const imgs = elClone.getElementsByTagName('img');
+                        for (let img of imgs) {
+                            if (img.src.startsWith('http')) {
+                                img.crossOrigin = 'anonymous';
+                            }
+                        }
+                    }
+                }
             });
 
-            const image = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.href = image;
-            link.download = `finished-${book.title.replace(/\s+/g, '-').toLowerCase()}.png`;
-            link.click();
+            const dataUrl = canvas.toDataURL('image/png');
+            setGeneratedImageUrl(dataUrl);
+
         } catch (err) {
             console.error("Screenshot failed:", err);
-            alert("Failed to generate image. Please try again.");
+            setErrorMsg(`Error: ${err.message}. Please try again.`);
         } finally {
             setGenerating(false);
         }
     };
 
+    // Build star display string
     if (!book) return null;
 
-    return (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-            <div className="w-full max-w-md flex flex-col items-center gap-6">
+    const rating = book.rating || 0;
+    const spice = book.spiceRating || 0;
 
-                {/* Header */}
-                <div className="w-full flex justify-between items-center text-white">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <Share2 size={20} /> Share your achievement
+    const StarIcon = ({ fill = 0, index = 0 }) => {
+        const clipId = `starClip-${index}`;
+        return (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
+                <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    fill="rgba(255,255,255,0.15)"
+                />
+                {fill > 0 && (
+                    <g clipPath={`url(#${clipId})`}>
+                        <defs>
+                            <clipPath id={clipId}>
+                                <rect width={`${fill * 24}`} height="24" />
+                            </clipPath>
+                        </defs>
+                        <path
+                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                            fill="#FACC15"
+                        />
+                    </g>
+                )}
+            </svg>
+        );
+    };
+
+    const SpiceIcon = ({ fill = 0 }) => (
+        <span style={{ fontSize: '18px', opacity: fill > 0 ? 1 : 0.1 }}>🌶️</span>
+    );
+
+    // Inline styles only — no Tailwind, no filters, no blur, no SVGs inside the card
+    const cardStyles = {
+        width: '340px',
+        background: 'linear-gradient(160deg, #1e1145 0%, #0F172A 35%, #0c1422 65%, #1a0e30 100%)',
+        borderRadius: '24px',
+        padding: '28px 24px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        position: 'relative',
+        fontFamily: "'Inter', -apple-system, sans-serif",
+        boxSizing: 'border-box',
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 animate-fade-in" style={{ backdropFilter: 'none' }}>
+            <div className="w-full max-w-md flex flex-col items-center gap-5 pb-4">
+
+                {/* Header - outside the card, not captured */}
+                <div className="w-full flex justify-between items-center text-white shrink-0">
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                        <Share2 size={18} /> Share your achievement
                     </h2>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                        <X size={24} />
+                        <X size={22} />
                     </button>
                 </div>
 
-                {/* The Shareable Card - Simple & Reliable */}
-                <div
-                    ref={cardRef}
-                    className="w-full bg-gradient-to-br from-slate-900 via-violet-900 to-fuchsia-900 p-10 rounded-3xl shadow-2xl relative overflow-hidden aspect-[4/5] flex flex-col items-center justify-center gap-6"
-                    style={{ minHeight: '500px' }}
-                >
-                    {/* Decorative Elements */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl" />
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-500/20 rounded-full blur-3xl" />
-
-                    {/* App Logo in Corner */}
-                    <div className="absolute top-6 right-6 z-20">
-                        <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-xl">
+                {generatedImageUrl ? (
+                    <div className="w-full flex flex-col items-center gap-4 animate-fade-in px-2">
+                        <div style={{ overflow: 'hidden', borderRadius: '16px', border: '2px solid rgba(139, 92, 246, 0.3)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}>
                             <img
-                                src="/bookea-logo.png"
-                                alt="Bookea Reads"
-                                className="w-12 h-12 object-contain"
-                                crossOrigin="anonymous"
+                                src={generatedImageUrl}
+                                alt="Your achievement"
+                                style={{ width: '100%', display: 'block', background: '#0F172A' }}
                             />
                         </div>
+
+                        <div className="flex flex-col gap-3 w-full mt-2">
+                            <button
+                                onClick={handleShare}
+                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/30 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                            >
+                                <Share2 size={20} /> Share Achievement
+                            </button>
+
+                            <button
+                                onClick={() => triggerDownload(generatedImageUrl)}
+                                className="w-full py-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl font-bold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                            >
+                                <Download size={20} /> Download Image
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setGeneratedImageUrl(null);
+                            }}
+                            className="text-white/40 hover:text-white/60 text-xs font-medium py-2 transition-colors"
+                        >
+                            ← Back to preview
+                        </button>
                     </div>
+                ) : (
+                    <>
+                        {/* ===== THE CARD TO CAPTURE ===== */}
+                        {/* ONLY inline styles. NO Tailwind. NO filters. NO SVGs. NO blur. NO aspect-ratio. */}
+                        <div id="capture-card" ref={cardRef} style={cardStyles}>
 
-                    {/* Content Container */}
-                    <div className="relative z-10 flex flex-col items-center gap-6">
-                        {/* Badge */}
-                        <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 px-8 py-3 rounded-full shadow-xl">
-                            <span className="text-white font-black text-sm tracking-widest uppercase">
-                                ✨ Just Finished!
-                            </span>
-                        </div>
-
-                        {/* Book Cover */}
-                        <div className="w-56 aspect-[2/3] rounded-2xl shadow-2xl overflow-hidden ring-4 ring-white/20 bg-gradient-to-br from-slate-700 to-slate-800">
-                            {book.cover ? (
-                                <img
-                                    src={book.cover}
-                                    alt={book.title}
-                                    className="w-full h-full object-cover"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center p-6 bg-gradient-to-br from-slate-600 to-slate-700">
-                                    <div className="text-center">
-                                        <div className="text-3xl font-black text-white leading-tight mb-2">
-                                            {book.title}
-                                        </div>
-                                        <div className="text-sm font-bold text-white/70">
-                                            {book.author}
-                                        </div>
-                                    </div>
+                            {/* Branding row */}
+                            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                    {logoDataUrl ? (
+                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                                    ) : (
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white' }} />
+                                    )}
+                                    <span style={{ color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>Bookea Reads</span>
                                 </div>
-                            )}
-                        </div>
+                                <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                    <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>MILESTONE</span>
+                                </div>
+                            </div>
 
-                        {/* Book Info */}
-                        <div className="text-center space-y-3 max-w-sm px-4">
-                            <h1 className="text-3xl font-black leading-tight text-white">
-                                {book.title}
-                            </h1>
-                            <p className="text-xl font-bold text-white/90">
-                                by {book.author}
-                            </p>
-
-                            {/* Rating */}
-                            <div className="flex items-center justify-center gap-2 mt-4">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                        key={star}
-                                        size={28}
-                                        fill={star <= (book.rating || 5) ? "#FCD34D" : "none"}
-                                        className={star <= (book.rating || 5) ? "text-yellow-300" : "text-white/30"}
-                                        strokeWidth={2}
+                            {/* Book cover — explicit height, no aspect-ratio */}
+                            <div style={{ width: '180px', height: '270px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 16px 32px rgba(0,0,0,0.4)' }}>
+                                {coverLoading ? (
+                                    <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>Loading...</span>
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={coverDataUrl}
+                                        alt={book.title}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     />
+                                )}
+                            </div>
+
+                            {/* Title */}
+                            <div style={{ textAlign: 'center', marginTop: '20px', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+                                <div style={{ fontFamily: "'Merriweather', Georgia, serif", fontSize: '20px', fontWeight: 900, color: 'white', lineHeight: 1.3, marginBottom: '6px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                    {book.title}
+                                </div>
+                                <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                    by <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700 }}>{book.author}</span>
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div style={{ width: '60px', height: '1px', background: 'rgba(255,255,255,0.15)', margin: '18px 0' }} />
+
+                            {/* Star rating — SVG based for perfect alignment */}
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '8px' }}>
+                                {[...Array(5)].map((_, i) => (
+                                    <StarIcon key={i} index={i} fill={Math.max(0, Math.min(1, rating - i))} />
                                 ))}
                             </div>
 
-                            {/* Spice Rating */}
-                            {book.spiceRating > 0 && (
-                                <div className="flex items-center justify-center gap-2 mt-3">
-                                    {[1, 2, 3, 4, 5].map((i) => {
-                                        const filled = book.spiceRating >= i;
-                                        const half = book.spiceRating >= i - 0.5 && book.spiceRating < i;
-                                        return (
-                                            <ChilliIcon
-                                                key={i}
-                                                size={20}
-                                                fillPercentage={filled ? 100 : half ? 50 : 0}
-                                                className={filled || half ? "text-red-400" : "text-white/30"}
-                                            />
-                                        );
-                                    })}
+                            {/* Spice rating */}
+                            {spice > 0 && (
+                                <div style={{
+                                    marginTop: '20px',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    padding: '8px 16px',
+                                    borderRadius: '16px',
+                                    display: 'flex',
+                                    gap: '6px',
+                                    border: '1px solid rgba(255,255,255,0.08)'
+                                }}>
+                                    {[...Array(5)].map((_, i) => (
+                                        <SpiceIcon key={i} fill={Math.max(0, Math.min(1, spice - i))} />
+                                    ))}
                                 </div>
                             )}
+
+                            {/* Footer */}
+                            <div style={{ marginTop: '32px', background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase' }}>
+                                    Reader Achievement Unlocked
+                                </span>
+                            </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="mt-4 bg-white/10 backdrop-blur-sm px-8 py-3 rounded-full border border-white/20">
-                            <span className="text-white font-bold text-sm uppercase tracking-wider">
-                                📚 Read on Bookea Reads
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                        {/* Error display */}
+                        {errorMsg && (
+                            <div className="w-full px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-xl">
+                                <p className="text-red-300 text-xs text-center">{errorMsg}</p>
+                            </div>
+                        )}
 
-                {/* Actions */}
-                <button
-                    onClick={handleDownload}
-                    disabled={generating}
-                    className="w-full py-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-70 disabled:cursor-wait"
-                >
-                    {generating ? 'Generating...' : (
-                        <>
-                            <Download size={20} /> Save Image
-                        </>
-                    )}
-                </button>
-
+                        {/* Save Button */}
+                        <button
+                            onClick={handleDownload}
+                            disabled={generating || coverLoading}
+                            className="w-full py-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-70 disabled:cursor-wait shrink-0"
+                        >
+                            {generating ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
+                                    </svg>
+                                    Generating...
+                                </span>
+                            ) : coverLoading ? (
+                                'Loading cover...'
+                            ) : (
+                                <>
+                                    <Download size={20} /> Save Image
+                                </>
+                            )}
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );

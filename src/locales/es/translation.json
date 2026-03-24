@@ -202,8 +202,8 @@
         "addBookShort": "+ Agregar libro",
         "modals": {
             "setGoals": "Fijar Metas",
-            "monthlyGoal": "Meta Mensual",
-            "yearlyGoal": "Meta Anual",
+            "monthlyGoal": "¿Cuántos libros al mes?",
+            "yearlyGoal": "Meta de libros al año",
             "booksMo": "Libros / Mes",
             "booksYr": "Libros / Año",
             "logProgress": "Registrar Progreso",
@@ -267,7 +267,8 @@
             "alphabetical": "Alfabético",
             "added": "Agregado Recientemente",
             "bought": "Comprado Recientemente"
-        }
+        },
+        "searchPlaceholder": "Buscar por título o autor..."
     },
     "calendar": {
         "title": "Calendario",
@@ -289,6 +290,12 @@
         "genres": "Géneros del Mes",
         "formats": "Formatos del Mes",
         "locations": "Lugares de Compra",
+        "locationNames": {
+            "Online": "En línea",
+            "Local Bookstore": "Librería Local",
+            "Gift": "Regalo",
+            "Other": "Otro"
+        },
         "growth": "Crecimiento Mensual ({{month}})",
         "tbrAdded": "Pila Agregada",
         "tbrTotal": "Total por Leer",

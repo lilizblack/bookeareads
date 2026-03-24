@@ -14,7 +14,8 @@ import {
     User,
     Save,
     Loader2,
-    Trash2
+    Trash2,
+    Maximize
 } from 'lucide-react';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -23,6 +24,7 @@ import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
 import { fetchBookData, searchBookSuggestions } from '../utils/bookApi';
+import { resizeImage } from '../utils/imageUtils';
 import CustomSelect from '../components/CustomSelect';
 import FormInput from '../components/FormInput';
 import FormButton from '../components/FormButton';
@@ -75,7 +77,6 @@ const AddBook = () => {
     });
 
     // State for tracking mode toggle and duration inputs
-    const [trackByChapters, setTrackByChapters] = useState(false);
     const [durationHours, setDurationHours] = useState(0);
     const [durationMinutes, setDurationMinutes] = useState(0);
 
@@ -168,15 +169,23 @@ const AddBook = () => {
         handleFetchData(decodedText, 'isbn');
     };
 
-    const handleImageUpload = (e) => {
+    const handleImageUpload = async (e) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, cover: reader.result }));
+            try {
                 setCoverError('');
-            };
-            reader.readAsDataURL(file);
+                setIsSearchingSuggestions(true); // Reuse loading state for resizing
+                
+                // Resize image to max 400x600 for book covers
+                const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
+                
+                setFormData(prev => ({ ...prev, cover: resizedBase64 }));
+            } catch (err) {
+                console.error("Image processing error:", err);
+                setCoverError('Failed to process image. Try a different photo.');
+            } finally {
+                setIsSearchingSuggestions(false);
+            }
         }
     };
 
@@ -196,9 +205,9 @@ const AddBook = () => {
                     newErrors.duration = t('addBook.form.errorDuration', 'Please enter total duration');
                 }
             } else {
-                const totalVal = trackByChapters ? formData.totalChapters : formData.totalPages;
+                const totalVal = formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages;
                 if (!totalVal || totalVal <= 0) {
-                    newErrors.pages = trackByChapters ? t('addBook.form.errorChapters') : t('addBook.form.errorPages');
+                    newErrors.pages = formData.progressMode === 'chapters' ? t('addBook.form.errorChapters') : t('addBook.form.errorPages');
                 }
             }
             if (!formData.format) newErrors.format = t('addBook.form.errorFormat');
@@ -216,6 +225,10 @@ const AddBook = () => {
             return;
         }
 
+        const total = formData.format === 'Audiobook'
+            ? (durationHours * 60 + durationMinutes)
+            : (formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages);
+
         const newBook = {
             ...formData,
             genres: [formData.genres],
@@ -223,12 +236,13 @@ const AddBook = () => {
             // Set tracking unit based on format and user selection
             tracking_unit: formData.format === 'Audiobook'
                 ? 'minutes' // Audiobooks track by time
-                : (trackByChapters ? 'chapters' : 'pages'),
-            progressMode: formData.format === 'Audiobook' ? 'minutes' : (trackByChapters ? 'chapters' : 'pages'), // Legacy field for compatibility
+                : (formData.progressMode === 'chapters' ? 'chapters' : 'pages'),
+            progressMode: formData.format === 'Audiobook' ? 'minutes' : (formData.progressMode === 'chapters' ? 'chapters' : 'pages'), // Legacy field for compatibility
             // Calculate total duration for audiobooks
             total_duration_minutes: formData.format === 'Audiobook'
                 ? (durationHours * 60 + durationMinutes)
                 : null,
+            progress: formData.status === 'read' ? total : formData.progress,
             updatedAt: new Date().toISOString(),
             // Ensure dates are set based on status
             startedAt: (formData.status === 'reading' || formData.status === 'read') ? (formData.startedAt || new Date().toISOString()) : null,
@@ -244,8 +258,16 @@ const AddBook = () => {
     };
 
     // Calculate progress percentage for display
-    const totalCount = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
-    const progressPercent = totalCount > 0 ? Math.round(((formData.progress || 0) / totalCount) * 100) : 0;
+    const getProgressPercent = () => {
+        const total = formData.format === 'Audiobook'
+            ? (durationHours * 60 + durationMinutes)
+            : (formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages);
+
+        if (!total || total <= 0) return 0;
+        return Math.round(((formData.progress || 0) / total) * 100);
+    };
+
+    const progressPercent = getProgressPercent();
 
     return (
         <div className="pb-10 pt-2">
@@ -299,7 +321,15 @@ const AddBook = () => {
                     <div className="flex justify-center">
                         <div className="w-32 aspect-[2/3] bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shadow-md">
                             {formData.cover ? (
-                                <img src={formData.cover} alt="Book cover" className="w-full h-full object-cover" />
+                                <img
+                                    src={formData.cover}
+                                    alt="Book cover"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        setFormData(prev => ({ ...prev, cover: generateGenericCover(formData.title, formData.author) }));
+                                    }}
+                                />
                             ) : (
                                 <div className="w-full h-full flex flex-col gap-2 items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-900/50">
                                     <Book size={48} strokeWidth={1.5} />
@@ -398,7 +428,15 @@ const AddBook = () => {
                                         >
                                             <div className="w-10 h-14 rounded bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden shadow-sm">
                                                 {book.cover ? (
-                                                    <img src={book.cover} alt="" className="w-full h-full object-cover" />
+                                                    <img
+                                                        src={book.cover}
+                                                        alt=""
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = generateGenericCover(book.title, book.author);
+                                                        }}
+                                                    />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
                                                         <Book size={16} />
@@ -440,40 +478,46 @@ const AddBook = () => {
                                 type="text"
                                 placeholder="9780316769174"
                                 value={formData.isbn}
-                                onChange={e => setFormData({ ...formData, isbn: e.target.value })}
+                                onChange={e => {
+                                    setFormData({ ...formData, isbn: e.target.value });
+                                    if (errors.isbn) setErrors({ ...errors, isbn: null });
+                                }}
                                 icon={ScanBarcode}
+                                error={errors.isbn}
                             />
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowScanner(true)}
-                            className="p-3.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors h-[52px] mb-[2px]"
-                            title="Scan Barcode"
-                        >
-                            <ScanBarcode size={20} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleFetchData(formData.isbn, 'isbn')}
-                            disabled={fetchingCover || !formData.isbn.trim()}
-                            className="p-3.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50 h-[52px] mb-[2px] shadow-lg shadow-violet-500/20"
-                            title="Fetch by ISBN"
-                        >
-                            {fetchingCover ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-                        </button>
+                        <div className="flex gap-2 mb-[2px]">
+                            <button
+                                type="button"
+                                onClick={() => handleFetchData(formData.isbn, 'isbn')}
+                                disabled={fetchingCover || !formData.isbn.trim()}
+                                className="p-3.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-all active:scale-95 disabled:opacity-50 h-[52px] shadow-lg shadow-violet-500/20"
+                                title="Search by ISBN"
+                            >
+                                {fetchingCover ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowScanner(true)}
+                                className="p-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-200 transition-all active:scale-95 h-[52px]"
+                                title="Scan Barcode"
+                            >
+                                <Maximize size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Pages/Chapters Field */}
                     {(formData.format === 'Physical' || formData.format === 'Ebook' || !formData.format) && (
                         <FormInput
-                            label={trackByChapters ? t('book.fields.chapters') : t('book.fields.pages')}
+                            label={formData.progressMode === 'chapters' ? t('book.fields.chapters') : t('book.fields.pages')}
                             type="number"
                             placeholder="0"
-                            value={trackByChapters ? formData.totalChapters : formData.totalPages}
+                            value={formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages}
                             helperText={t('addBook.form.pagesTip')}
                             onChange={e => {
-                                const value = parseInt(e.target.value) || '';
-                                if (trackByChapters) {
+                                const value = e.target.value === '' ? '' : parseInt(e.target.value);
+                                if (formData.progressMode === 'chapters') {
                                     setFormData({ ...formData, totalChapters: value });
                                 } else {
                                     setFormData({ ...formData, totalPages: value });
@@ -524,7 +568,9 @@ const AddBook = () => {
                                     const newStatus = e.target.value;
                                     let updates = { status: newStatus };
                                     if (newStatus === 'read') {
-                                        const total = formData.format === 'Audiobook' ? formData.totalChapters : formData.totalPages;
+                                        const total = formData.format === 'Audiobook'
+                                            ? (durationHours * 60 + durationMinutes)
+                                            : (formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages);
                                         if (total) updates.progress = total;
                                         const today = new Date().toISOString().split('T')[0];
                                         if (!formData.startedAt) updates.startedAt = today;
@@ -563,7 +609,7 @@ const AddBook = () => {
                                 className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 outline-none focus:ring-2 focus:ring-violet-500 transition-shadow dark:text-white"
                                 placeholder="0"
                                 value={formData.progress || ''}
-                                onChange={e => setFormData({ ...formData, progress: parseInt(e.target.value) || 0 })}
+                                onChange={e => setFormData({ ...formData, progress: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                             />
 
                             <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
@@ -630,10 +676,12 @@ const AddBook = () => {
                         <div className="animate-fade-in bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
                             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
                                 {t('addBook.form.totalDuration', 'Total Duration')}
-                                <span className="text-red-500 ml-1">*</span>
+                                {formData.status !== 'want-to-read' && <span className="text-red-500 ml-1">*</span>}
                             </label>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">
-                                {t('addBook.form.durationTip', 'Required for time-based progress tracking')}
+                                {formData.status === 'want-to-read'
+                                    ? t('addBook.form.durationTipOptional', 'Optional for Want to Read')
+                                    : t('addBook.form.durationTip', 'Required for time-based progress tracking')}
                             </p>
                             <div className="flex gap-3">
                                 <div className="flex-1">
@@ -645,7 +693,7 @@ const AddBook = () => {
                                         min="0"
                                         value={durationHours}
                                         onChange={(e) => {
-                                            setDurationHours(parseInt(e.target.value) || 0);
+                                            setDurationHours(e.target.value === '' ? 0 : parseInt(e.target.value));
                                             if (errors.duration) setErrors({ ...errors, duration: null });
                                         }}
                                         className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
@@ -662,7 +710,7 @@ const AddBook = () => {
                                         max="59"
                                         value={durationMinutes}
                                         onChange={(e) => {
-                                            setDurationMinutes(Math.min(59, parseInt(e.target.value) || 0));
+                                            setDurationMinutes(Math.min(59, e.target.value === '' ? 0 : parseInt(e.target.value)));
                                             if (errors.duration) setErrors({ ...errors, duration: null });
                                         }}
                                         className="w-full bg-white dark:bg-slate-800 rounded-lg p-3 text-center text-lg font-bold outline-none border-2 border-transparent focus:border-blue-500 dark:text-white"
@@ -688,16 +736,16 @@ const AddBook = () => {
                                 </label>
                                 <button
                                     type="button"
-                                    onClick={() => setTrackByChapters(!trackByChapters)}
-                                    className={`relative w-14 h-7 rounded-full transition-colors ${trackByChapters ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-600'
+                                    onClick={() => setFormData({ ...formData, progressMode: formData.progressMode === 'chapters' ? 'pages' : 'chapters' })}
+                                    className={`relative w-14 h-7 rounded-full transition-colors ${formData.progressMode === 'chapters' ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-600'
                                         }`}
                                 >
-                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${trackByChapters ? 'left-8' : 'left-1'
+                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${formData.progressMode === 'chapters' ? 'left-8' : 'left-1'
                                         }`} />
                                 </button>
                             </div>
                             <p className="text-xs text-slate-600 dark:text-slate-400">
-                                {trackByChapters
+                                {formData.progressMode === 'chapters'
                                     ? t('addBook.form.trackingChapters', 'Track progress by chapters')
                                     : t('addBook.form.trackingPages', 'Track progress by pages')}
                             </p>
@@ -798,7 +846,7 @@ const AddBook = () => {
                                                 placeholder="0.00"
                                                 className="w-16 bg-transparent text-sm font-bold text-emerald-600 dark:text-emerald-400 outline-none"
                                                 value={formData.price}
-                                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                                onChange={e => setFormData({ ...formData, price: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                                             />
                                         </div>
                                         <input
@@ -829,8 +877,10 @@ const AddBook = () => {
                                             onChange={e => setFormData({ ...formData, purchaseLocation: e.target.value })}
                                             options={[
                                                 { value: '', label: t('app.select') },
-                                                { value: 'Online', label: 'Online' },
-                                                { value: 'Local Bookstore', label: 'Local Bookstore' }
+                                                { value: 'Online', label: t('calendar.locationNames.Online') },
+                                                { value: 'Local Bookstore', label: t('calendar.locationNames.Local Bookstore') },
+                                                { value: 'Gift', label: t('calendar.locationNames.Gift') },
+                                                { value: 'Other', label: t('calendar.locationNames.Other') }
                                             ]}
                                             placeholder={t('app.select')}
                                             className="text-xs"

@@ -3,9 +3,10 @@ import { useBooks } from '../context/BookContext';
 import { useTheme } from '../context/ThemeContext';
 import BookCard from '../components/BookCard';
 import Header from '../components/Header';
+import ReviewModal from '../components/ReviewModal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book, Plus, Check } from 'lucide-react';
+import { Filter, X, ArrowDownUp, Loader2, Trash2, CheckSquare, Square, LayoutGrid, List, Book, Plus, Check, Search } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { BookListSkeleton } from '../components/BookCardSkeleton';
 import EmptyState from '../components/EmptyState';
@@ -21,12 +22,15 @@ const Library = () => {
     // Manual search params to avoid hook issues
     const searchParams = new URLSearchParams(location.search);
     const [filterOpen, setFilterOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
 
     // Selection Mode States
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [pendingReviewBook, setPendingReviewBook] = useState(null);
 
     // Filter States
     const [statusFilter, setStatusFilter] = useState('All');
@@ -113,24 +117,30 @@ const Library = () => {
         }
 
         let ratingMatch = true;
-        // const maxRatingParam = searchParams.get('maxRating');
-        // if (maxRatingParam) {
-        //     // "Worst Review" filter: Show rated books <= maxRating
-        //     if (book.rating && book.rating > 0) {
-        //         ratingMatch = book.rating <= parseFloat(maxRatingParam);
-        //     } else {
-        //         ratingMatch = false; // Exclude unrated
-        //     }
-        // }
 
-        return statusMatch && formatMatch && ratingMatch;
+        let searchMatch = true;
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            searchMatch = (book.title?.toLowerCase().includes(query)) ||
+                (book.author?.toLowerCase().includes(query));
+        }
+
+        return statusMatch && formatMatch && ratingMatch && searchMatch;
     });
 
     // Sorting
     filteredBooks.sort((a, b) => {
         if (sortBy === 'Alphabetical') return a.title.localeCompare(b.title);
-        if (sortBy === 'Recently Added') return new Date(b.addedAt) - new Date(a.addedAt);
-        if (sortBy === 'Recently Bought') return new Date(b.boughtDate || 0) - new Date(a.boughtDate || 0);
+        if (sortBy === 'Recently Added') {
+            const dateA = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+            const dateB = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+            return dateB - dateA;
+        }
+        if (sortBy === 'Recently Bought') {
+            const dateA = a.boughtDate ? new Date(a.boughtDate).getTime() : 0;
+            const dateB = b.boughtDate ? new Date(b.boughtDate).getTime() : 0;
+            return dateB - dateA;
+        }
         return 0;
     });
 
@@ -210,12 +220,27 @@ const Library = () => {
             totalProgress = book.totalPages || 0;
         }
 
+        // Silent update to mark as read first
         updateBook(book.id, {
             status: 'read',
             progress: totalProgress,
             finishedAt: new Date().toISOString()
-        });
+        }, { silent: true });
+
+        setPendingReviewBook({ ...book, status: 'read', progress: totalProgress });
+        setShowReviewModal(true);
         setSelectedBook(null);
+    };
+
+    const handleReviewSubmit = (stars, comments) => {
+        if (pendingReviewBook) {
+            updateBook(pendingReviewBook.id, {
+                rating: stars,
+                review: comments
+            }, { celebrate: true }); // Now trigger celebration
+            setShowReviewModal(false);
+            setPendingReviewBook(null);
+        }
     };
 
     return (
@@ -228,6 +253,28 @@ const Library = () => {
                     <div className="flex items-center gap-2">
                         <p className="text-xs text-slate-400 font-bold uppercase">{t('library.bookCount', { count: filteredBooks.length })}</p>
                     </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Search size={16} className={`${searchQuery ? 'text-violet-500' : 'text-slate-400'} transition-colors`} />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder={t('library.searchPlaceholder')}
+                        className="block w-full pl-11 pr-10 py-3.5 bg-slate-100 dark:bg-slate-800/50 border-none rounded-[20px] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:text-white transition-all shadow-sm group-hover:bg-slate-200/50 dark:group-hover:bg-slate-800"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        >
+                            <X size={16} strokeWidth={2.5} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -274,12 +321,13 @@ const Library = () => {
                         </button>
                     </div>
 
+
+
                     <div className="flex gap-2">
-                        <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
+                        <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-black uppercase text-slate-500 transition-all hover:bg-slate-200">
                             {t('library.filter')} <Filter size={14} />
                         </button>
-                        <div className="w-px h-4 bg-slate-300 dark:bg-slate-700 my-auto" />
-                        <button className="flex items-center gap-1 text-xs font-bold uppercase text-slate-500">
+                        <button className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-black uppercase text-slate-500 transition-all hover:bg-slate-200">
                             {sortBy === 'Alphabetical' ? t('library.sort.alphabetical') : sortBy === 'Recently Added' ? t('library.sort.added') : t('library.sort.bought')} <ArrowDownUp size={14} />
                         </button>
                     </div>
@@ -574,6 +622,12 @@ const Library = () => {
                     actionPath="/add"
                 />
             )}
+            <ReviewModal
+                book={pendingReviewBook}
+                isOpen={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                onSubmit={handleReviewSubmit}
+            />
         </div>
     );
 };

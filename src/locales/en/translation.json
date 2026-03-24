@@ -199,8 +199,8 @@
         "addBookShort": "+ Add book",
         "modals": {
             "setGoals": "Set Goals",
-            "monthlyGoal": "Monthly Goal",
-            "yearlyGoal": "Yearly Goal",
+            "monthlyGoal": "How many book in a months",
+            "yearlyGoal": "Year target book",
             "booksMo": "Books / Mo",
             "booksYr": "Books / Yr",
             "logProgress": "Log Progress",
@@ -264,7 +264,8 @@
             "alphabetical": "Alphabetical",
             "added": "Recently Added",
             "bought": "Recently Bought"
-        }
+        },
+        "searchPlaceholder": "Search by title or author..."
     },
     "calendar": {
         "title": "Calendar",
@@ -285,7 +286,13 @@
         "analytics": "Monthly Analytics",
         "genres": "Monthly Top Genres",
         "formats": "Monthly Book Formats",
-        "locations": "Monthly Purchase Locations",
+        "locations": "Purchase Locations",
+        "locationNames": {
+            "Online": "Online",
+            "Local Bookstore": "Local Bookstore",
+            "Gift": "Gift",
+            "Other": "Other"
+        },
         "growth": "Monthly Growth ({{month}})",
         "tbrAdded": "TBR Added",
         "tbrTotal": "TBR Total",

@@ -255,13 +255,15 @@ const AnnualReport = () => {
 
     acquiredBooksThisYear.forEach(b => {
         const loc = b.purchaseLocation;
-        const price = parseFloat(b.price) || 0;
-        locationCounts[loc] = (locationCounts[loc] || 0) + price;
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
     });
     const locationData = Object.entries(locationCounts)
-        .sort((a, b) => b[1] - a[1]) // Sort by highest spend
+        .sort((a, b) => b[1] - a[1]) // Sort by highest count
         .slice(0, 5) // Top 5 locations
-        .map(([name, value]) => ({ name, value }));
+        .map(([name, value]) => ({
+            name: t(`calendar.locationNames.${name}`, { defaultValue: name }),
+            value
+        }));
 
     // Format distribution (Translated, from all active books this year)
     const formatCounts = {};
@@ -556,7 +558,7 @@ const AnnualReport = () => {
                     title={t('calendar.locations', 'Purchase Locations')}
                     data={locationData}
                     colors={themePreset === 'paper-ink' ? ['#333333', '#555555', '#777777', '#999999', '#BBBBBB'] : themePreset === 'dark-romance' ? ['#5D2424', '#3D1414', '#2D0E0E', '#B0AEB4', '#606066'] : themePreset === 'romance' ? ['#C00645', '#D05D65', '#E1848C', '#EAA8AC', '#F3E4E5'] : ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6']}
-                    isCurrency={true}
+                    isCurrency={false}
                 />
             </div>
         </div>

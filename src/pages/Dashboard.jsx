@@ -98,18 +98,31 @@ const Dashboard = () => {
         }
     };
 
-    const saveProgress = () => {
-        if (selectedBook) {
-            const oldProgress = selectedBook.progress || 0;
-            const sessionProgress = Math.max(0, newProgress - oldProgress);
+    const saveProgress = async () => {
+        if (!selectedBook) return;
 
-            logReading(selectedBook.id, newProgress);
-            if (elapsedMinutes > 0) {
-                stopTimer(selectedBook.id, elapsedMinutes, sessionProgress);
-                setElapsedMinutes(0);
-            }
-            setSelectedBook(null);
+        const oldProgress = selectedBook.progress || 0;
+        const validProgress = Number(newProgress) || 0;
+        const sessionProgress = Math.max(0, validProgress - oldProgress);
+
+        logReading(selectedBook.id, validProgress);
+
+        if (elapsedMinutes > 0) {
+            stopTimer(selectedBook.id, elapsedMinutes, sessionProgress);
+            setElapsedMinutes(0);
         }
+
+        const completed = selectedBook.tracking_unit === 'chapters'
+            ? validProgress >= (selectedBook.totalChapters || 0)
+            : validProgress >= (selectedBook.totalPages || 0);
+
+        if (completed && selectedBook.status !== 'read') {
+            updateBook(selectedBook.id, {
+                status: 'read',
+                finishedAt: new Date().toISOString()
+            });
+        }
+        setSelectedBook(null);
     };
 
     const handleMarkAsFinished = (book) => {
@@ -191,9 +204,13 @@ const Dashboard = () => {
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
+                                        max="300"
                                         className="flex-1 min-w-0 text-center text-3xl font-black bg-slate-50 dark:bg-slate-800/50 rounded-2xl py-3 outline-none border-2 border-transparent focus:border-blue-500 transition-all dark:text-white"
                                         value={tempGoals.monthly}
-                                        onChange={e => setTempGoals(prev => ({ ...prev, monthly: Number(e.target.value) }))}
+                                        onChange={e => {
+                                            const val = Math.min(300, parseInt(e.target.value) || 0);
+                                            setTempGoals(prev => ({ ...prev, monthly: val }));
+                                        }}
                                     />
                                     <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksMo')}</span>
                                 </div>
@@ -204,9 +221,13 @@ const Dashboard = () => {
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
+                                        max="999"
                                         className="flex-1 min-w-0 text-center text-3xl font-black bg-slate-50 dark:bg-slate-800/50 rounded-2xl py-3 outline-none border-2 border-transparent focus:border-emerald-500 transition-all dark:text-white"
                                         value={tempGoals.yearly}
-                                        onChange={e => setTempGoals(prev => ({ ...prev, yearly: Number(e.target.value) }))}
+                                        onChange={e => {
+                                            const val = Math.min(999, parseInt(e.target.value) || 0);
+                                            setTempGoals(prev => ({ ...prev, yearly: val }));
+                                        }}
                                     />
                                     <span className="text-slate-400 font-bold uppercase text-xs">{t('dashboard.modals.booksYr')}</span>
                                 </div>
@@ -304,8 +325,8 @@ const Dashboard = () => {
                                     <input
                                         type="number"
                                         className="w-full text-center text-5xl font-black bg-transparent outline-none p-2 dark:text-white border-b-2 border-violet-500"
-                                        value={newProgress}
-                                        onChange={e => setNewProgress(Number(e.target.value))}
+                                        value={newProgress === '' ? '' : Number(newProgress)}
+                                        onChange={e => setNewProgress(e.target.value === '' ? '' : Number(e.target.value))}
                                         disabled={selectedBook.status === 'read'}
                                         autoFocus={selectedBook.status !== 'read'}
                                     />

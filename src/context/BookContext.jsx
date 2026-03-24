@@ -29,6 +29,29 @@ export const useBooks = () => {
     return context;
 };
 
+// Internal utility to safely map Firestore Timestamps to ISO strings
+const mapTimestampToISO = (val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return val;
+    if (val.toDate && typeof val.toDate === 'function') {
+        try {
+            return val.toDate().toISOString();
+        } catch (e) {
+            console.error('Error converting Timestamp to ISO:', e);
+            return null;
+        }
+    }
+    // If it's a POJO Timestamp (seconds/nanoseconds)
+    if (val.seconds !== undefined) {
+        try {
+            return new Date(val.seconds * 1000).toISOString();
+        } catch (e) {
+            return null;
+        }
+    }
+    return val;
+};
+
 const INITIAL_BOOKS = [
     {
         id: '1',
@@ -120,16 +143,17 @@ export const BookProvider = ({ children }) => {
                                 ...data,
                                 genres: Array.isArray(data.genres) ? data.genres : (data.genres ? [data.genres] : []),
                                 format: data.format || 'Physical',
-                                addedAt: data.addedAt?.toDate?.()?.toISOString() || data.addedAt,
-                                startedAt: data.startedAt?.toDate?.()?.toISOString() || data.startedAt,
-                                finishedAt: data.finishedAt?.toDate?.()?.toISOString() || data.finishedAt,
-                                pausedAt: data.pausedAt?.toDate?.()?.toISOString() || data.pausedAt,
-                                dnfAt: data.dnfAt?.toDate?.()?.toISOString() || data.dnfAt,
-                                updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-                                readingLogs: data.readingLogs || [],
-                                notes: data.notes || [],
-                                language: data.language || 'English',
-                                hasSpice: data.hasSpice ?? (data.spiceRating > 0)
+                                addedAt: mapTimestampToISO(data.addedAt),
+                                startedAt: mapTimestampToISO(data.startedAt),
+                                finishedAt: mapTimestampToISO(data.finishedAt),
+                                pausedAt: mapTimestampToISO(data.pausedAt),
+                                dnfAt: mapTimestampToISO(data.dnfAt),
+                                updatedAt: mapTimestampToISO(data.updatedAt),
+                                boughtDate: mapTimestampToISO(data.boughtDate),
+                                readingLogs: (data.readingLogs || []).map(log => ({
+                                    ...log,
+                                    date: mapTimestampToISO(log.date)
+                                })),
                             };
                         });
                         console.log(`✅ Loaded ${appBooks.length} books from Firestore`);
@@ -143,9 +167,28 @@ export const BookProvider = ({ children }) => {
                     console.error('Error details:', JSON.stringify(error, null, 2));
                     // Fallback to localStorage if Firestore fails
                     if (savedBooks) {
-                        const parsedBooks = JSON.parse(savedBooks);
-                        console.log(`⚠️ Fallback to localStorage: ${parsedBooks.length} books`);
-                        setBooks(parsedBooks);
+                        try {
+                            const parsedBooks = JSON.parse(savedBooks);
+                            const mappedParsed = (parsedBooks || []).map(b => ({
+                                ...b,
+                                addedAt: mapTimestampToISO(b.addedAt),
+                                startedAt: mapTimestampToISO(b.startedAt),
+                                finishedAt: mapTimestampToISO(b.finishedAt),
+                                pausedAt: mapTimestampToISO(b.pausedAt),
+                                dnfAt: mapTimestampToISO(b.dnfAt),
+                                updatedAt: mapTimestampToISO(b.updatedAt),
+                                boughtDate: mapTimestampToISO(b.boughtDate),
+                                readingLogs: (b.readingLogs || []).map(log => ({
+                                    ...log,
+                                    date: mapTimestampToISO(log.date)
+                                })),
+                            }));
+                            console.log(`⚠️ Fallback to localStorage: ${mappedParsed.length} books`);
+                            setBooks(mappedParsed);
+                        } catch (parseError) {
+                            console.error('❌ Error parsing localStorage books:', parseError);
+                            setBooks([]);
+                        }
                     }
                 }
 
@@ -336,16 +379,15 @@ export const BookProvider = ({ children }) => {
     // Celebration State (Share Modal) - closeCelebration helper
     const closeCelebration = () => setCelebrationBook(null);
 
-    const updateBook = async (id, updates) => {
-        // Trigger celebration if marking as read
-        if (updates.status === 'read') {
+    const updateBook = async (id, updates, options = {}) => {
+        // Trigger celebration if marking as read or explicitly requested
+        if ((updates.status === 'read' || options.celebrate) && !options.silent) {
             const currentBook = books.find(b => b.id === id);
-            if (currentBook && currentBook.status !== 'read') {
+            if (currentBook && (currentBook.status !== 'read' || options.celebrate)) {
                 // Determine completion date/data for the celebration card
                 const celebrationData = {
                     ...currentBook,
                     ...updates,
-                    // Ensure cover/title/author are present
                 };
                 setCelebrationBook(celebrationData);
             }
@@ -408,13 +450,14 @@ export const BookProvider = ({ children }) => {
                         hasSpice: updated.hasSpice || false,
                         isFavorite: updated.isFavorite,
                         isOwned: updated.isOwned,
-                        finishedAt: updated.finishedAt ? Timestamp.fromDate(new Date(updated.finishedAt)) : null,
-                        pausedAt: updated.pausedAt ? Timestamp.fromDate(new Date(updated.pausedAt)) : null,
-                        dnfAt: updated.dnfAt ? Timestamp.fromDate(new Date(updated.dnfAt)) : null,
-                        review: updated.review,
-                        cover: updated.cover,
-                        title: updated.title,
-                        author: updated.author,
+                        startedAt: updated.startedAt ? (typeof updated.startedAt === 'string' ? Timestamp.fromDate(new Date(updated.startedAt)) : updated.startedAt) : null,
+                        finishedAt: updated.finishedAt ? (typeof updated.finishedAt === 'string' ? Timestamp.fromDate(new Date(updated.finishedAt)) : updated.finishedAt) : null,
+                        pausedAt: updated.pausedAt ? (typeof updated.pausedAt === 'string' ? Timestamp.fromDate(new Date(updated.pausedAt)) : updated.pausedAt) : null,
+                        dnfAt: updated.dnfAt ? (typeof updated.dnfAt === 'string' ? Timestamp.fromDate(new Date(updated.dnfAt)) : updated.dnfAt) : null,
+                        review: updated.review || null,
+                        cover: updated.cover || null,
+                        title: updated.title || 'Untitled',
+                        author: updated.author || 'Unknown',
                         updatedAt: serverTimestamp(),
                         language: updated.language || 'English',
                         // Add missing fields for full sync
@@ -424,17 +467,20 @@ export const BookProvider = ({ children }) => {
                         isbn: updated.isbn || null,
                         totalTimeRead: updated.totalTimeRead || 0,
                         totalTimedProgress: updated.totalTimedProgress || 0,
-                        readingLogs: updated.readingLogs || [],
+                        readingLogs: (updated.readingLogs || []).map(log => ({
+                            ...log,
+                            date: typeof log.date === 'string' ? log.date : mapTimestampToISO(log.date)
+                        })),
                         progressMode: updated.progressMode || 'pages',
                         totalPages: updated.totalPages || null,
                         totalChapters: updated.totalChapters || null,
                         isWantToBuy: updated.isWantToBuy || false,
-                        boughtDate: updated.boughtDate ? Timestamp.fromDate(new Date(updated.boughtDate)) : null,
+                        boughtDate: updated.boughtDate ? (typeof updated.boughtDate === 'string' ? Timestamp.fromDate(new Date(updated.boughtDate)) : updated.boughtDate) : null,
                         ownershipStatus: updated.ownershipStatus || 'kept',
                         purchaseLocation: updated.purchaseLocation || '',
                         otherVersions: updated.otherVersions || [],
                         // New fields for multi-format time estimation
-                        tracking_unit: updates.tracking_unit || updates.progressMode || book.tracking_unit || book.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
+                        tracking_unit: updates.tracking_unit || updates.progressMode || updated.tracking_unit || updated.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
                         total_duration_minutes: updated.total_duration_minutes || null
                     };
 
@@ -1469,6 +1515,7 @@ export const BookProvider = ({ children }) => {
             userProfile,
             updateUserProfile,
             celebrationBook,
+            setCelebrationBook,
             closeCelebration,
             activeTimer,
             startTimer,

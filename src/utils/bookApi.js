@@ -59,20 +59,26 @@ export const fetchBookData = async (query, searchType = 'title') => {
         const googleResult = await searchGoogleBooks(query, searchType, 1);
 
         if (googleResult.success && googleResult.data) {
-            console.log('✅ Found in Google Books');
-            return {
-                ...googleResult,
-                data: Array.isArray(googleResult.data) ? googleResult.data[0] : googleResult.data
-            };
-        }
+            const data = Array.isArray(googleResult.data) ? googleResult.data[0] : googleResult.data;
+            // If we have a cover that's not a placeholder, return immediately
+            if (data.cover && !data.cover.includes('placeholder')) {
+                console.log('✅ Found in Google Books with cover');
+                return { success: true, data };
+            }
+            console.log('ℹ️ Found in Google Books but NO cover, checking Open Library for better data...');
 
-        // Step 2: Fallback to Open Library API
-        console.log('⚠️ Google Books failed, trying Open Library...');
-        const openLibraryResult = await searchOpenLibrary(query, searchType);
+            // Try Open Library to see if it has a cover
+            const openLibraryResult = await searchOpenLibrary(query, searchType);
+            if (openLibraryResult.success && openLibraryResult.data && openLibraryResult.data.cover && !openLibraryResult.data.cover.includes('placeholder')) {
+                console.log('✅ Found better data in Open Library (including cover)');
+                // Merge data, prioritizing Open Library cover but keeping other Google info?
+                // Or just return Open Library result if it's good.
+                return openLibraryResult;
+            }
 
-        if (openLibraryResult.success && openLibraryResult.data) {
-            console.log('✅ Found in Open Library');
-            return openLibraryResult;
+            // If OL didn't provide a cover either, but Google had data, return Google's data
+            console.log('⚠️ Open Library also had no cover, returning Google Books data');
+            return { success: true, data };
         }
 
         // Step 3: Both failed

@@ -16,6 +16,26 @@ export const generateGenericCover = (title, author) => {
     // Book Icon Path (from Lucide)
     const bookIconPath = "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z";
 
+    // Wrap title helper
+    const wrapText = (text, maxLength = 20) => {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+            if ((currentLine + ' ' + words[i]).length < maxLength) {
+                currentLine += ' ' + words[i];
+            } else {
+                lines.push(currentLine);
+                currentLine = words[i];
+            }
+        }
+        lines.push(currentLine);
+        return lines.slice(0, 4); // Limit to 4 lines
+    };
+
+    const titleLines = wrapText(title || 'Unknown Title');
+
     const svg = `
         <svg width="300" height="450" viewBox="0 0 300 450" xmlns="http://www.w3.org/2000/svg">
             <rect width="300" height="450" fill="${bgColor}"/>
@@ -24,20 +44,29 @@ export const generateGenericCover = (title, author) => {
             <!-- Book Icon in Background -->
             <path d="${bookIconPath}" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" transform="translate(100, 150) scale(4)"/>
 
-            <foreignObject x="30" y="60" width="240" height="330">
-                <div xmlns="http://www.w3.org/1999/xhtml" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; font-family: sans-serif; padding: 20px;">
-                    <div style="margin-bottom: 20px;">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                        </svg>
-                    </div>
-                    <div style="font-size: 24px; font-weight: 800; line-height: 1.2; margin-bottom: 20px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;">${title || 'Unknown Title'}</div>
-                    <div style="width: 40px; height: 2px; background: rgba(255,255,255,0.5); margin: 20px 0;"></div>
-                    <div style="font-size: 16px; font-weight: 400; opacity: 0.9;">${author || 'Unknown Author'}</div>
-                </div>
-            </foreignObject>
+            <!-- Center Content -->
+            <g transform="translate(150, 225)">
+                <!-- Icon -->
+                <g transform="translate(-32, -140)">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="white" stroke-width="2" fill="none"/>
+                </g>
+
+                <!-- Title wrapping -->
+                <text y="-20" text-anchor="middle" fill="white" style="font-family: sans-serif; font-size: 28px; font-weight: 900;">
+                    ${titleLines.map((line, i) => `<tspan x="0" dy="${i === 0 ? 0 : '1.2em'}">${line}</tspan>`).join('')}
+                </text>
+
+                <!-- Divider -->
+                <line x1="-20" y1="80" x2="20" y2="80" stroke="white" stroke-width="2" opacity="0.5" />
+
+                <!-- Author -->
+                <text y="120" text-anchor="middle" fill="white" style="font-family: sans-serif; font-size: 18px; font-weight: 400; opacity: 0.9;">
+                    ${author || 'Unknown Author'}
+                </text>
+            </g>
         </svg>
     `;
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    const base64Svg = btoa(unescape(encodeURIComponent(svg)));
+    return `data:image/svg+xml;base64,${base64Svg}`;
 };

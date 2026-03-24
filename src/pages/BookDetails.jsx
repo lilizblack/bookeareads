@@ -4,17 +4,24 @@ import { useBooks } from '../context/BookContext';
 import { format, parseISO } from 'date-fns';
 import Rating from '../components/Rating';
 import SpiceRating from '../components/SpiceRating';
-import { ArrowLeft, Heart, Notebook, Pencil, Upload, Image as ImageIcon, Save, X as CloseIcon, ScanBarcode, AlertTriangle, Timer, Search, Loader2, Trash2, Check, Book, BookOpen } from 'lucide-react';
+import ReviewModal from '../components/ReviewModal';
+import {
+    Book, Heart, Clock, Calendar, CheckCircle, ChevronRight, Share2, MoreVertical,
+    Edit2, Trash2, Camera, Upload, BookOpen, AlertTriangle, AlertCircle, Bookmark,
+    Star, Flame, Trophy, MapPin, ExternalLink, RefreshCw, X, MessageSquare, Plus,
+    Save, Hash, Headphones, User, List, Layers, Type, Globe, ShoppingBag, Eye,
+    EyeOff, Notebook, Pencil, Image as ImageIcon, ScanBarcode, Timer, Search,
+    Loader2, Check
+} from 'lucide-react';
 import { getReadingSpeed, getEstimatedTimeLeft } from '../utils/bookUtils';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
 import CoverImage from '../components/CoverImage';
-import ShareModal from '../components/ShareModal';
 import { getCurrencySymbol } from '../utils/currency';
-import { Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import CustomSelect from '../components/CustomSelect';
 import { fetchBookData } from '../utils/bookApi';
+import { resizeImage } from '../utils/imageUtils';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
@@ -47,20 +54,29 @@ const BookDetails = () => {
     const [showLogModal, setShowLogModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewStars, setReviewStars] = useState(0);
+    const [reviewComments, setReviewComments] = useState('');
     const [newProgress, setNewProgress] = useState(0);
     const [progressHours, setProgressHours] = useState(0);
     const [progressMinutes, setProgressMinutes] = useState(0);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
+    const [localReview, setLocalReview] = useState('');
+    const [localDescription, setLocalDescription] = useState('');
     const fileInputRef = useRef(null);
 
     useEffect(() => {
         const found = books.find(b => b.id === id);
         if (found) {
             setBook(found);
-            setEditData(found);
+            if (!isEditing) {
+                setEditData(found);
+                setLocalReview(found.review || '');
+                setLocalDescription(found.description || '');
+            }
         }
         else navigate('/');
-    }, [id, books, navigate]);
+    }, [id, books, navigate, isEditing]);
 
     if (!book) return null;
 
@@ -82,6 +98,14 @@ const BookDetails = () => {
         if (duplicate.exists) {
             setDuplicateError(duplicate);
             return;
+        }
+
+        // Validation for audiobooks - only required if not 'want-to-read'
+        if (editData.status !== 'want-to-read' && editData.format === 'Audiobook') {
+            if (!editData.total_duration_minutes || editData.total_duration_minutes <= 0) {
+                setCoverError(t('addBook.form.errorDuration', 'Please enter total duration for audiobook'));
+                return;
+            }
         }
 
         updateBook(book.id, editData);
@@ -106,28 +130,42 @@ const BookDetails = () => {
             const updates = { [field]: value };
 
             // Auto-fill progress when status changes to "Read"
+            // Check if status changed to 'read' to trigger review flow
             if (field === 'status' && value === 'read') {
-                if (book.totalPages) {
-                    updates.progress = book.totalPages;
-                } else if (book.totalChapters) {
-                    updates.progress = book.totalChapters;
+                if (book.format === 'Audiobook') {
+                    updates.progress = book.total_duration_minutes || 0;
+                } else if (book.tracking_unit === 'chapters' || book.progressMode === 'chapters') {
+                    updates.progress = book.totalChapters || 0;
+                } else {
+                    updates.progress = book.totalPages || 0;
                 }
+                updates.finishedAt = new Date().toISOString();
+
+                // Show review modal after state updates
+                setReviewStars(book.rating || 0);
+                setReviewComments(book.review || '');
+                setShowReviewModal(true);
             } else if (field === 'status' && value === 'want-to-read') {
                 updates.progress = 0;
             }
-            updateBook(book.id, updates);
+            updateBook(book.id, updates, { silent: field === 'status' && value === 'read' });
         }
     };
 
-    const handleImageUpload = (e) => {
+    const handleImageUpload = async (e) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setEditData(prev => ({ ...prev, cover: reader.result }));
+            try {
                 setCoverError('');
-            };
-            reader.readAsDataURL(file);
+                setFetchingCover(true);
+                const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
+                setEditData(prev => ({ ...prev, cover: resizedBase64 }));
+            } catch (err) {
+                console.error("Image processing error:", err);
+                setCoverError('Failed to process image.');
+            } finally {
+                setFetchingCover(false);
+            }
         }
     };
 
@@ -254,32 +292,50 @@ const BookDetails = () => {
             status: 'read',
             progress: totalProgress,
             finishedAt: new Date().toISOString()
-        });
+        }, { silent: true });
+
+        // Show review modal
+        setReviewStars(book.rating || 0);
+        setReviewComments(book.review || '');
+        setShowReviewModal(true);
         setShowLogModal(false);
+    };
+
+    const handleReviewSubmit = (stars, comments) => {
+        updateBook(book.id, {
+            rating: stars,
+            review: comments
+        }, { celebrate: true }); // Explicitly trigger celebration
+        setShowReviewModal(false);
     };
 
     // Always calculate percentage from actual pages/chapters read
     const getPercentage = () => {
-        const currentBook = isEditing ? editData : book;
-        if (currentBook.status === 'want-to-read') return 0;
-        const currentProgress = currentBook.progress || 0;
+        try {
+            const currentBook = isEditing ? editData : book;
+            if (!currentBook || currentBook.status === 'want-to-read') return 0;
+            const currentProgress = Number(currentBook.progress) || 0;
 
-        // Smart fallback for mode
-        const trackingUnit = currentBook.tracking_unit || currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'minutes' : 'pages');
+            // Smart fallback for mode
+            const trackingUnit = currentBook.tracking_unit || currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'minutes' : 'pages');
 
-        if (trackingUnit === 'minutes' && currentBook.total_duration_minutes > 0) {
-            return Math.round((currentProgress / currentBook.total_duration_minutes) * 100);
-        } else if (trackingUnit === 'chapters' && currentBook.totalChapters > 0) {
-            return Math.round((currentProgress / currentBook.totalChapters) * 100);
-        } else if (trackingUnit === 'pages' && currentBook.totalPages > 0) {
-            return Math.round((currentProgress / currentBook.totalPages) * 100);
+            if (trackingUnit === 'minutes' && (currentBook.total_duration_minutes > 0)) {
+                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.total_duration_minutes) * 100))) || 0;
+            } else if (trackingUnit === 'chapters' && (currentBook.totalChapters > 0)) {
+                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.totalChapters) * 100))) || 0;
+            } else if (trackingUnit === 'pages' && (currentBook.totalPages > 0)) {
+                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.totalPages) * 100))) || 0;
+            }
+
+            // Final fallback tries both
+            const total = (trackingUnit === 'chapters' ? currentBook.totalChapters : currentBook.totalPages) || currentBook.totalPages || currentBook.totalChapters || 0;
+            if (total > 0) return Math.max(0, Math.min(100, Math.round((currentProgress / total) * 100))) || 0;
+
+            return Math.max(0, Math.min(currentProgress, 100)) || 0;
+        } catch (error) {
+            console.error('Error calculating percentage:', error);
+            return 0;
         }
-
-        // Final fallback tries both
-        const total = (trackingUnit === 'chapters' ? currentBook.totalChapters : currentBook.totalPages) || currentBook.totalPages || currentBook.totalChapters || 0;
-        if (total > 0) return Math.round((currentProgress / total) * 100);
-
-        return Math.min(Number(currentProgress) || 0, 100);
     };
 
     // Get the label text for the bookmark based on progressMode
@@ -434,7 +490,7 @@ const BookDetails = () => {
                                     min="0"
                                     className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl outline-none text-center font-bold dark:text-white border-2 border-transparent focus:border-blue-500"
                                     value={audiobookHours}
-                                    onChange={e => setAudiobookHours(e.target.value)}
+                                    onChange={e => setAudiobookHours(parseInt(e.target.value) || 0)}
                                     placeholder="0"
                                 />
                             </div>
@@ -446,7 +502,7 @@ const BookDetails = () => {
                                     max="59"
                                     className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl outline-none text-center font-bold dark:text-white border-2 border-transparent focus:border-blue-500"
                                     value={audiobookMinutes}
-                                    onChange={e => setAudiobookMinutes(e.target.value)}
+                                    onChange={e => setAudiobookMinutes(Math.min(59, parseInt(e.target.value) || 0))}
                                     placeholder="0"
                                 />
                             </div>
@@ -516,28 +572,39 @@ const BookDetails = () => {
                         <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
                             <h3 className="text-xl font-bold dark:text-white">{t('dashboard.modals.history')}</h3>
                             <button onClick={() => setShowActivityModal(false)} className="text-slate-400 hover:text-slate-600">
-                                <CloseIcon size={20} />
+                                <X size={20} />
                             </button>
                         </div>
 
                         <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
                             {book.readingLogs && book.readingLogs.length > 0 ? (
                                 <div className="relative border-l-2 border-slate-200 dark:border-slate-700 ml-3 space-y-6 my-2">
-                                    {[...book.readingLogs].sort((a, b) => new Date(b.date) - new Date(a.date)).map((log, index) => (
-                                        <div key={index} className="relative pl-6">
-                                            {/* Dot */}
-                                            <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-2 border-blue-500"></div>
+                                    {[...book.readingLogs].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).map((log, index) => {
+                                        let displayDate = 'Unknown Date';
+                                        try {
+                                            if (log.date) {
+                                                const parsed = parseISO(log.date);
+                                                if (!isNaN(parsed)) displayDate = format(parsed, 'MMMM d, yyyy');
+                                            }
+                                        } catch (e) {
+                                            console.warn('Invalid date in log', log);
+                                        }
+                                        return (
+                                            <div key={index} className="relative pl-6">
+                                                {/* Dot */}
+                                                <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-2 border-blue-500"></div>
 
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-slate-400 uppercase">
-                                                    {format(parseISO(log.date), 'MMMM d, yyyy')}
-                                                </span>
-                                                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {log.pagesRead} {book.progressMode === 'chapters' ? t('book.fields.chapters') : t('book.fields.pages')}
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase">
+                                                        {displayDate}
+                                                    </span>
+                                                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                                        {Number(log.pagesRead) || 0} {book.progressMode === 'chapters' ? t('book.fields.chapters') : t('book.fields.pages')}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-slate-400">
@@ -569,7 +636,7 @@ const BookDetails = () => {
                                     onClick={() => setShowLogModal(false)}
                                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400"
                                 >
-                                    <CloseIcon size={24} />
+                                    <X size={24} />
                                 </button>
                             </header>
 
@@ -631,8 +698,8 @@ const BookDetails = () => {
                                         <input
                                             type="number"
                                             className="w-full text-center text-5xl font-bold bg-transparent outline-none border-b-2 border-violet-500 p-2 dark:text-white"
-                                            value={newProgress}
-                                            onChange={e => setNewProgress(Number(e.target.value))}
+                                            value={newProgress === '' ? '' : Number(newProgress)}
+                                            onChange={e => setNewProgress(e.target.value === '' ? '' : Number(e.target.value))}
                                             disabled={book.status === 'read'}
                                             autoFocus={book.status !== 'read'}
                                         />
@@ -645,9 +712,10 @@ const BookDetails = () => {
                                     onClick={() => {
                                         if (book.status === 'read') return;
                                         const oldProgress = book.progress || 0;
-                                        const sessionProgress = Math.max(0, newProgress - oldProgress);
+                                        const validProgress = Number(newProgress) || 0;
+                                        const sessionProgress = Math.max(0, validProgress - oldProgress);
 
-                                        logReading(book.id, newProgress);
+                                        logReading(book.id, validProgress);
                                         if (elapsedMinutes > 0) {
                                             stopTimer(book.id, elapsedMinutes, sessionProgress);
                                             setElapsedMinutes(0);
@@ -692,7 +760,7 @@ const BookDetails = () => {
                 {isEditing ? (
                     <div className="flex gap-2">
                         <button onClick={handleCancel} className="bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
-                            <CloseIcon size={16} />
+                            <X size={16} />
                         </button>
                         <button onClick={handleSave} className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
                             <Save size={16} />
@@ -934,7 +1002,7 @@ const BookDetails = () => {
                                 <input
                                     type="number"
                                     value={(isEditing ? editData.price : book.price) || ''}
-                                    onChange={e => handleChange('price', parseFloat(e.target.value))}
+                                    onChange={e => handleChange('price', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                     className="w-14 bg-transparent text-sm font-bold text-emerald-600 dark:text-emerald-400 outline-none text-center"
                                     placeholder="0.00"
                                 />
@@ -972,8 +1040,10 @@ const BookDetails = () => {
                                 onChange={e => handleChange('purchaseLocation', e.target.value)}
                                 options={[
                                     { value: '', label: t('app.select') },
-                                    { value: 'Online', label: 'Online' },
-                                    { value: 'Local Bookstore', label: 'Local Bookstore' }
+                                    { value: 'Online', label: t('calendar.locationNames.Online') },
+                                    { value: 'Local Bookstore', label: t('calendar.locationNames.Local Bookstore') },
+                                    { value: 'Gift', label: t('calendar.locationNames.Gift') },
+                                    { value: 'Other', label: t('calendar.locationNames.Other') }
                                 ]}
                                 placeholder={t('app.select')}
                                 disabled={!isEditing}
@@ -1251,7 +1321,11 @@ const BookDetails = () => {
                     <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.started')}:</span>
                     <input
                         type="date"
-                        value={(isEditing ? editData.startedAt : book.startedAt)?.split('T')[0] || ''}
+                        value={(() => {
+                            const date = isEditing ? editData.startedAt : book.startedAt;
+                            if (typeof date !== 'string') return '';
+                            return date.toString().split('T')[0];
+                        })()}
                         onChange={e => handleChange('startedAt', e.target.value)}
                         className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300"
                         disabled={!isEditing}
@@ -1261,7 +1335,11 @@ const BookDetails = () => {
                     <span className="block font-bold text-slate-900 dark:text-white mb-1">{t('book.fields.finished')}:</span>
                     <input
                         type="date"
-                        value={(isEditing ? editData.finishedAt : book.finishedAt)?.split('T')[0] || ''}
+                        value={(() => {
+                            const date = isEditing ? editData.finishedAt : book.finishedAt;
+                            if (typeof date !== 'string') return '';
+                            return date.toString().split('T')[0];
+                        })()}
                         onChange={e => handleChange('finishedAt', e.target.value)}
                         className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300"
                         disabled={!isEditing}
@@ -1285,7 +1363,7 @@ const BookDetails = () => {
                             }
                             return currentProgress;
                         })()}
-                        onChange={e => handleChange('progress', parseInt(e.target.value))}
+                        onChange={e => handleChange('progress', e.target.value === '' ? 0 : parseInt(e.target.value))}
                         onClick={() => {
                             const status = isEditing ? editData.status : book.status;
                             if (!isEditing && status !== 'want-to-read' && status !== 'read') {
@@ -1328,7 +1406,7 @@ const BookDetails = () => {
                                         <input
                                             type="number"
                                             value={editData.total_duration_minutes || 0}
-                                            onChange={e => handleChange('total_duration_minutes', parseInt(e.target.value))}
+                                            onChange={e => handleChange('total_duration_minutes', e.target.value === '' ? 0 : parseInt(e.target.value))}
                                             className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
                                             placeholder="Total minutes"
                                         />
@@ -1339,7 +1417,7 @@ const BookDetails = () => {
                                         <input
                                             type="number"
                                             value={editData.totalChapters || 0}
-                                            onChange={e => handleChange('totalChapters', parseInt(e.target.value))}
+                                            onChange={e => handleChange('totalChapters', e.target.value === '' ? 0 : parseInt(e.target.value))}
                                             className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
                                             placeholder="Total"
                                         />
@@ -1349,7 +1427,7 @@ const BookDetails = () => {
                                     <input
                                         type="number"
                                         value={editData.totalPages || 0}
-                                        onChange={e => handleChange('totalPages', parseInt(e.target.value))}
+                                        onChange={e => handleChange('totalPages', e.target.value === '' ? 0 : parseInt(e.target.value))}
                                         className="bg-transparent border-b border-slate-300 dark:border-slate-700 w-full dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400"
                                         placeholder="Total"
                                     />
@@ -1398,9 +1476,19 @@ const BookDetails = () => {
             <div className="mb-8">
                 <h3 className="font-bold text-slate-900 dark:text-white mb-2">{t('book.fields.description', 'Description')}</h3>
                 <textarea
-                    value={(isEditing ? editData.description : book.description) || ''}
-                    onChange={e => handleChange('description', e.target.value)}
-                    readOnly={!isEditing}
+                    value={isEditing ? (editData.description || '') : localDescription}
+                    onChange={e => {
+                        if (isEditing) {
+                            handleChange('description', e.target.value);
+                        } else {
+                            setLocalDescription(e.target.value);
+                        }
+                    }}
+                    onBlur={() => {
+                        if (!isEditing && localDescription !== (book.description || '')) {
+                            handleChange('description', localDescription);
+                        }
+                    }}
                     className="w-full h-24 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm mb-6 outline-none dark:text-slate-200 resize-none"
                     placeholder={t('book.fields.description', 'Enter description...')}
                 />
@@ -1435,7 +1523,6 @@ const BookDetails = () => {
                         <button
                             onClick={() => handleChange('hasSpice', isEditing ? !editData.hasSpice : !book.hasSpice)}
                             className={`w-10 h-5 rounded-full p-0.5 transition-colors relative ${(isEditing ? editData.hasSpice : book.hasSpice) ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'}`}
-                            disabled={!isEditing}
                         >
                             <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 absolute top-0.5 ${(isEditing ? editData.hasSpice : book.hasSpice) ? 'left-[22px]' : 'left-[2px]'}`} />
                         </button>
@@ -1443,9 +1530,19 @@ const BookDetails = () => {
                 </div>
 
                 <textarea
-                    value={(isEditing ? editData.review : book.review) || ''}
-                    onChange={e => handleChange('review', e.target.value)}
-                    readOnly={!isEditing}
+                    value={isEditing ? (editData.review || '') : localReview}
+                    onChange={e => {
+                        if (isEditing) {
+                            handleChange('review', e.target.value);
+                        } else {
+                            setLocalReview(e.target.value);
+                        }
+                    }}
+                    onBlur={() => {
+                        if (!isEditing && localReview !== (book.review || '')) {
+                            handleChange('review', localReview);
+                        }
+                    }}
                     className="w-full h-32 bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-sm outline-none resize-none dark:text-slate-200"
                     placeholder={t('book.fields.notes', 'Write your thoughts about the book...')}
                 />
@@ -1504,15 +1601,12 @@ const BookDetails = () => {
                 )
             }
 
-            {/* Share Modal */}
-            {
-                showShareModal && (
-                    <ShareModal
-                        book={book}
-                        onClose={() => setShowShareModal(false)}
-                    />
-                )
-            }
+            <ReviewModal
+                book={book}
+                isOpen={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                onSubmit={handleReviewSubmit}
+            />
         </div >
     );
 };
