@@ -7,7 +7,8 @@
         "addBook": "Agregar Libro",
         "annual": "Reporte Anual",
         "favorites": "Favoritos",
-        "notes": "Notas"
+        "notes": "Notas",
+        "friends": "Amigos"
     },
     "book": {
         "details": "Detalles del Libro",
@@ -127,7 +128,10 @@
         "setManual": "Manual",
         "confirmDate": "Confirmar Fecha",
         "stopAndLog": "Pausar y Registrar",
-        "startTimer": "Iniciar Timer"
+        "startTimer": "Iniciar Timer",
+        "downloadImg": "Guardar Imagen",
+        "accept": "Aceptar",
+        "decline": "Rechazar"
     },
     "auth": {
         "login": "Iniciar Sesión",
@@ -335,7 +339,40 @@
         "editProfile": "Editar Perfil",
         "appVersion": "Versión de la App",
         "feedbackEmailTip": "Prepararemos un correo para ti.",
-        "sendEmail": "Enviar Correo"
+        "sendEmail": "Enviar Correo",
+        "bio": "Biografía",
+        "bioPlaceholder": "Escribe una biografía corta...",
+        "profileVisibility": "Visibilidad del Perfil",
+        "public": "Público",
+        "private": "Privado",
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "username": "Nombre de usuario",
+        "usernameAvailable": "¡Nombre de usuario disponible!",
+        "usernameTaken": "Este nombre de usuario ya está en uso.",
+        "checkingUsername": "Comprobando disponibilidad...",
+        "usernameFormat": "Solo letras minúsculas, números y puntos."
+    },
+    "profile": {
+        "notFound": "Perfil No Encontrado",
+        "notFoundDesc": "El usuario que buscas no existe o tiene un perfil privado.",
+        "noBio": "Sin biografía aún.",
+        "noBooks": "No hay libros en esta lista aún.",
+        "addFriend": "Añadir Amigo",
+        "requestSent": "Solicitud Enviada",
+        "friends": "Amigos",
+        "message": "Mensaje"
+    },
+    "friends": {
+        "subtitle": "Conéctate con otros lectores y sigan su progreso juntos.",
+        "searchPlaceholder": "Busca lectores por @usuario o nombre...",
+        "searchResults": "Personas encontradas",
+        "allFriends": "Todos los Amigos",
+        "pending": "Solicitudes",
+        "empty": "Aún no has añadido amigos ¡Empieza a buscar!",
+        "noRequests": "No hay solicitudes pendientes.",
+        "outRequest": "Solicitud Enviada",
+        "inRequest": "Quiere ser tu amigo"
     },
     "favorites": {
         "title": "Favoritos",

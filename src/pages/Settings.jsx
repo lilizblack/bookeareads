@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { useBooks } from '../context/BookContext';
 import { ChevronRight, Globe, CreditCard, Moon, User, LogOut, UploadCloud, LogIn, MessageSquare, Bug, Download, Upload, Edit2, Camera, X, Save, Users, RefreshCw } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { collectionGroup, query, where, getDocs, limit, getDoc, doc } from 'firebase/firestore';
+import { db, storage } from '../lib/firebaseClient';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { AtSign } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import CustomSelect from '../components/CustomSelect';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +39,16 @@ const Settings = () => {
 
     // Profile Edit State
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [tempProfile, setTempProfile] = useState({ name: '', avatar: '' });
+    const [tempProfile, setTempProfile] = useState({ 
+        name: '', 
+        firstName: '', 
+        lastName: '', 
+        username: '', 
+        avatar: '' 
+    });
+    const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+    const [usernameError, setUsernameError] = useState('');
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
     const handleFeedback = (type) => {
         setFeedbackType(type);
@@ -132,24 +145,95 @@ const Settings = () => {
     const openProfileModal = () => {
         setTempProfile({
             name: userProfile.name || (user ? user.email.split('@')[0] : 'Guest User'),
-            avatar: userProfile.avatar
+            firstName: userProfile.firstName || '',
+            lastName: userProfile.lastName || '',
+            username: userProfile.username || '',
+            avatar: userProfile.avatar,
+            bio: userProfile.bio || '',
+            isPublic: userProfile.isPublic ?? true
         });
+        setUsernameError('');
         setIsProfileModalOpen(true);
     };
 
-    const handleSaveProfile = () => {
+    const handleSaveProfile = async () => {
+        if (tempProfile.username !== userProfile.username) {
+            setIsCheckingUsername(true);
+            try {
+                // Unique check via Collection Group query on 'profile' collections
+                // Note: The structure is users/{uid}/profile/info
+                const profileGroup = collectionGroup(db, 'profile');
+                const q = query(profileGroup, where('username', '==', tempProfile.username.toLowerCase()));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    setUsernameError(t('settings.usernameTaken', { defaultValue: 'This username is already taken.' }));
+                    setIsCheckingUsername(false);
+                    return;
+                }
+            } catch (error) {
+                console.error("Error checking username:", error);
+            } finally {
+                setIsCheckingUsername(false);
+            }
+        }
+
         updateUserProfile(tempProfile);
         setIsProfileModalOpen(false);
     };
 
-    const handleAvatarFile = (e) => {
+    const handleNameChange = (e, field) => {
+        const val = e.target.value;
+        setTempProfile(prev => {
+            const updated = { ...prev, [field]: val };
+            
+            // Reconstruct full name
+            if (field === 'firstName' || field === 'lastName') {
+                updated.name = `${updated.firstName} ${updated.lastName}`.trim();
+                
+                // Only auto-generate username if it's currently empty
+                if (!prev.username) {
+                    const baseName = updated.name.toLowerCase().replace(/\s+/g, '');
+                    if (baseName) {
+                        updated.username = baseName + Math.floor(1000 + Math.random() * 9000);
+                    }
+                }
+            }
+            
+            return updated;
+        });
+    };
+
+    const handleAvatarFile = async (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setTempProfile(prev => ({ ...prev, avatar: reader.result }));
-            };
-            reader.readAsDataURL(file);
+        if (!file || !user) return;
+
+        // Show a local preview immediately while uploading
+        const localPreview = URL.createObjectURL(file);
+        setTempProfile(prev => ({ ...prev, avatar: localPreview }));
+        setIsUploadingAvatar(true);
+
+        try {
+            // Upload to Firebase Storage at avatars/{uid}/profile.{ext}
+            const ext = file.name.split('.').pop();
+            const storageRef = ref(storage, `avatars/${user.uid}/profile.${ext}`);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            await new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', null, reject, resolve);
+            });
+
+            const downloadURL = await getDownloadURL(storageRef);
+            setTempProfile(prev => ({ ...prev, avatar: downloadURL }));
+        } catch (err) {
+            console.error('Avatar upload failed:', err);
+            alert('Failed to upload profile picture. Please try again.');
+            // Revert to previous avatar
+            setTempProfile(prev => ({ ...prev, avatar: userProfile.avatar || '' }));
+        } finally {
+            setIsUploadingAvatar(false);
+            // Clean up the object URL
+            URL.revokeObjectURL(localPreview);
         }
     };
 
@@ -239,6 +323,12 @@ const Settings = () => {
                         <h2 className="font-black text-2xl text-slate-900 dark:text-white leading-tight">
                             {displayName}
                         </h2>
+                        {userProfile.username && (
+                            <p className="text-violet-500 font-black text-sm mb-1 leading-tight flex items-center gap-1">
+                                <AtSign size={14} strokeWidth={3} />
+                                {userProfile.username}
+                            </p>
+                        )}
                         <p className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-3">
                             {user ? t('settings.account') : t('settings.localProfile')}
                         </p>
@@ -350,7 +440,7 @@ const Settings = () => {
                             </div>
 
                             {/* Avatar Picker */}
-                            <div className="relative mb-8 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                            <div className="relative mb-8 group cursor-pointer" onClick={() => !isUploadingAvatar && avatarInputRef.current?.click()}>
                                 <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden ring-4 ring-white dark:ring-slate-700 shadow-xl">
                                     {tempProfile.avatar ? (
                                         <img src={tempProfile.avatar} className="w-full h-full object-cover" alt="Preview" />
@@ -358,35 +448,111 @@ const Settings = () => {
                                         <div className="w-full h-full flex items-center justify-center text-slate-300"><User size={40} /></div>
                                     )}
                                 </div>
-                                <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Camera className="text-white" />
-                                </div>
+                                {/* Uploading spinner overlay */}
+                                {isUploadingAvatar ? (
+                                    <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center">
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span className="text-white text-[9px] font-bold mt-1">Uploading…</span>
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Camera className="text-white" />
+                                    </div>
+                                )}
                                 <div className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full ring-2 ring-white">
                                     <Edit2 size={12} className="text-white" />
                                 </div>
                             </div>
 
-                            {/* Name Input */}
-                            <div className="w-full mb-8">
+                            {/* Username Input */}
+                            <div className="w-full mb-4">
                                 <FormInput
-                                    label={t('settings.displayName', { defaultValue: 'Display Name' })}
+                                    label={t('settings.username', { defaultValue: 'Username' })}
+                                    type="text"
+                                    value={tempProfile.username}
+                                    onChange={e => {
+                                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '');
+                                        setTempProfile(prev => ({ ...prev, username: val }));
+                                        if (usernameError) setUsernameError('');
+                                    }}
+                                    placeholder={t('settings.enterUsername', { defaultValue: '@username' })}
+                                    icon={AtSign}
+                                    className="font-bold text-violet-600"
+                                    description={isCheckingUsername ? t('settings.checkingUsername') : usernameError || t('settings.usernameFormat')}
+                                    error={!!usernameError}
+                                />
+                            </div>
+
+                            {/* First & Last Name */}
+                            <div className="flex gap-4 w-full mb-4">
+                                <div className="flex-1">
+                                    <FormInput
+                                        label={t('settings.firstName', { defaultValue: 'First Name' })}
+                                        type="text"
+                                        value={tempProfile.firstName}
+                                        onChange={e => handleNameChange(e, 'firstName')}
+                                        placeholder="John"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <FormInput
+                                        label={t('settings.lastName', { defaultValue: 'Last Name' })}
+                                        type="text"
+                                        value={tempProfile.lastName}
+                                        onChange={e => handleNameChange(e, 'lastName')}
+                                        placeholder="Doe"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Full Name display (read-only or calculated) */}
+                            <div className="w-full mb-8 opacity-60">
+                                <FormInput
+                                    label={t('settings.displayName', { defaultValue: 'Display Name (Public)' })}
                                     type="text"
                                     value={tempProfile.name}
-                                    onChange={e => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder={t('settings.enterName', { defaultValue: 'Enter name' })}
+                                    readOnly
                                     icon={User}
-                                    className="text-center text-xl font-bold"
                                 />
+                            </div>
+
+                            {/* Bio Input */}
+                            <div className="w-full mb-6">
+                                <FormTextarea
+                                    label={t('settings.bio', { defaultValue: 'Bio' })}
+                                    value={tempProfile.bio || ''}
+                                    onChange={e => setTempProfile(prev => ({ ...prev, bio: e.target.value }))}
+                                    placeholder={t('settings.bioPlaceholder', { defaultValue: 'Write a short bio...' })}
+                                    rows={3}
+                                />
+                            </div>
+
+                            {/* Visibility Toggle */}
+                            <div className="w-full mb-8 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Globe size={18} className="text-slate-400" />
+                                    <div>
+                                        <p className="text-sm font-bold dark:text-white uppercase tracking-tight">{t('settings.profileVisibility', { defaultValue: 'Profile Visibility' })}</p>
+                                        <p className="text-[10px] text-slate-500 font-medium">{tempProfile.isPublic ? t('settings.public') : t('settings.private')}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setTempProfile(prev => ({ ...prev, isPublic: !prev.isPublic }))}
+                                    className={`w-12 h-6 rounded-full relative transition-all duration-300 ${tempProfile.isPublic ? 'bg-blue-600 shadow-md shadow-blue-500/20' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${tempProfile.isPublic ? 'left-7' : 'left-1'}`} />
+                                </button>
                             </div>
 
                             <FormButton
                                 onClick={handleSaveProfile}
+                                disabled={isCheckingUsername || isUploadingAvatar || !!usernameError}
                                 variant="primary"
                                 size="lg"
-                                icon={Save}
-                                className="w-full"
+                                icon={(isCheckingUsername || isUploadingAvatar) ? RefreshCw : Save}
+                                className={`w-full ${(isCheckingUsername || isUploadingAvatar) ? 'animate-pulse' : ''}`}
                             >
-                                {t('actions.save')}
+                                {isCheckingUsername ? t('common.checking', { defaultValue: 'Checking...' }) : t('actions.save')}
                             </FormButton>
                         </div>
                     </div>

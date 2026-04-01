@@ -1212,18 +1212,76 @@ export const BookProvider = ({ children }) => {
         return { exists: false };
     };
 
-    // User Profile (Local)
+    // User Profile (Synced with Firestore)
     const [userProfile, setUserProfile] = useState(() => {
         const saved = localStorage.getItem('user-profile');
-        return saved ? JSON.parse(saved) : { name: '', avatar: '' };
+        return saved ? JSON.parse(saved) : { name: '', firstName: '', lastName: '', username: '', avatar: '', bio: '', isPublic: true };
     });
 
-    const updateUserProfile = (profile) => {
-        setUserProfile(prev => {
-            const updated = { ...prev, ...profile };
-            localStorage.setItem('user-profile', JSON.stringify(updated));
-            return updated;
-        });
+    // Load Profile from Firestore on login
+    useEffect(() => {
+        const loadProfile = async () => {
+            if (user) {
+                try {
+                    const profileRef = doc(db, 'users', user.uid, 'profile', 'info');
+                    const profileSnap = await getDoc(profileRef);
+                    if (profileSnap.exists()) {
+                        const data = profileSnap.data();
+                        
+                        // Auto-generate username if missing but name exists
+                        if (!data.username && (data.name || userProfile.name)) {
+                            const baseName = (data.name || userProfile.name).toLowerCase().replace(/\s+/g, '');
+                            const randomId = Math.floor(1000 + Math.random() * 9000);
+                            data.username = `${baseName}${randomId}`;
+                            
+                            // Save the auto-generated username back to Firestore
+                            await setDoc(profileRef, { username: data.username }, { merge: true });
+                        }
+
+                        const updated = { ...userProfile, ...data };
+                        setUserProfile(updated);
+                        localStorage.setItem('user-profile', JSON.stringify(updated));
+                    } else if (userProfile.name) {
+                        // If no firestore profile but local exists, sync it up
+                        // Generate a username for the sync if missing
+                        const syncedProfile = { ...userProfile };
+                        if (!syncedProfile.username) {
+                            const baseName = syncedProfile.name.toLowerCase().replace(/\s+/g, '');
+                            const randomId = Math.floor(1000 + Math.random() * 9000);
+                            syncedProfile.username = `${baseName}${randomId}`;
+                            setUserProfile(syncedProfile);
+                        }
+
+                        await setDoc(profileRef, {
+                            ...syncedProfile,
+                            updatedAt: serverTimestamp()
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading profile from Firestore:', error);
+                }
+            }
+        };
+
+        loadProfile();
+    }, [user]);
+
+    const updateUserProfile = async (profileUpdates) => {
+        const updated = { ...userProfile, ...profileUpdates };
+        setUserProfile(updated);
+        localStorage.setItem('user-profile', JSON.stringify(updated));
+
+        if (user) {
+            try {
+                const profileRef = doc(db, 'users', user.uid, 'profile', 'info');
+                await setDoc(profileRef, {
+                    ...updated,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.error('Error syncing profile to Firestore:', error);
+            }
+        }
     };
 
     // ============================================

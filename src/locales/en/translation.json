@@ -7,7 +7,8 @@
         "addBook": "Add Book",
         "annual": "Annual Report",
         "favorites": "Favorites",
-        "notes": "Notes"
+        "notes": "Notes",
+        "friends": "Friends"
     },
     "book": {
         "details": "Book Details",
@@ -127,7 +128,10 @@
         "setManual": "Set Manual",
         "confirmDate": "Confirm Date",
         "stopAndLog": "Stop & Log",
-        "startTimer": "Start Timer"
+        "startTimer": "Start Timer",
+        "downloadImg": "Save Image",
+        "accept": "Accept",
+        "decline": "Decline"
     },
     "auth": {
         "login": "Login",
@@ -333,7 +337,40 @@
         "appVersion": "App Version",
         "feedbackEmailTip": "We'll prepare an email for you.",
         "sendEmail": "Send Email",
-        "checkUpdate": "Check for Updates"
+        "checkUpdate": "Check for Updates",
+        "bio": "Bio",
+        "bioPlaceholder": "Write a short bio...",
+        "profileVisibility": "Profile Visibility",
+        "public": "Public",
+        "private": "Private",
+        "firstName": "First Name",
+        "lastName": "Last Name",
+        "username": "Username",
+        "usernameAvailable": "Username is available!",
+        "usernameTaken": "This username is already taken.",
+        "checkingUsername": "Checking availability...",
+        "usernameFormat": "Lowercase letters, numbers, and dots only."
+    },
+    "profile": {
+        "notFound": "Profile Not Found",
+        "notFoundDesc": "The user you are looking for does not exist or has a private profile.",
+        "noBio": "No bio yet.",
+        "noBooks": "No books in this list yet.",
+        "addFriend": "Add Friend",
+        "requestSent": "Request Sent",
+        "friends": "Friends",
+        "message": "Message"
+    },
+    "friends": {
+        "subtitle": "Connect with other readers and track together.",
+        "searchPlaceholder": "Find readers by @username or name...",
+        "searchResults": "People found",
+        "allFriends": "All Friends",
+        "pending": "Requests",
+        "empty": "No friends added yet. Start searching!",
+        "noRequests": "No pending requests.",
+        "outRequest": "Sent Request",
+        "inRequest": "Wants to be friends"
     },
     "favorites": {
         "title": "Favorites",

@@ -66,7 +66,7 @@ const Header = () => {
 
                 {/* Profile Button - Now shows Avatar */}
                 <button
-                    onClick={() => navigate('/settings')}
+                    onClick={() => navigate('/profile')}
                     className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-500 transition-colors overflow-hidden ring-2 ring-transparent hover:ring-blue-500/50"
                 >
                     {userProfile?.avatar ? (

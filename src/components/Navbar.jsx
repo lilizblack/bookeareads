@@ -11,7 +11,7 @@ const Navbar = () => {
         { to: '/library', icon: Library, label: t('nav.library'), size: 22 },
         { to: '/add', icon: PlusCircle, label: t('nav.addBook'), isSpecial: true, size: 28 },
         { to: '/calendar', icon: Calendar, label: t('nav.calendar'), size: 22 },
-        { to: '/favorites', icon: Heart, label: t('nav.favorites'), size: 22 },
+        { to: '/friends', icon: Heart, label: t('nav.friends', 'Friends'), size: 22 },
     ];
 
     return (

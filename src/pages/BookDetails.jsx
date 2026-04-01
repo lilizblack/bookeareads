@@ -13,7 +13,7 @@ import {
     EyeOff, Notebook, Pencil, Image as ImageIcon, ScanBarcode, Timer, Search,
     Loader2, Check
 } from 'lucide-react';
-import { getReadingSpeed, getEstimatedTimeLeft } from '../utils/bookUtils';
+import { getReadingSpeed, getEstimatedTimeLeft, getBookProgressPercentage } from '../utils/bookUtils';
 import { GENRES } from '../data/genres';
 import BarcodeScanner from '../components/BarcodeScanner';
 import CoverImage from '../components/CoverImage';
@@ -117,6 +117,17 @@ const BookDetails = () => {
             const updates = { [field]: value };
             if (field === 'status' && value === 'want-to-read') {
                 updates.progress = 0;
+            } else if (field === 'status' && value === 'read') {
+                const trackingUnit = editData.tracking_unit || editData.progressMode || (editData.format === 'Audiobook' ? 'minutes' : 'pages');
+                if (trackingUnit === 'minutes') {
+                    updates.progress = editData.total_duration_minutes || 0;
+                } else if (trackingUnit === 'chapters') {
+                    updates.progress = editData.totalChapters || 0;
+                } else {
+                    updates.progress = editData.totalPages || 0;
+                }
+                const today = new Date().toISOString().split('T')[0];
+                if (!editData.finishedAt) updates.finishedAt = today;
             }
             setEditData(prev => ({ ...prev, ...updates }));
         } else {
@@ -311,31 +322,8 @@ const BookDetails = () => {
 
     // Always calculate percentage from actual pages/chapters read
     const getPercentage = () => {
-        try {
-            const currentBook = isEditing ? editData : book;
-            if (!currentBook || currentBook.status === 'want-to-read') return 0;
-            const currentProgress = Number(currentBook.progress) || 0;
-
-            // Smart fallback for mode
-            const trackingUnit = currentBook.tracking_unit || currentBook.progressMode || (currentBook.format === 'Audiobook' ? 'minutes' : 'pages');
-
-            if (trackingUnit === 'minutes' && (currentBook.total_duration_minutes > 0)) {
-                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.total_duration_minutes) * 100))) || 0;
-            } else if (trackingUnit === 'chapters' && (currentBook.totalChapters > 0)) {
-                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.totalChapters) * 100))) || 0;
-            } else if (trackingUnit === 'pages' && (currentBook.totalPages > 0)) {
-                return Math.max(0, Math.min(100, Math.round((currentProgress / currentBook.totalPages) * 100))) || 0;
-            }
-
-            // Final fallback tries both
-            const total = (trackingUnit === 'chapters' ? currentBook.totalChapters : currentBook.totalPages) || currentBook.totalPages || currentBook.totalChapters || 0;
-            if (total > 0) return Math.max(0, Math.min(100, Math.round((currentProgress / total) * 100))) || 0;
-
-            return Math.max(0, Math.min(currentProgress, 100)) || 0;
-        } catch (error) {
-            console.error('Error calculating percentage:', error);
-            return 0;
-        }
+        const currentBook = isEditing ? editData : book;
+        return getBookProgressPercentage(currentBook);
     };
 
     // Get the label text for the bookmark based on progressMode

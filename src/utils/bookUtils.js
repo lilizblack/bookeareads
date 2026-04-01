@@ -8,34 +8,29 @@ export const getBookProgressPercentage = (book) => {
     if (book.status === 'read') return 100;
     if (book.status === 'want-to-read') return 0;
 
-    const currentProgress = book.progress || 0;
+    const currentProgress = Number(book.progress) || 0;
     const trackingUnit = book.tracking_unit || book.progressMode || (book.format === 'Audiobook' ? 'minutes' : 'pages');
 
-    // Time-based tracking (audiobooks)
+    let totalVal = 0;
+
     if (trackingUnit === 'minutes') {
-        if (book.total_duration_minutes > 0) {
-            return Math.round((currentProgress / book.total_duration_minutes) * 100);
-        }
+        totalVal = book.total_duration_minutes || 0;
+    } else if (trackingUnit === 'chapters') {
+        totalVal = book.totalChapters || 0;
+    } else {
+        totalVal = book.totalPages || 0;
     }
 
-    // Chapter-based tracking
-    if (trackingUnit === 'chapters') {
-        if (book.totalChapters > 0) {
-            return Math.round((currentProgress / book.totalChapters) * 100);
-        }
+    // Fallback logic if the preferred total is missing
+    if (totalVal <= 0) {
+        totalVal = book.totalPages || book.totalChapters || book.total_duration_minutes || 100;
     }
 
-    // Page-based tracking (default)
-    if (book.totalPages > 0) {
-        return Math.round((currentProgress / book.totalPages) * 100);
-    }
-
-    // Generic fallback if primary fails
-    const total = (trackingUnit === 'chapters' ? book.totalChapters : trackingUnit === 'minutes' ? book.total_duration_minutes : book.totalPages) || book.totalPages || book.totalChapters || book.total_duration_minutes || 0;
-    if (total > 0) return Math.round((currentProgress / total) * 100);
-
-    return Math.min(Number(currentProgress) || 0, 100);
+    if (totalVal <= 0) return 0;
+    
+    return Math.max(0, Math.min(100, Math.round((currentProgress / totalVal) * 100)));
 };
+
 
 export const getSpineColor = (str, preset = 'default') => {
     // Simple hash

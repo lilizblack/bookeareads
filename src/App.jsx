@@ -18,6 +18,8 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Favorites from './pages/Favorites';
 import Notes from './pages/Notes';
+import Profile from './pages/Profile';
+import Friends from './pages/Friends';
 import InstallPrompt from './components/InstallPrompt';
 import UpdateToast from './components/UpdateToast';
 import OfflineBanner from './components/OfflineBanner';
@@ -41,6 +43,9 @@ function App() {
                                     <Route path="settings" element={<Settings />} />
                                     <Route path="annual" element={<AnnualReport />} />
                                     <Route path="favorites" element={<Favorites />} />
+                                    <Route path="profile" element={<Profile />} />
+                                    <Route path="profile/:username" element={<Profile />} />
+                                    <Route path="friends" element={<Friends />} />
                                     <Route path="book/:id/notes" element={<Notes />} />
                                 </Route>
                             </Routes>
