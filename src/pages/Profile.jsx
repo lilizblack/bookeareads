@@ -199,7 +199,32 @@ const Profile = () => {
                 const booksRef = collection(db, 'users', targetUid, 'books');
                 const booksQuery = query(booksRef); // Removed limit(20) to accurately fetch all books for stats
                 const booksSnap = await getDocs(booksQuery);
-                const allUserBooks = booksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                
+                // Convert Firestore Timestamps to ISO strings so parseISO works securely
+                const allUserBooks = booksSnap.docs.map(d => {
+                    const data = d.data();
+                    
+                    const toISO = (val) => {
+                        if (!val) return null;
+                        if (typeof val === 'string') return val;
+                        if (val.toDate && typeof val.toDate === 'function') return val.toDate().toISOString();
+                        if (val.seconds !== undefined) return new Date(val.seconds * 1000).toISOString();
+                        return val;
+                    };
+
+                    return {
+                        id: d.id,
+                        ...data,
+                        addedAt: toISO(data.addedAt),
+                        startedAt: toISO(data.startedAt),
+                        finishedAt: toISO(data.finishedAt),
+                        updatedAt: toISO(data.updatedAt),
+                        readingLogs: (data.readingLogs || []).map(log => ({
+                            ...log,
+                            date: toISO(log.date)
+                        }))
+                    };
+                });
 
                 setTargetBooks({
                     reading: allUserBooks.filter(b => b.status === 'reading'),
@@ -214,12 +239,16 @@ const Profile = () => {
                     const goalDoc = await getDoc(doc(db, 'users', targetUid, 'goals', currentYear));
                     if (goalDoc.exists()) {
                         setTargetReadingGoal({
-                            yearly: goalDoc.data().yearlyGoal || 12,
-                            monthly: goalDoc.data().monthlyGoal || 1
+                            yearly: goalDoc.data().yearlyGoal || 15,
+                            monthly: goalDoc.data().monthlyGoal || 2
                         });
+                    } else {
+                        // Fallback goal if user hasn't actively set one
+                        setTargetReadingGoal({ yearly: 15, monthly: 2 });
                     }
                 } catch (err) {
                     console.error('Error fetching target reading goal:', err);
+                    setTargetReadingGoal({ yearly: 15, monthly: 2 }); // fallback
                 }
 
                 // Step 3: Check friendship status
