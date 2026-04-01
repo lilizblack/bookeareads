@@ -47,6 +47,7 @@ const Profile = () => {
     
     const [targetProfile, setTargetProfile] = useState(null);
     const [targetBooks, setTargetBooks] = useState({ reading: [], tbr: [], favorites: [], read: [] });
+    const [targetReadingGoal, setTargetReadingGoal] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('reading');
     const [showShareCard, setShowShareCard] = useState(false);
@@ -133,19 +134,24 @@ const Profile = () => {
         };
     }, [isOwnProfile, books, targetBooks]);
 
-    // Yearly Goal Progress (own profile only)
+    // Yearly Goal Progress
     const yearlyGoalProgress = useMemo(() => {
-        if (!isOwnProfile || !readingGoal?.yearly) return null;
+        const activeGoal = isOwnProfile ? readingGoal : targetReadingGoal;
+        if (!activeGoal?.yearly) return null;
+        
         const currentYear = new Date().getFullYear();
-        const booksReadThisYear = books.filter(b => {
+        const bookList = isOwnProfile ? books : Array.from(new Map(Object.values(targetBooks || {}).flat().map(b => [b.id, b])).values());
+        
+        const booksReadThisYear = bookList.filter(b => {
             if (b.status !== 'read' && b.status !== 'completed') return false;
             if (!b.finishedAt) return false;
             try { return parseISO(b.finishedAt).getFullYear() === currentYear; } catch { return false; }
         }).length;
-        const goal = readingGoal.yearly;
+        
+        const goal = activeGoal.yearly;
         const pct = Math.min(100, Math.round((booksReadThisYear / goal) * 100));
         return { read: booksReadThisYear, goal, pct, year: currentYear };
-    }, [isOwnProfile, books, readingGoal]);
+    }, [isOwnProfile, books, readingGoal, targetReadingGoal, targetBooks]);
 
     useEffect(() => {
         const fetchProfileData = async () => {
@@ -191,7 +197,7 @@ const Profile = () => {
                 setTargetProfile(profileData);
 
                 const booksRef = collection(db, 'users', targetUid, 'books');
-                const booksQuery = query(booksRef, limit(20));
+                const booksQuery = query(booksRef); // Removed limit(20) to accurately fetch all books for stats
                 const booksSnap = await getDocs(booksQuery);
                 const allUserBooks = booksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -201,6 +207,20 @@ const Profile = () => {
                     favorites: allUserBooks.filter(b => b.isFavorite),
                     read: allUserBooks.filter(b => b.status === 'read' || b.status === 'completed')
                 });
+
+                // Fetch target user's reading goal
+                try {
+                    const currentYear = new Date().getFullYear().toString();
+                    const goalDoc = await getDoc(doc(db, 'users', targetUid, 'goals', currentYear));
+                    if (goalDoc.exists()) {
+                        setTargetReadingGoal({
+                            yearly: goalDoc.data().yearlyGoal || 12,
+                            monthly: goalDoc.data().monthlyGoal || 1
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error fetching target reading goal:', err);
+                }
 
                 // Step 3: Check friendship status
                 if (user?.uid) {
