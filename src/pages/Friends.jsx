@@ -23,7 +23,6 @@ import {
     updateDoc, 
     doc, 
     serverTimestamp,
-    orderBy,
     onSnapshot,
     limit,
     getDoc,
@@ -54,10 +53,12 @@ const Friends = () => {
 
         const friendshipsRef = collection(db, 'friendships');
         
-        // Listen for requests involving current user
-        const q = query(friendshipsRef, 
-            where('participants', 'array-contains', user.uid),
-            orderBy('createdAt', 'desc')
+        // Query all friendships involving current user
+        // Note: orderBy('createdAt') requires a composite index with array-contains.
+        // We sort client-side to avoid the index requirement causing silent empty results.
+        const q = query(
+            friendshipsRef,
+            where('participants', 'array-contains', user.uid)
         );
 
         const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -78,12 +79,20 @@ const Friends = () => {
                         friendshipId: docSnap.id,
                         status: data.status,
                         requesterId: data.requesterId,
+                        createdAt: data.createdAt,
                         otherUser: {
                             uid: otherUid,
                             ...otherProfile
                         }
                     });
                 }
+
+                // Sort client-side by createdAt descending
+                allFriendships.sort((a, b) => {
+                    const aTime = a.createdAt?.toMillis?.() ?? 0;
+                    const bTime = b.createdAt?.toMillis?.() ?? 0;
+                    return bTime - aTime;
+                });
 
                 setFriends(allFriendships.filter(f => f.status === 'accepted'));
                 setRequests(allFriendships.filter(f => f.status === 'pending'));
@@ -99,6 +108,14 @@ const Friends = () => {
 
         return () => unsubscribe();
     }, [user]);
+
+    // Auto-switch to Requests tab when there are incoming (not sent) requests
+    useEffect(() => {
+        const incomingCount = requests.filter(r => r.requesterId !== user?.uid).length;
+        if (incomingCount > 0 && activeTab === 'list' && friends.length === 0) {
+            setActiveTab('requests');
+        }
+    }, [requests]);
 
     if (!user && !loading) {
         return (
@@ -184,14 +201,32 @@ const Friends = () => {
     const sendRequest = async (targetUid) => {
         if (!user) return;
         try {
-            await addDoc(collection(db, 'friendships'), {
+            const friendshipsRef = collection(db, 'friendships');
+
+            // Check if a relationship already exists in either direction
+            const existingQ = query(
+                friendshipsRef,
+                where('participants', 'array-contains', user.uid)
+            );
+            const existingSnap = await getDocs(existingQ);
+            const alreadyExists = existingSnap.docs.some(d => 
+                d.data().participants.includes(targetUid)
+            );
+
+            if (alreadyExists) {
+                alert('You already have a request or friendship with this user.');
+                setSearchResults(prev => prev.filter(r => r.uid !== targetUid));
+                return;
+            }
+
+            await addDoc(friendshipsRef, {
                 participants: [user.uid, targetUid],
                 requesterId: user.uid,
                 receiverId: targetUid,
                 status: 'pending',
                 createdAt: serverTimestamp()
             });
-            alert('Friend request sent!');
+            alert('Friend request sent! ✅');
             setSearchResults(prev => prev.filter(r => r.uid !== targetUid));
         } catch (error) {
             console.error('Error sending request:', error);
@@ -305,7 +340,13 @@ const Friends = () => {
                 >
                     <Clock size={16} />
                     {t('friends.pending', 'Requests')}
-                    {requests.length > 0 && <span className="ml-1 bg-red-500 text-white w-5 h-5 flex items-center justify-center rounded-full text-[10px]">{requests.length}</span>}
+                    {(() => {
+                        const incoming = requests.filter(r => r.requesterId !== user?.uid).length;
+                        const outgoing = requests.filter(r => r.requesterId === user?.uid).length;
+                        if (incoming > 0) return <span className="ml-1 bg-red-500 text-white w-5 h-5 flex items-center justify-center rounded-full text-[10px] animate-pulse">{incoming}</span>;
+                        if (outgoing > 0) return <span className="ml-1 opacity-50">{outgoing}</span>;
+                        return null;
+                    })()}
                 </button>
             </div>
 
@@ -346,7 +387,7 @@ const Friends = () => {
                 ) : (
                     requests.length > 0 ? (
                         requests.map((req) => (
-                            <div key={req.id} className="p-5 bg-white dark:bg-slate-900 rounded-[24px] border-2 border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div key={req.friendshipId} className="p-5 bg-white dark:bg-slate-900 rounded-[24px] border-2 border-slate-100 dark:border-slate-800 shadow-sm">
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
                                         {req.otherUser.avatar ? <img src={req.otherUser.avatar} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}

@@ -61,26 +61,44 @@ const Profile = () => {
     // Calculate Monthly Stats - MOVED BEFORE RETURNS
     const monthlyStats = useMemo(() => {
         const now = new Date();
-        const bookList = isOwnProfile ? books : Array.from(new Map(Object.values(targetBooks).flat().map(b => [b.id, b])).values());
+        const bookList = isOwnProfile ? (books || []) : Array.from(new Map(Object.values(targetBooks || {}).flat().map(b => [b.id, b])).values());
         
         const monthlyBooks = bookList.filter(b => {
             if ((b.status !== 'read' && b.status !== 'completed') || !b.finishedAt) return false;
-            return isSameMonth(parseISO(b.finishedAt), now);
+            try {
+                return isSameMonth(parseISO(String(b.finishedAt)), now);
+            } catch (e) {
+                return false;
+            }
         }).length;
 
         let monthlyPages = 0;
         let monthlyAudioMinutes = 0;
 
         bookList.forEach(book => {
-            const logs = book.readingLogs || [];
-            const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const logs = Array.isArray(book.readingLogs) ? book.readingLogs : [];
+            const sortedLogs = [...logs].sort((a, b) => {
+                try { return new Date(a.date) - new Date(b.date); } catch(e) { return 0; }
+            });
             
-            const monthLogs = sortedLogs.filter(l => isSameMonth(parseISO(l.date), now));
+            const monthLogs = sortedLogs.filter(l => {
+                if (!l.date) return false;
+                try {
+                    return isSameMonth(parseISO(String(l.date)), now);
+                } catch(e) {
+                    return false;
+                }
+            });
 
             if (monthLogs.length > 0) {
                 const logsBeforeMonth = sortedLogs.filter(l => {
-                    const d = parseISO(l.date);
-                    return d < now && !isSameMonth(d, now);
+                    if (!l.date) return false;
+                    try {
+                        const d = parseISO(String(l.date));
+                        return d < now && !isSameMonth(d, now);
+                    } catch(e) {
+                        return false;
+                    }
                 });
                 const startOfMonthProgress = logsBeforeMonth.length > 0
                     ? Number(logsBeforeMonth[logsBeforeMonth.length - 1].pagesRead) || 0
@@ -234,13 +252,29 @@ const Profile = () => {
         
         setIsAdding(true);
         try {
-            const { id, ...bookData } = book;
             await addBook({
-                ...bookData,
+                title: book.title,
+                author: book.author,
+                cover: book.cover,
+                isbn: book.isbn,
+                language: book.language,
+                genres: book.genres,
+                description: book.description,
+                format: book.format,
+                totalPages: book.totalPages,
+                totalChapters: book.totalChapters,
+                total_duration_minutes: book.total_duration_minutes,
+                hasSpice: book.hasSpice,
+                progressMode: book.progressMode,
+                tracking_unit: book.tracking_unit,
                 status: 'want-to-read',
                 addedAt: new Date().toISOString(),
                 progress: 0,
-                rating: 0
+                rating: 0,
+                spiceRating: 0,
+                isOwned: false,
+                isFavorite: false,
+                toBuy: false
             });
             alert(t('messages.success.addedToLibrary', { defaultValue: 'Book added to your library!' }));
             setSelectedBookForPreview(null);
@@ -284,17 +318,25 @@ const Profile = () => {
     const bio = isOwnProfile ? (userProfile?.bio || t('profile.noBio')) : (targetProfile?.bio || t('profile.noBio'));
     
     const displayBooks = isOwnProfile ? {
-        reading: readingBooks,
-        tbr: wantToReadBooks,
-        favorites: favoriteBooks,
-        read: finishedBooks
-    } : targetBooks;
+        reading: readingBooks || [],
+        tbr: wantToReadBooks || [],
+        favorites: favoriteBooks || [],
+        read: finishedBooks || []
+    } : (targetBooks || { reading: [], tbr: [], favorites: [], read: [] });
 
     const stats = {
         reading: displayBooks.reading.length,
-        books: finishedBooks.length,
+        books: displayBooks.read.length,
         tbr: displayBooks.tbr.length,
         friends: 0 // Mocked
+    };
+
+    // Unified profile object for sharing — always populated
+    const displayProfile = {
+        name: displayName,
+        avatar: displayAvatar,
+        bio,
+        username: isOwnProfile ? userProfile?.username : targetProfile?.username,
     };
 
     const tabs = [
@@ -584,7 +626,7 @@ const Profile = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowShareCard(false)}>
                     <div onClick={e => e.stopPropagation()} className="w-full max-w-sm">
                         <ShareProfileCard 
-                            profile={targetProfile} 
+                            profile={displayProfile} 
                             books={currentBooks.slice(0, 3)} 
                             stats={stats}
                             onClose={() => setShowShareCard(false)} 
