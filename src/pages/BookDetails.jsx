@@ -262,9 +262,9 @@ const BookDetails = () => {
         }
     };
 
-    const handleAudiobookConfirm = () => {
+    const handleAudiobookConfirm = async () => {
         const totalMinutes = parseInt(audiobookHours) * 60 + parseInt(audiobookMinutes);
-        updateBook(book.id, {
+        await updateBook(book.id, {
             status: 'reading',
             startedAt: tempStartTime,
             format: 'Audiobook',
@@ -277,8 +277,8 @@ const BookDetails = () => {
         setTempFormat(null);
     };
 
-    const handleTrackingModeConfirm = (mode) => {
-        updateBook(book.id, {
+    const handleTrackingModeConfirm = async (mode) => {
+        await updateBook(book.id, {
             status: 'reading',
             startedAt: tempStartTime,
             format: tempFormat,

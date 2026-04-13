@@ -194,7 +194,7 @@ const AddBook = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Validation
@@ -258,8 +258,13 @@ const AddBook = () => {
         // Remove helper fields before saving
         delete newBook.customLocation;
 
-        addBook(newBook);
-        setShowSuccess(true);
+        try {
+            await addBook(newBook);
+            setShowSuccess(true);
+        } catch (error) {
+            console.error('Failed to add book:', error);
+            alert('Failed to save book. Please check your connection and try again.');
+        }
     };
 
     const handleSuccessComplete = () => {

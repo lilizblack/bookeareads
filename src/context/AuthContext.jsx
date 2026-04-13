@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, googleProvider } from '../lib/firebaseClient';
 import {
     signInWithEmailAndPassword,
@@ -20,6 +20,12 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [isOfflineMode, setIsOfflineMode] = useState(false);
 
+    // Track previous uid to prevent unnecessary re-renders when Firebase
+    // passes a new user object reference without the actual uid changing
+    // (e.g. during token refreshes), which would cascade into BookContext
+    // re-fetching all books and showing loading skeletons globally.
+    const prevUidRef = useRef(null);
+
     useEffect(() => {
         if (!auth) {
             setLoading(false);
@@ -28,19 +34,25 @@ export const AuthProvider = ({ children }) => {
 
         // Listen for auth state changes
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-            if (firebaseUser) {
-                // User is signed in
-                setUser(firebaseUser);
-                setSession({ user: firebaseUser });
-                setIsOfflineMode(false);
-                setLoading(false);
-            } else {
-                // User is signed out
-                setUser(null);
-                setSession(null);
-                setIsOfflineMode(true);
-                setLoading(false);
+            const newUid = firebaseUser?.uid || null;
+
+            // Only update user state when the actual uid changes, not on every
+            // callback invocation (Firebase can fire this with a new object
+            // reference even when the user hasn't changed).
+            if (newUid !== prevUidRef.current) {
+                prevUidRef.current = newUid;
+                if (firebaseUser) {
+                    setUser(firebaseUser);
+                    setSession({ user: firebaseUser });
+                    setIsOfflineMode(false);
+                } else {
+                    setUser(null);
+                    setSession(null);
+                    setIsOfflineMode(true);
+                }
             }
+
+            setLoading(false);
         });
 
         return () => unsubscribe();
