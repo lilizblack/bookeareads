@@ -5,11 +5,14 @@ import { generateGenericCover } from '../utils/coverGenerator';
 
 const ShareModal = ({ book, onClose }) => {
     const cardRef = useRef(null);
+    const containerRef = useRef(null);
     const [generating, setGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [coverDataUrl, setCoverDataUrl] = useState(null);
     const [coverLoading, setCoverLoading] = useState(true);
+    const [cardScale, setCardScale] = useState(1);
+    const [cardHeight, setCardHeight] = useState(0);
 
     // Pre-load cover as data URL to completely avoid CORS
     useEffect(() => {
@@ -58,6 +61,31 @@ const ShareModal = ({ book, onClose }) => {
             })
             .catch(() => setLogoDataUrl(null));
     }, []);
+
+    // Compute scale so the 340px card fits inside whatever container width is available
+    useEffect(() => {
+        const updateScale = () => {
+            if (containerRef.current) {
+                const containerWidth = containerRef.current.clientWidth;
+                setCardScale(Math.min(1, containerWidth / 340));
+            }
+        };
+        updateScale();
+        window.addEventListener('resize', updateScale);
+        return () => window.removeEventListener('resize', updateScale);
+    }, []);
+
+    // Track card height so the wrapper can shrink to the scaled visual height
+    useEffect(() => {
+        if (!cardRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setCardHeight(entry.contentRect.height + 52); // +52 accounts for padding
+            }
+        });
+        observer.observe(cardRef.current);
+        return () => observer.disconnect();
+    }, [coverLoading]);
 
     const triggerDownload = (url) => {
         const link = document.createElement('a');
@@ -126,6 +154,12 @@ const ShareModal = ({ book, onClose }) => {
                         elClone.style.transform = 'none';
                         elClone.style.position = 'static';
                         elClone.style.display = 'flex';
+                        // Reset the responsive scale wrapper so html2canvas
+                        // always captures the card at its native 340px size
+                        if (elClone.parentElement) {
+                            elClone.parentElement.style.transform = 'none';
+                            elClone.parentElement.style.height = 'auto';
+                        }
                         // Ensure all images in clone have crossOrigin set if they are external
                         const imgs = elClone.getElementsByTagName('img');
                         for (let img of imgs) {
@@ -198,8 +232,8 @@ const ShareModal = ({ book, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 animate-fade-in" style={{ backdropFilter: 'none' }}>
-            <div className="w-full max-w-md flex flex-col items-center gap-5 pb-4">
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-start sm:items-center justify-center p-4 overflow-y-auto animate-fade-in" style={{ backdropFilter: 'none' }}>
+            <div className="w-full max-w-md flex flex-col items-center gap-5 pb-4 my-auto">
 
                 {/* Header - outside the card, not captured */}
                 <div className="w-full flex justify-between items-center text-white shrink-0">
@@ -249,7 +283,16 @@ const ShareModal = ({ book, onClose }) => {
                 ) : (
                     <>
                         {/* ===== THE CARD TO CAPTURE ===== */}
-                        {/* ONLY inline styles. NO Tailwind. NO filters. NO SVGs. NO blur. NO aspect-ratio. */}
+                        {/* The card is always 340px wide (required for html2canvas export).
+                            The outer container measures available width and scales the card
+                            preview down on narrow screens using CSS transform. The html2canvas
+                            onclone callback resets the transform so exports are always 340px. */}
+                        <div ref={containerRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{
+                                transformOrigin: 'top center',
+                                transform: cardScale < 1 ? `scale(${cardScale})` : 'none',
+                                height: cardScale < 1 ? `${cardHeight * cardScale}px` : 'auto',
+                            }}>
                         <div id="capture-card" ref={cardRef} style={cardStyles}>
 
                             {/* Branding row */}
@@ -325,7 +368,9 @@ const ShareModal = ({ book, onClose }) => {
                                     Reader Achievement Unlocked
                                 </span>
                             </div>
-                        </div>
+                        </div> {/* end capture-card */}
+                            </div> {/* end scale wrapper */}
+                        </div> {/* end container */}
 
                         {/* Error display */}
                         {errorMsg && (

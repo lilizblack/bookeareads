@@ -189,7 +189,7 @@ const AddBook = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Validation
@@ -249,8 +249,13 @@ const AddBook = () => {
             finishedAt: formData.status === 'read' ? (formData.finishedAt || new Date().toISOString()) : null
         };
 
-        addBook(newBook);
-        setShowSuccess(true);
+        try {
+            await addBook(newBook);
+            setShowSuccess(true);
+        } catch (error) {
+            console.error('Failed to add book:', error);
+            alert('Failed to save book. Please check your connection and try again.');
+        }
     };
 
     const handleSuccessComplete = () => {
