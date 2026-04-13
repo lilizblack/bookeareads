@@ -52,6 +52,7 @@ const Profile = () => {
     const [activeTab, setActiveTab] = useState('reading');
     const [showShareCard, setShowShareCard] = useState(false);
     const [friendshipStatus, setFriendshipStatus] = useState('none');
+    const [friendsCount, setFriendsCount] = useState(0);
     const [selectedBookForPreview, setSelectedBookForPreview] = useState(null);
     const [isAdding, setIsAdding] = useState(false);
     
@@ -236,15 +237,27 @@ const Profile = () => {
                 // Fetch target user's reading goal
                 try {
                     const currentYear = new Date().getFullYear().toString();
+                    
+                    // Fetch from new goals subcollection
                     const goalDoc = await getDoc(doc(db, 'users', targetUid, 'goals', currentYear));
+                    
+                    // Fetch legacy goal from main user document just in case it hasn't been migrated
+                    const mainUserDoc = await getDoc(doc(db, 'users', targetUid));
+                    const mainUserData = mainUserDoc.exists() ? mainUserDoc.data() : {};
+                    const legacyYearly = mainUserData?.readingGoal?.yearly || mainUserData?.yearlyGoal || profileData?.readingGoal?.yearly || profileData?.yearlyGoal;
+                    const legacyMonthly = mainUserData?.readingGoal?.monthly || mainUserData?.monthlyGoal || profileData?.readingGoal?.monthly || profileData?.monthlyGoal;
+
                     if (goalDoc.exists()) {
                         setTargetReadingGoal({
-                            yearly: goalDoc.data().yearlyGoal || 15,
-                            monthly: goalDoc.data().monthlyGoal || 2
+                            yearly: goalDoc.data().yearlyGoal || legacyYearly || 15,
+                            monthly: goalDoc.data().monthlyGoal || legacyMonthly || 2
                         });
                     } else {
-                        // Fallback goal if user hasn't actively set one
-                        setTargetReadingGoal({ yearly: 15, monthly: 2 });
+                        // Fallback goal if user hasn't actively set one in the new location
+                        setTargetReadingGoal({ 
+                            yearly: legacyYearly || 15, 
+                            monthly: legacyMonthly || 2 
+                        });
                     }
                 } catch (err) {
                     console.error('Error fetching target reading goal:', err);
@@ -262,6 +275,7 @@ const Profile = () => {
                     const match = friendSnap.docs.find(d => d.data().participants.includes(targetUid));
                     setFriendshipStatus(match ? match.data().status : 'none');
                 }
+                
             } catch (error) {
                 console.error('Error fetching profile:', error);
             } finally {
@@ -271,6 +285,24 @@ const Profile = () => {
 
         fetchProfileData();
     }, [usernameParam, user?.uid]);
+
+    // Fetch friends count independently based on resolvedUid
+    useEffect(() => {
+        if (!resolvedUid) return;
+        
+        const fetchFriendsCount = async () => {
+            try {
+                const friendshipsRef = collection(db, 'friendships');
+                const qAllFriends = query(friendshipsRef, where('participants', 'array-contains', resolvedUid));
+                const allFriendsSnap = await getDocs(qAllFriends);
+                setFriendsCount(allFriendsSnap.docs.filter(d => d.data().status === 'accepted').length);
+            } catch (err) {
+                console.error('Error fetching friends count:', err);
+            }
+        };
+        
+        fetchFriendsCount();
+    }, [resolvedUid]);
 
     // Handle Send Friend Request
     const handleSendFriendRequest = async () => {
@@ -377,7 +409,7 @@ const Profile = () => {
         reading: displayBooks.reading.length,
         books: displayBooks.read.length,
         tbr: displayBooks.tbr.length,
-        friends: 0 // Mocked
+        friends: friendsCount
     };
 
     // Unified profile object for sharing — always populated
@@ -504,9 +536,9 @@ const Profile = () => {
                                         {t('profile.friends', 'Friends')}
                                     </button>
                                 )}
-                                <button className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-bold transition-all active:scale-95 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2">
+                                <button disabled className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-lg text-sm font-bold transition-all cursor-not-allowed border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2">
                                     <MessageCircle size={16} />
-                                    {t('profile.message', 'Message')}
+                                    {t('profile.message', 'Message')} (Coming soon)
                                 </button>
                             </>
                         )}
@@ -703,7 +735,7 @@ const Profile = () => {
                             
                             <button 
                                 onClick={() => setSelectedBookForPreview(null)}
-                                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
+                                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors z-50"
                             >
                                 <CloseIcon size={20} />
                             </button>
@@ -754,12 +786,58 @@ const Profile = () => {
                                 </div>
                             </div>
 
+                            {(selectedBookForPreview.rating > 0 || selectedBookForPreview.spiceRating > 0 || selectedBookForPreview.notes) && (
+                                <div className="mb-6 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
+                                        <MessageCircle size={12} />
+                                        {displayName}'s Review
+                                    </h4>
+                                    
+                                    <div className="flex gap-4 mb-3">
+                                        {selectedBookForPreview.rating > 0 && (
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Rating</span>
+                                                <div className="flex gap-0.5">
+                                                    {[1, 2, 3, 4, 5].map(star => (
+                                                        <svg 
+                                                            key={star} 
+                                                            className={`w-3.5 h-3.5 ${star <= selectedBookForPreview.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-200 dark:text-slate-700'}`} 
+                                                            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                                        >
+                                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                                        </svg>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedBookForPreview.spiceRating > 0 && (
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Spice</span>
+                                                <div className="flex gap-0.5">
+                                                    {[...Array(selectedBookForPreview.spiceRating)].map((_, i) => (
+                                                        <span key={i} className="text-xs leading-none">🌶️</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {selectedBookForPreview.notes && (
+                                        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/50">
+                                            <p className="text-xs text-slate-600 dark:text-slate-300 italic whitespace-pre-wrap leading-relaxed">
+                                                "{selectedBookForPreview.notes}"
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="mb-8">
                                 <div className="flex items-center gap-2 text-slate-400 mb-2">
                                     <Info size={14} />
                                     <span className="text-[10px] font-bold uppercase tracking-wider">{t('book.fields.description')}</span>
                                 </div>
-                                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-h-32 overflow-y-auto pr-2">
+                                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-h-32 overflow-y-auto pr-2 custom-scrollbar">
                                     {selectedBookForPreview.description || t('book.noDescription', 'No description available for this book.')}
                                 </p>
                             </div>

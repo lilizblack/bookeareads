@@ -228,7 +228,7 @@
 }
 
 /* Mobile optimizations */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .custom-select-backdrop {
         position: fixed;
         inset: 0;
@@ -264,7 +264,7 @@
 }
 
 /* Ensure the fixed dropdown on larger screens looks right when portaled */
-@media (min-width: 641px) {
+@media (min-width: 769px) {
     .custom-select-dropdown {
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         border: 1px solid #e2e8f0;
@@ -291,6 +291,7 @@
     }
 
     to {
+        opacity: 1;
         transform: translateY(0);
     }
 }
@@ -301,7 +302,7 @@
     -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .custom-select-options {
         padding: 0.5rem;
     }
