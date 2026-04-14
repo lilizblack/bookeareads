@@ -5,13 +5,16 @@ import { generateGenericCover } from '../utils/coverGenerator';
 
 const ShareModal = ({ book, onClose }) => {
     const cardRef = useRef(null);
+    const containerRef = useRef(null);
     const [generating, setGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [coverDataUrl, setCoverDataUrl] = useState(null);
     const [coverLoading, setCoverLoading] = useState(true);
+    const [cardScale, setCardScale] = useState(1);
+    const [cardHeight, setCardHeight] = useState(0);
 
-    // Pre-load cover as data URL to completely avoid CORS
+    // Pre-load cover as data URL to completely avoid CORS issues in html2canvas
     useEffect(() => {
         if (!book?.cover) {
             setCoverDataUrl(generateGenericCover(book?.title, book?.author));
@@ -19,31 +22,63 @@ const ShareModal = ({ book, onClose }) => {
             return;
         }
 
+        // Already a local/data URL — use directly
         if (book.cover.startsWith('data:') || book.cover.startsWith('/') || book.cover.startsWith('./')) {
             setCoverDataUrl(book.cover);
             setCoverLoading(false);
             return;
         }
 
-        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(book.cover.replace('http://', 'https://'))}&w=512&output=jpg&q=85`;
+        let cancelled = false;
 
-        fetch(proxyUrl)
-            .then(res => {
-                if (!res.ok) throw new Error('Fetch failed');
-                return res.blob();
-            })
-            .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setCoverDataUrl(reader.result);
-                    setCoverLoading(false);
-                };
-                reader.readAsDataURL(blob);
-            })
-            .catch(() => {
-                setCoverDataUrl(generateGenericCover(book.title, book.author));
+        const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        const fetchWithTimeout = (url, ms = 6000) => {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), ms);
+            return fetch(url, { signal: controller.signal })
+                .finally(() => clearTimeout(id));
+        };
+
+        const fallback = () => {
+            if (!cancelled) {
+                setCoverDataUrl(generateGenericCover(book?.title, book?.author));
                 setCoverLoading(false);
-            });
+            }
+        };
+
+        // For Firebase Storage URLs, try fetching directly first —
+        // their ?alt=media&token= makes them publicly readable.
+        // For other external URLs, go straight to the weserv.nl proxy.
+        const isFirebaseStorage = book.cover.includes('firebasestorage.googleapis.com');
+        const coverUrl = book.cover.replace('http://', 'https://');
+
+        // Proxy URL: avoid double-encoding already-encoded chars (e.g. %2F in Firebase paths)
+        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(decodeURIComponent(coverUrl))}&w=512&output=jpg&q=85`;
+
+        const tryProxy = () =>
+            fetchWithTimeout(proxyUrl)
+                .then(res => { if (!res.ok) throw new Error('proxy failed'); return res.blob(); })
+                .then(blobToDataUrl)
+                .then(dataUrl => { if (!cancelled) { setCoverDataUrl(dataUrl); setCoverLoading(false); } })
+                .catch(fallback);
+
+        if (isFirebaseStorage) {
+            fetchWithTimeout(coverUrl)
+                .then(res => { if (!res.ok) throw new Error('direct failed'); return res.blob(); })
+                .then(blobToDataUrl)
+                .then(dataUrl => { if (!cancelled) { setCoverDataUrl(dataUrl); setCoverLoading(false); } })
+                .catch(() => tryProxy());
+        } else {
+            tryProxy();
+        }
+
+        return () => { cancelled = true; };
     }, [book]);
 
     // Pre-load logo as data URL too
@@ -58,6 +93,31 @@ const ShareModal = ({ book, onClose }) => {
             })
             .catch(() => setLogoDataUrl(null));
     }, []);
+
+    // Compute scale so the 340px card fits inside whatever container width is available
+    useEffect(() => {
+        const updateScale = () => {
+            if (containerRef.current) {
+                const containerWidth = containerRef.current.clientWidth;
+                setCardScale(Math.min(1, containerWidth / 340));
+            }
+        };
+        updateScale();
+        window.addEventListener('resize', updateScale);
+        return () => window.removeEventListener('resize', updateScale);
+    }, []);
+
+    // Track card height so the wrapper can shrink to the scaled visual height
+    useEffect(() => {
+        if (!cardRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setCardHeight(entry.contentRect.height + 52); // +52 accounts for padding
+            }
+        });
+        observer.observe(cardRef.current);
+        return () => observer.disconnect();
+    }, [coverLoading]);
 
     const triggerDownload = (url) => {
         const link = document.createElement('a');
@@ -126,6 +186,12 @@ const ShareModal = ({ book, onClose }) => {
                         elClone.style.transform = 'none';
                         elClone.style.position = 'static';
                         elClone.style.display = 'flex';
+                        // Reset the responsive scale wrapper so html2canvas
+                        // always captures the card at its native 340px size
+                        if (elClone.parentElement) {
+                            elClone.parentElement.style.transform = 'none';
+                            elClone.parentElement.style.height = 'auto';
+                        }
                         // Ensure all images in clone have crossOrigin set if they are external
                         const imgs = elClone.getElementsByTagName('img');
                         for (let img of imgs) {
@@ -198,12 +264,12 @@ const ShareModal = ({ book, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 animate-fade-in" style={{ backdropFilter: 'none' }}>
-            <div className="w-full max-w-md flex flex-col items-center gap-5 pb-4">
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-start sm:items-center justify-center p-4 overflow-y-auto animate-fade-in" style={{ backdropFilter: 'none' }}>
+            <div className="w-full max-w-md flex flex-col items-center gap-5 pb-4 my-auto">
 
                 {/* Header - outside the card, not captured */}
                 <div className="w-full flex justify-between items-center text-white shrink-0">
-                    <h2 className="text-lg font-bold flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
                         <Share2 size={18} /> Share your achievement
                     </h2>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -249,21 +315,32 @@ const ShareModal = ({ book, onClose }) => {
                 ) : (
                     <>
                         {/* ===== THE CARD TO CAPTURE ===== */}
-                        {/* ONLY inline styles. NO Tailwind. NO filters. NO SVGs. NO blur. NO aspect-ratio. */}
+                        {/* The card is always 340px wide (required for html2canvas export).
+                            The outer container measures available width and scales the card
+                            preview down on narrow screens using CSS transform. The html2canvas
+                            onclone callback resets the transform so exports are always 340px. */}
+                        <div ref={containerRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{
+                                transformOrigin: 'top center',
+                                transform: cardScale < 1 ? `scale(${cardScale})` : 'none',
+                                height: cardScale < 1 ? `${cardHeight * cardScale}px` : 'auto',
+                            }}>
                         <div id="capture-card" ref={cardRef} style={cardStyles}>
 
                             {/* Branding row */}
                             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                {/* inline-block children + lineHeight matching img height → vertical-align:middle works without flex */}
+                                <div style={{ display: 'block', lineHeight: '22px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
                                     {logoDataUrl ? (
-                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle' }} />
                                     ) : (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white' }} />
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white', display: 'inline-block', verticalAlign: 'middle' }} />
                                     )}
-                                    <span style={{ color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>Bookea Reads</span>
+                                    <span style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '8px', color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
                                 </div>
-                                <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-                                    <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>MILESTONE</span>
+                                {/* block span + equal padding = centred without flex */}
+                                <div style={{ display: 'block', textAlign: 'center', lineHeight: 1, background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                    <span style={{ display: 'block', color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
                                 </div>
                             </div>
 
@@ -320,12 +397,14 @@ const ShareModal = ({ book, onClose }) => {
                             )}
 
                             {/* Footer */}
-                            <div style={{ marginTop: '32px', background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase' }}>
+                            <div style={{ marginTop: '32px', display: 'block', textAlign: 'center', lineHeight: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ display: 'block', color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1 }}>
                                     Reader Achievement Unlocked
                                 </span>
                             </div>
-                        </div>
+                        </div> {/* end capture-card */}
+                            </div> {/* end scale wrapper */}
+                        </div> {/* end container */}
 
                         {/* Error display */}
                         {errorMsg && (

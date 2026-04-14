@@ -180,7 +180,8 @@
         "done": "Hecho",
         "yes": "Sí",
         "no": "No",
-        "select": "Seleccionar"
+        "select": "Seleccionar",
+        "other": "Otro"
     },
     "dashboard": {
         "title": "Panel",

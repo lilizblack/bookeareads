@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
+import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import {
     ArrowLeft,
@@ -23,8 +24,8 @@ import SpiceRating from '../components/SpiceRating';
 import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
-import { fetchBookData, searchBookSuggestions } from '../utils/bookApi';
-import { resizeImage } from '../utils/imageUtils';
+import { searchBookSuggestions, fetchBookData } from '../utils/bookApi';
+import { resizeImage, uploadImageToStorage } from '../utils/imageUtils';
 import CustomSelect from '../components/CustomSelect';
 import FormInput from '../components/FormInput';
 import FormButton from '../components/FormButton';
@@ -34,6 +35,7 @@ const AddBook = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { addBook, checkDuplicate } = useBooks();
+    const { user } = useAuth();
 
     // UI State
     const [showScanner, setShowScanner] = useState(false);
@@ -179,7 +181,10 @@ const AddBook = () => {
                 // Resize image to max 400x600 for book covers
                 const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
                 
-                setFormData(prev => ({ ...prev, cover: resizedBase64 }));
+                // Upload image directly to Firebase Storage
+                const storageUrl = await uploadImageToStorage(user?.uid, resizedBase64);
+                
+                setFormData(prev => ({ ...prev, cover: storageUrl }));
             } catch (err) {
                 console.error("Image processing error:", err);
                 setCoverError('Failed to process image. Try a different photo.');
@@ -189,7 +194,7 @@ const AddBook = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Validation
@@ -231,6 +236,7 @@ const AddBook = () => {
 
         const newBook = {
             ...formData,
+            purchaseLocation: formData.purchaseLocation === 'Other' ? (formData.customLocation || 'Other') : formData.purchaseLocation,
             genres: [formData.genres],
             cover: formData.cover || generateGenericCover(formData.title, formData.author),
             // Set tracking unit based on format and user selection
@@ -249,8 +255,16 @@ const AddBook = () => {
             finishedAt: formData.status === 'read' ? (formData.finishedAt || new Date().toISOString()) : null
         };
 
-        addBook(newBook);
-        setShowSuccess(true);
+        // Remove helper fields before saving
+        delete newBook.customLocation;
+
+        try {
+            await addBook(newBook);
+            setShowSuccess(true);
+        } catch (error) {
+            console.error('Failed to add book:', error);
+            alert('Failed to save book. Please check your connection and try again.');
+        }
     };
 
     const handleSuccessComplete = () => {
@@ -260,11 +274,13 @@ const AddBook = () => {
     // Calculate progress percentage for display
     const getProgressPercent = () => {
         const total = formData.format === 'Audiobook'
-            ? (durationHours * 60 + durationMinutes)
-            : (formData.progressMode === 'chapters' ? formData.totalChapters : formData.totalPages);
+            ? ((Number(durationHours) || 0) * 60 + (Number(durationMinutes) || 0))
+            : (formData.progressMode === 'chapters' ? Number(formData.totalChapters) : Number(formData.totalPages));
 
         if (!total || total <= 0) return 0;
-        return Math.round(((formData.progress || 0) / total) * 100);
+        const progressNum = Number(formData.progress) || 0;
+        const percent = Math.round((progressNum / total) * 100);
+        return isNaN(percent) ? 0 : percent;
     };
 
     const progressPercent = getProgressPercent();
@@ -836,11 +852,11 @@ const AddBook = () => {
 
                             {/* Owned Details */}
                             {formData.isOwned && (
-                                <>
-                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[120px]">
-                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">{t('book.fields.spent')}</span>
+                                <div className="flex items-center gap-3 flex-wrap w-full animate-fade-in">
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 shadow-sm min-w-[120px] relative z-10">
+                                        <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">{t('book.fields.spent')}</span>
                                         <div className="flex items-center gap-1">
-                                            <span className="text-sm font-bold text-slate-500">{getCurrencySymbol()}</span>
+                                            <span className="text-sm font-bold text-slate-400">{getCurrencySymbol()}</span>
                                             <input
                                                 type="number"
                                                 placeholder="0.00"
@@ -857,7 +873,7 @@ const AddBook = () => {
                                         />
                                     </div>
 
-                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 shadow-sm min-w-[100px] relative z-10">
                                         <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">Status</span>
                                         <CustomSelect
                                             value={formData.ownershipStatus}
@@ -870,23 +886,42 @@ const AddBook = () => {
                                         />
                                     </div>
 
-                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 animate-fade-in shadow-sm min-w-[100px]">
+                                    <div className="flex flex-col justify-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-20 shadow-sm min-w-[150px] relative z-20">
                                         <span className="text-[10px] uppercase text-slate-400 font-bold mb-1">{t('addBook.form.boughtAt')}</span>
                                         <CustomSelect
                                             value={formData.purchaseLocation}
-                                            onChange={e => setFormData({ ...formData, purchaseLocation: e.target.value })}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    purchaseLocation: val,
+                                                    customLocation: val === 'Other' ? (formData.customLocation || '') : ''
+                                                });
+                                            }}
                                             options={[
                                                 { value: '', label: t('app.select') },
                                                 { value: 'Online', label: t('calendar.locationNames.Online') },
                                                 { value: 'Local Bookstore', label: t('calendar.locationNames.Local Bookstore') },
                                                 { value: 'Gift', label: t('calendar.locationNames.Gift') },
-                                                { value: 'Other', label: t('calendar.locationNames.Other') }
+                                                { value: 'Other', label: t('calendar.locationNames.Other') },
+                                                ...((formData.purchaseLocation && !['Online', 'Local Bookstore', 'Gift', 'Other', ''].includes(formData.purchaseLocation)) 
+                                                    ? [{ value: formData.purchaseLocation, label: formData.purchaseLocation }] 
+                                                    : [])
                                             ]}
                                             placeholder={t('app.select')}
                                             className="text-xs"
                                         />
+                                        {formData.purchaseLocation === 'Other' && (
+                                            <input
+                                                type="text"
+                                                placeholder={t('app.other')}
+                                                className="text-xs mt-1 bg-transparent border-b border-slate-300 outline-none"
+                                                value={formData.customLocation || ''}
+                                                onChange={e => setFormData({ ...formData, customLocation: e.target.value })}
+                                            />
+                                        )}
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
 

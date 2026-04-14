@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { isSameDay, differenceInCalendarDays, parseISO } from 'date-fns';
 import { db } from '../lib/firebaseClient';
 import {
@@ -17,6 +17,7 @@ import {
     Timestamp
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { calculateGlobalSpeed } from '../utils/bookUtils';
 
 const BookContext = createContext();
@@ -51,6 +52,59 @@ const mapTimestampToISO = (val) => {
     }
     return val;
 };
+
+// Builds the Firestore-safe sync payload from a computed book object.
+// Extracted so it can be used outside the setBooks updater (side-effect-free).
+const buildSyncData = (updated, updates) => ({
+    status: updated.status,
+    progress: updated.progress,
+    rating: updated.rating,
+    spiceRating: updated.spiceRating,
+    hasSpice: updated.hasSpice || false,
+    isFavorite: updated.isFavorite,
+    isOwned: updated.isOwned,
+    startedAt: updated.startedAt
+        ? (typeof updated.startedAt === 'string' ? Timestamp.fromDate(new Date(updated.startedAt)) : updated.startedAt)
+        : null,
+    finishedAt: updated.finishedAt
+        ? (typeof updated.finishedAt === 'string' ? Timestamp.fromDate(new Date(updated.finishedAt)) : updated.finishedAt)
+        : null,
+    pausedAt: updated.pausedAt
+        ? (typeof updated.pausedAt === 'string' ? Timestamp.fromDate(new Date(updated.pausedAt)) : updated.pausedAt)
+        : null,
+    dnfAt: updated.dnfAt
+        ? (typeof updated.dnfAt === 'string' ? Timestamp.fromDate(new Date(updated.dnfAt)) : updated.dnfAt)
+        : null,
+    review: updated.review || null,
+    cover: updated.cover || null,
+    title: updated.title || 'Untitled',
+    author: updated.author || 'Unknown',
+    updatedAt: serverTimestamp(),
+    language: updated.language || 'English',
+    genres: updated.genres || [],
+    format: updated.format || null,
+    price: updated.price || null,
+    isbn: updated.isbn || null,
+    totalTimeRead: updated.totalTimeRead || 0,
+    totalTimedProgress: updated.totalTimedProgress || 0,
+    readingLogs: (updated.readingLogs || []).map(log => ({
+        ...log,
+        date: typeof log.date === 'string' ? log.date : mapTimestampToISO(log.date),
+    })),
+    progressMode: updated.progressMode || 'pages',
+    totalPages: updated.totalPages || null,
+    totalChapters: updated.totalChapters || null,
+    isWantToBuy: updated.isWantToBuy || false,
+    boughtDate: updated.boughtDate
+        ? (typeof updated.boughtDate === 'string' ? Timestamp.fromDate(new Date(updated.boughtDate)) : updated.boughtDate)
+        : null,
+    ownershipStatus: updated.ownershipStatus || 'kept',
+    purchaseLocation: updated.purchaseLocation || '',
+    otherVersions: updated.otherVersions || [],
+    tracking_unit: updates.tracking_unit || updates.progressMode || updated.tracking_unit || updated.progressMode
+        || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
+    total_duration_minutes: updated.total_duration_minutes || null,
+});
 
 const INITIAL_BOOKS = [
     {
@@ -110,6 +164,7 @@ const INITIAL_BOOKS = [
 
 export const BookProvider = ({ children }) => {
     const { user, isOfflineMode } = useAuth();
+    const toast = useToast();
 
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -118,6 +173,11 @@ export const BookProvider = ({ children }) => {
     const [activeTimer, setActiveTimer] = useState(null);
     const [celebrationBook, setCelebrationBook] = useState(null);
     const [isSyncingState, setIsSyncingState] = useState(false);
+
+    // Keep a ref in sync with books state so updateBook can read the latest
+    // books without stale closures, even when called rapidly.
+    const booksRef = useRef(books);
+    useEffect(() => { booksRef.current = books; }, [books]);
 
     // Fetch books function - defined early so it can be reused by syncLocalToCloud and importData
     const fetchBooksFromDB = useCallback(async () => {
@@ -361,15 +421,15 @@ export const BookProvider = ({ children }) => {
             };
 
             try {
-                const booksRef = collection(db, 'users', user.uid, 'books');
-                const docRef = await addDoc(booksRef, insertData);
+                const booksCollection = collection(db, 'users', user.uid, 'books');
+                const docRef = await addDoc(booksCollection, insertData);
 
                 // Use the Firestore-generated ID
                 newBook.id = docRef.id;
             } catch (error) {
                 console.error('Error inserting book to Firestore:', error);
-                alert('Failed to save book: ' + error.message);
-                return; // Don't add to local state if Firestore insert failed
+                // Throw so callers can catch and show UI feedback
+                throw error;
             }
         }
 
@@ -380,117 +440,83 @@ export const BookProvider = ({ children }) => {
     const closeCelebration = () => setCelebrationBook(null);
 
     const updateBook = async (id, updates, options = {}) => {
+        // --- Phase 1: Compute the updated book from latest state (no side-effects) ---
+        const book = booksRef.current.find(b => b.id === id);
+        if (!book) return false;
+
+        // Preserve the original so we can roll back if Firestore fails
+        const originalBook = { ...book };
+
         // Trigger celebration if marking as read or explicitly requested
         if ((updates.status === 'read' || options.celebrate) && !options.silent) {
-            const currentBook = books.find(b => b.id === id);
-            if (currentBook && (currentBook.status !== 'read' || options.celebrate)) {
-                // Determine completion date/data for the celebration card
-                const celebrationData = {
-                    ...currentBook,
-                    ...updates,
-                };
-                setCelebrationBook(celebrationData);
+            if (book.status !== 'read' || options.celebrate) {
+                setCelebrationBook({ ...book, ...updates });
             }
         }
 
-        setBooks(prev => {
-            return prev.map(book => {
-                if (book.id !== id) return book;
-                const updated = { ...book, ...updates };
-                if (updates.status === 'read' && book.status !== 'read') {
-                    if (!updated.finishedAt) {
-                        updated.finishedAt = new Date().toISOString();
-                    }
-                    if (updated.totalPages) {
-                        updated.progress = updated.totalPages;
-                    } else if (updated.totalChapters) {
-                        updated.progress = updated.totalChapters;
-                    } else if (updated.total_duration_minutes) {
-                        updated.progress = updated.total_duration_minutes;
-                    } else {
-                        updated.progress = 100;
-                    }
-                }
+        // Build the new book object with all derived fields
+        const updated = { ...book, ...updates };
 
-                // NEW: If progress was updated (either manually or via status change), update reading logs
-                if (updated.progress !== book.progress) {
-                    const today = new Date();
-                    const todayStr = today.toISOString();
-                    const logs = updated.readingLogs || [];
-                    const existingLogIndex = logs.findIndex(l => isSameDay(parseISO(l.date), today));
+        if (updates.status === 'read' && book.status !== 'read') {
+            if (!updated.finishedAt) {
+                updated.finishedAt = new Date().toISOString();
+            }
+            if (updated.totalPages) {
+                updated.progress = updated.totalPages;
+            } else if (updated.totalChapters) {
+                updated.progress = updated.totalChapters;
+            } else if (updated.total_duration_minutes) {
+                updated.progress = updated.total_duration_minutes;
+            } else {
+                updated.progress = 100;
+            }
+        }
 
-                    let newLogs = [...logs];
-                    if (existingLogIndex >= 0) {
-                        newLogs[existingLogIndex] = {
-                            ...newLogs[existingLogIndex],
-                            pagesRead: updated.progress
-                        };
-                    } else {
-                        newLogs.push({
-                            date: todayStr,
-                            pagesRead: updated.progress
-                        });
-                    }
-                    updated.readingLogs = newLogs;
-                }
+        // If progress changed, update/append today's reading log entry
+        if (updated.progress !== book.progress) {
+            const today = new Date();
+            const todayStr = today.toISOString();
+            const logs = updated.readingLogs || [];
+            const existingLogIndex = logs.findIndex(l => isSameDay(parseISO(l.date), today));
 
-                if (updates.status === 'paused' && book.status !== 'paused') {
-                    updated.pausedAt = new Date().toISOString();
-                }
-                if (updates.status === 'dnf' && book.status !== 'dnf') {
-                    updated.dnfAt = new Date().toISOString();
-                }
-                if (user) {
-                    const bookRef = doc(db, 'users', user.uid, 'books', id);
-                    const syncData = {
-                        status: updated.status,
-                        progress: updated.progress,
-                        rating: updated.rating,
-                        spiceRating: updated.spiceRating,
-                        hasSpice: updated.hasSpice || false,
-                        isFavorite: updated.isFavorite,
-                        isOwned: updated.isOwned,
-                        startedAt: updated.startedAt ? (typeof updated.startedAt === 'string' ? Timestamp.fromDate(new Date(updated.startedAt)) : updated.startedAt) : null,
-                        finishedAt: updated.finishedAt ? (typeof updated.finishedAt === 'string' ? Timestamp.fromDate(new Date(updated.finishedAt)) : updated.finishedAt) : null,
-                        pausedAt: updated.pausedAt ? (typeof updated.pausedAt === 'string' ? Timestamp.fromDate(new Date(updated.pausedAt)) : updated.pausedAt) : null,
-                        dnfAt: updated.dnfAt ? (typeof updated.dnfAt === 'string' ? Timestamp.fromDate(new Date(updated.dnfAt)) : updated.dnfAt) : null,
-                        review: updated.review || null,
-                        cover: updated.cover || null,
-                        title: updated.title || 'Untitled',
-                        author: updated.author || 'Unknown',
-                        updatedAt: serverTimestamp(),
-                        language: updated.language || 'English',
-                        // Add missing fields for full sync
-                        genres: updated.genres || [],
-                        format: updated.format || null,
-                        price: updated.price || null,
-                        isbn: updated.isbn || null,
-                        totalTimeRead: updated.totalTimeRead || 0,
-                        totalTimedProgress: updated.totalTimedProgress || 0,
-                        readingLogs: (updated.readingLogs || []).map(log => ({
-                            ...log,
-                            date: typeof log.date === 'string' ? log.date : mapTimestampToISO(log.date)
-                        })),
-                        progressMode: updated.progressMode || 'pages',
-                        totalPages: updated.totalPages || null,
-                        totalChapters: updated.totalChapters || null,
-                        isWantToBuy: updated.isWantToBuy || false,
-                        boughtDate: updated.boughtDate ? (typeof updated.boughtDate === 'string' ? Timestamp.fromDate(new Date(updated.boughtDate)) : updated.boughtDate) : null,
-                        ownershipStatus: updated.ownershipStatus || 'kept',
-                        purchaseLocation: updated.purchaseLocation || '',
-                        otherVersions: updated.otherVersions || [],
-                        // New fields for multi-format time estimation
-                        tracking_unit: updates.tracking_unit || updates.progressMode || updated.tracking_unit || updated.progressMode || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
-                        total_duration_minutes: updated.total_duration_minutes || null
-                    };
+            const newLogs = [...logs];
+            if (existingLogIndex >= 0) {
+                newLogs[existingLogIndex] = {
+                    ...newLogs[existingLogIndex],
+                    pagesRead: updated.progress,
+                };
+            } else {
+                newLogs.push({ date: todayStr, pagesRead: updated.progress });
+            }
+            updated.readingLogs = newLogs;
+        }
 
-                    updateDoc(bookRef, syncData).catch((error) => {
-                        console.error('Firestore update failed:', error);
-                    });
-                }
-                return updated;
-            });
-        });
+        if (updates.status === 'paused' && book.status !== 'paused') {
+            updated.pausedAt = new Date().toISOString();
+        }
+        if (updates.status === 'dnf' && book.status !== 'dnf') {
+            updated.dnfAt = new Date().toISOString();
+        }
+
+        // --- Phase 2: Optimistic local update (instant, no Firestore) ---
+        setBooks(prev => prev.map(b => b.id === id ? updated : b));
+
+        // --- Phase 3: Persist to Firestore (awaited, with rollback on failure) ---
+        if (user) {
+            try {
+                const bookRef = doc(db, 'users', user.uid, 'books', id);
+                await updateDoc(bookRef, buildSyncData(updated, updates));
+                return true;
+            } catch (error) {
+                console.error('Firestore update failed:', error);
+                // Roll back the optimistic update so UI stays consistent with DB
+                setBooks(prev => prev.map(b => b.id === id ? originalBook : b));
+                toast.error('Failed to save changes. Please try again.');
+                return false;
+            }
+        }
+
+        return true;
     };
 
     const deleteBook = async (id) => {

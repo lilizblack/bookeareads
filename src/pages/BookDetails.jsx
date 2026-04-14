@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBooks } from '../context/BookContext';
+import { useAuth } from '../context/AuthContext';
 import { format, parseISO } from 'date-fns';
 import Rating from '../components/Rating';
 import SpiceRating from '../components/SpiceRating';
@@ -21,16 +22,18 @@ import { getCurrencySymbol } from '../utils/currency';
 import { useTranslation } from 'react-i18next';
 import CustomSelect from '../components/CustomSelect';
 import { fetchBookData } from '../utils/bookApi';
-import { resizeImage } from '../utils/imageUtils';
+import { resizeImage, uploadImageToStorage } from '../utils/imageUtils';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
+import ShareModal from '../components/ShareModal';
 
 const BookDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { t } = useTranslation();
     const { books, updateBook, deleteBook, checkDuplicate, logReading, activeTimer, startTimer, stopTimer, globalSpeed } = useBooks();
+    const { user } = useAuth();
 
     const [book, setBook] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -170,7 +173,8 @@ const BookDetails = () => {
                 setCoverError('');
                 setFetchingCover(true);
                 const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
-                setEditData(prev => ({ ...prev, cover: resizedBase64 }));
+                const storageUrl = await uploadImageToStorage(user?.uid, resizedBase64);
+                setEditData(prev => ({ ...prev, cover: storageUrl }));
             } catch (err) {
                 console.error("Image processing error:", err);
                 setCoverError('Failed to process image.');
@@ -259,9 +263,9 @@ const BookDetails = () => {
         }
     };
 
-    const handleAudiobookConfirm = () => {
+    const handleAudiobookConfirm = async () => {
         const totalMinutes = parseInt(audiobookHours) * 60 + parseInt(audiobookMinutes);
-        updateBook(book.id, {
+        await updateBook(book.id, {
             status: 'reading',
             startedAt: tempStartTime,
             format: 'Audiobook',
@@ -274,8 +278,8 @@ const BookDetails = () => {
         setTempFormat(null);
     };
 
-    const handleTrackingModeConfirm = (mode) => {
-        updateBook(book.id, {
+    const handleTrackingModeConfirm = async (mode) => {
+        await updateBook(book.id, {
             status: 'reading',
             startedAt: tempStartTime,
             format: tempFormat,
@@ -1595,6 +1599,13 @@ const BookDetails = () => {
                 onClose={() => setShowReviewModal(false)}
                 onSubmit={handleReviewSubmit}
             />
+
+            {showShareModal && (
+                <ShareModal
+                    book={book}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
         </div >
     );
 };

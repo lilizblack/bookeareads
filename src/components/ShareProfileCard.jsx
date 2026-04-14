@@ -81,10 +81,16 @@ const ShareProfileCard = ({ profile, books = [], stats = {}, onClose }) => {
                             <div className="w-full h-full rounded-full bg-white/20 backdrop-blur-md overflow-hidden flex items-center justify-center">
                                 {displayAvatar ? (
                                     <img 
-                                        src={displayAvatar} 
+                                        src={`${displayAvatar}${displayAvatar.includes('?') ? '&' : '?'}notaint=${Date.now()}`} 
                                         alt={displayName} 
                                         crossOrigin="anonymous" // required for html2canvas
                                         className="w-full h-full object-cover" 
+                                        onError={(e) => {
+                                            if (e.target.getAttribute('crossOrigin')) {
+                                                e.target.removeAttribute('crossOrigin');
+                                                e.target.src = displayAvatar; // fallback
+                                            }
+                                        }}
                                     />
                                 ) : (
                                     <User size={60} className="text-white/80" />

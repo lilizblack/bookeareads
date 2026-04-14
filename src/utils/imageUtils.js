@@ -1,3 +1,6 @@
+import { storage } from '../lib/firebaseClient';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+
 /**
  * Safely resizes an image while maintaining aspect ratio
  * @param {File | string} source - The image File object or Base64 string
@@ -57,4 +60,27 @@ export const resizeImage = (source, maxWidth = 400, maxHeight = 600, quality = 0
         
         img.src = imageUrl;
     });
+};
+
+/**
+ * Uploads a base64 encoded image string to Firebase Storage
+ * @param {string} userId - The UID of the current user
+ * @param {string} base64String - The data URL of the image
+ * @returns {Promise<string>} - Resolves with the public download URL
+ */
+export const uploadImageToStorage = async (userId, base64String) => {
+    if (!userId || !base64String) {
+        throw new Error('Missing userId or image data for upload');
+    }
+
+    try {
+        const filename = `covers/${userId}/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+        const storageRef = ref(storage, filename);
+        
+        await uploadString(storageRef, base64String, 'data_url');
+        return await getDownloadURL(storageRef);
+    } catch (error) {
+        console.error('Error uploading image to storage:', error);
+        throw error;
+    }
 };
