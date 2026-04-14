@@ -14,7 +14,7 @@ const ShareModal = ({ book, onClose }) => {
     const [cardScale, setCardScale] = useState(1);
     const [cardHeight, setCardHeight] = useState(0);
 
-    // Pre-load cover as data URL to completely avoid CORS
+    // Pre-load cover as data URL to completely avoid CORS issues in html2canvas
     useEffect(() => {
         if (!book?.cover) {
             setCoverDataUrl(generateGenericCover(book?.title, book?.author));
@@ -22,31 +22,63 @@ const ShareModal = ({ book, onClose }) => {
             return;
         }
 
+        // Already a local/data URL — use directly
         if (book.cover.startsWith('data:') || book.cover.startsWith('/') || book.cover.startsWith('./')) {
             setCoverDataUrl(book.cover);
             setCoverLoading(false);
             return;
         }
 
-        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(book.cover.replace('http://', 'https://'))}&w=512&output=jpg&q=85`;
+        let cancelled = false;
 
-        fetch(proxyUrl)
-            .then(res => {
-                if (!res.ok) throw new Error('Fetch failed');
-                return res.blob();
-            })
-            .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setCoverDataUrl(reader.result);
-                    setCoverLoading(false);
-                };
-                reader.readAsDataURL(blob);
-            })
-            .catch(() => {
-                setCoverDataUrl(generateGenericCover(book.title, book.author));
+        const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        const fetchWithTimeout = (url, ms = 6000) => {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), ms);
+            return fetch(url, { signal: controller.signal })
+                .finally(() => clearTimeout(id));
+        };
+
+        const fallback = () => {
+            if (!cancelled) {
+                setCoverDataUrl(generateGenericCover(book?.title, book?.author));
                 setCoverLoading(false);
-            });
+            }
+        };
+
+        // For Firebase Storage URLs, try fetching directly first —
+        // their ?alt=media&token= makes them publicly readable.
+        // For other external URLs, go straight to the weserv.nl proxy.
+        const isFirebaseStorage = book.cover.includes('firebasestorage.googleapis.com');
+        const coverUrl = book.cover.replace('http://', 'https://');
+
+        // Proxy URL: avoid double-encoding already-encoded chars (e.g. %2F in Firebase paths)
+        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(decodeURIComponent(coverUrl))}&w=512&output=jpg&q=85`;
+
+        const tryProxy = () =>
+            fetchWithTimeout(proxyUrl)
+                .then(res => { if (!res.ok) throw new Error('proxy failed'); return res.blob(); })
+                .then(blobToDataUrl)
+                .then(dataUrl => { if (!cancelled) { setCoverDataUrl(dataUrl); setCoverLoading(false); } })
+                .catch(fallback);
+
+        if (isFirebaseStorage) {
+            fetchWithTimeout(coverUrl)
+                .then(res => { if (!res.ok) throw new Error('direct failed'); return res.blob(); })
+                .then(blobToDataUrl)
+                .then(dataUrl => { if (!cancelled) { setCoverDataUrl(dataUrl); setCoverLoading(false); } })
+                .catch(() => tryProxy());
+        } else {
+            tryProxy();
+        }
+
+        return () => { cancelled = true; };
     }, [book]);
 
     // Pre-load logo as data URL too
