@@ -26,6 +26,7 @@ import { resizeImage, uploadImageToStorage } from '../utils/imageUtils';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
+import ShareModal from '../components/ShareModal';
 
 const BookDetails = () => {
     const { id } = useParams();
@@ -1598,6 +1599,13 @@ const BookDetails = () => {
                 onClose={() => setShowReviewModal(false)}
                 onSubmit={handleReviewSubmit}
             />
+
+            {showShareModal && (
+                <ShareModal
+                    book={book}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
         </div >
     );
 };
