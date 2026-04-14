@@ -329,7 +329,7 @@ const ShareModal = ({ book, onClose }) => {
 
                             {/* Branding row */}
                             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1, background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
                                     {logoDataUrl ? (
                                         <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
                                     ) : (
@@ -337,7 +337,7 @@ const ShareModal = ({ book, onClose }) => {
                                     )}
                                     <span style={{ color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
                                     <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
                                 </div>
                             </div>
@@ -395,7 +395,7 @@ const ShareModal = ({ book, onClose }) => {
                             )}
 
                             {/* Footer */}
-                            <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                                 <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1 }}>
                                     Reader Achievement Unlocked
                                 </span>
