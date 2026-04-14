@@ -269,7 +269,7 @@ const ShareModal = ({ book, onClose }) => {
 
                 {/* Header - outside the card, not captured */}
                 <div className="w-full flex justify-between items-center text-white shrink-0">
-                    <h2 className="text-lg font-bold flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
                         <Share2 size={18} /> Share your achievement
                     </h2>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -329,16 +329,18 @@ const ShareModal = ({ book, onClose }) => {
 
                             {/* Branding row */}
                             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1, background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                {/* inline-block children + lineHeight matching img height → vertical-align:middle works without flex */}
+                                <div style={{ display: 'block', lineHeight: '22px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
                                     {logoDataUrl ? (
-                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle' }} />
                                     ) : (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white' }} />
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white', display: 'inline-block', verticalAlign: 'middle' }} />
                                     )}
-                                    <span style={{ color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
+                                    <span style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '8px', color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-                                    <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
+                                {/* block span + equal padding = centred without flex */}
+                                <div style={{ display: 'block', textAlign: 'center', lineHeight: 1, background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                    <span style={{ display: 'block', color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
                                 </div>
                             </div>
 
@@ -395,8 +397,8 @@ const ShareModal = ({ book, onClose }) => {
                             )}
 
                             {/* Footer */}
-                            <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1 }}>
+                            <div style={{ marginTop: '32px', display: 'block', textAlign: 'center', lineHeight: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ display: 'block', color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1 }}>
                                     Reader Achievement Unlocked
                                 </span>
                             </div>
