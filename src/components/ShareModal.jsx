@@ -329,8 +329,8 @@ const ShareModal = ({ book, onClose }) => {
 
                             {/* Branding row */}
                             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                {/* inline-block children + lineHeight matching img height → vertical-align:middle works without flex */}
-                                <div style={{ display: 'block', lineHeight: '22px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', padding: '8px 14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                {/* height == lineHeight trick: single-line text is vertically centred in every renderer */}
+                                <div style={{ display: 'block', height: '38px', lineHeight: '38px', padding: '0 14px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
                                     {logoDataUrl ? (
                                         <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle' }} />
                                     ) : (
@@ -338,9 +338,8 @@ const ShareModal = ({ book, onClose }) => {
                                     )}
                                     <span style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '8px', color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
                                 </div>
-                                {/* block span + equal padding = centred without flex */}
-                                <div style={{ display: 'block', textAlign: 'center', lineHeight: 1, background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', padding: '6px 14px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-                                    <span style={{ display: 'block', color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
+                                <div style={{ display: 'block', height: '21px', lineHeight: '21px', padding: '0 14px', textAlign: 'center', whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                    <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>MILESTONE</span>
                                 </div>
                             </div>
 
@@ -397,10 +396,8 @@ const ShareModal = ({ book, onClose }) => {
                             )}
 
                             {/* Footer */}
-                            <div style={{ marginTop: '32px', display: 'block', textAlign: 'center', lineHeight: 1, background: 'rgba(255,255,255,0.05)', padding: '8px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <span style={{ display: 'block', color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', lineHeight: 1 }}>
-                                    Reader Achievement Unlocked
-                                </span>
+                            <div style={{ marginTop: '32px', display: 'block', height: '24px', lineHeight: '24px', padding: '0 20px', textAlign: 'center', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase' }}>Reader Achievement Unlocked</span>
                             </div>
                         </div> {/* end capture-card */}
                             </div> {/* end scale wrapper */}
