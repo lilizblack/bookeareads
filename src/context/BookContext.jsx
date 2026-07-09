@@ -53,58 +53,79 @@ const mapTimestampToISO = (val) => {
     return val;
 };
 
+// Converts a date-like value (ISO string, Date, or Firestore Timestamp) to a
+// Firestore Timestamp, returning null for empty or invalid input instead of
+// throwing (Timestamp.fromDate explodes on invalid dates).
+const toTimestampOrNull = (val) => {
+    if (!val) return null;
+    if (typeof val === 'string' || val instanceof Date) {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : Timestamp.fromDate(d);
+    }
+    return val; // already a Timestamp (or Timestamp-like POJO)
+};
+
 // Builds the Firestore-safe sync payload from a computed book object.
 // Extracted so it can be used outside the setBooks updater (side-effect-free).
-const buildSyncData = (updated, updates) => ({
-    status: updated.status,
-    progress: updated.progress,
-    rating: updated.rating,
-    spiceRating: updated.spiceRating,
-    hasSpice: updated.hasSpice || false,
-    isFavorite: updated.isFavorite,
-    isOwned: updated.isOwned,
-    startedAt: updated.startedAt
-        ? (typeof updated.startedAt === 'string' ? Timestamp.fromDate(new Date(updated.startedAt)) : updated.startedAt)
-        : null,
-    finishedAt: updated.finishedAt
-        ? (typeof updated.finishedAt === 'string' ? Timestamp.fromDate(new Date(updated.finishedAt)) : updated.finishedAt)
-        : null,
-    pausedAt: updated.pausedAt
-        ? (typeof updated.pausedAt === 'string' ? Timestamp.fromDate(new Date(updated.pausedAt)) : updated.pausedAt)
-        : null,
-    dnfAt: updated.dnfAt
-        ? (typeof updated.dnfAt === 'string' ? Timestamp.fromDate(new Date(updated.dnfAt)) : updated.dnfAt)
-        : null,
-    review: updated.review || null,
-    cover: updated.cover || null,
-    title: updated.title || 'Untitled',
-    author: updated.author || 'Unknown',
-    updatedAt: serverTimestamp(),
-    language: updated.language || 'English',
-    genres: updated.genres || [],
-    format: updated.format || null,
-    price: updated.price || null,
-    isbn: updated.isbn || null,
-    totalTimeRead: updated.totalTimeRead || 0,
-    totalTimedProgress: updated.totalTimedProgress || 0,
-    readingLogs: (updated.readingLogs || []).map(log => ({
-        ...log,
-        date: typeof log.date === 'string' ? log.date : mapTimestampToISO(log.date),
-    })),
-    progressMode: updated.progressMode || 'pages',
-    totalPages: updated.totalPages || null,
-    totalChapters: updated.totalChapters || null,
-    isWantToBuy: updated.isWantToBuy || false,
-    boughtDate: updated.boughtDate
-        ? (typeof updated.boughtDate === 'string' ? Timestamp.fromDate(new Date(updated.boughtDate)) : updated.boughtDate)
-        : null,
-    ownershipStatus: updated.ownershipStatus || 'kept',
-    purchaseLocation: updated.purchaseLocation || '',
-    otherVersions: updated.otherVersions || [],
-    tracking_unit: updates.tracking_unit || updates.progressMode || updated.tracking_unit || updated.progressMode
-        || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
-    total_duration_minutes: updated.total_duration_minutes || null,
-});
+// Every field must have a defined fallback: Firestore rejects the whole write
+// if any value is undefined, which silently breaks status changes and edits.
+const buildSyncData = (updated, updates) => {
+    const data = {
+        status: updated.status || 'want-to-read',
+        progress: updated.progress ?? 0,
+        rating: updated.rating ?? 0,
+        spiceRating: updated.spiceRating ?? 0,
+        hasSpice: updated.hasSpice || false,
+        isFavorite: updated.isFavorite || false,
+        isOwned: updated.isOwned || false,
+        startedAt: toTimestampOrNull(updated.startedAt),
+        finishedAt: toTimestampOrNull(updated.finishedAt),
+        pausedAt: toTimestampOrNull(updated.pausedAt),
+        dnfAt: toTimestampOrNull(updated.dnfAt),
+        review: updated.review || null,
+        cover: updated.cover || null,
+        title: updated.title || 'Untitled',
+        author: updated.author || 'Unknown',
+        updatedAt: serverTimestamp(),
+        language: updated.language || 'English',
+        genres: updated.genres || [],
+        format: updated.format || null,
+        price: updated.price || null,
+        isbn: updated.isbn || null,
+        description: updated.description || null,
+        readingStyle: updated.readingStyle || null,
+        totalTimeRead: updated.totalTimeRead || 0,
+        totalTimedProgress: updated.totalTimedProgress || 0,
+        readingLogs: (updated.readingLogs || []).map(log => {
+            const cleanLog = {
+                ...log,
+                date: (typeof log.date === 'string' ? log.date : mapTimestampToISO(log.date)) || null,
+            };
+            // Firestore rejects undefined inside array elements too
+            Object.keys(cleanLog).forEach(key => {
+                if (cleanLog[key] === undefined) delete cleanLog[key];
+            });
+            return cleanLog;
+        }),
+        progressMode: updated.progressMode || 'pages',
+        totalPages: updated.totalPages || null,
+        totalChapters: updated.totalChapters || null,
+        isWantToBuy: updated.isWantToBuy || false,
+        boughtDate: toTimestampOrNull(updated.boughtDate),
+        ownershipStatus: updated.ownershipStatus || 'kept',
+        purchaseLocation: updated.purchaseLocation || '',
+        otherVersions: updated.otherVersions || [],
+        tracking_unit: updates.tracking_unit || updates.progressMode || updated.tracking_unit || updated.progressMode
+            || (updated.format === 'Audiobook' ? 'minutes' : 'pages'),
+        total_duration_minutes: updated.total_duration_minutes || null,
+    };
+    // Belt and braces: strip anything still undefined so one bad field can't
+    // reject the entire write.
+    Object.keys(data).forEach(key => {
+        if (data[key] === undefined) delete data[key];
+    });
+    return data;
+};
 
 const INITIAL_BOOKS = [
     {
@@ -339,17 +360,34 @@ export const BookProvider = ({ children }) => {
         fetchBooksFromDB();
     }, [user, isOfflineMode, fetchBooksFromDB]);
 
-    // Save to localStorage for offline access (always persist)
+    // Save to localStorage for offline access.
+    // IMPORTANT: never persist while the initial load is still running —
+    // this effect fires on mount with books=[] and would overwrite the saved
+    // library before fetchBooksFromDB restores it (data loss on reload).
     useEffect(() => {
+        if (loading) return;
         localStorage.setItem('book-tracker-data-v3', JSON.stringify(books));
         localStorage.setItem('reading-goal', JSON.stringify(readingGoal));
         localStorage.setItem('all-reading-goals', JSON.stringify(allGoals));
         if (activeTimer) localStorage.setItem('active-timer', JSON.stringify(activeTimer));
         else localStorage.removeItem('active-timer');
-    }, [books, readingGoal, allGoals, activeTimer]);
+    }, [books, readingGoal, allGoals, activeTimer, loading]);
 
     const addBook = async (book) => {
         const newBook = {
+            // Defaults first so the local copy always carries the same fields
+            // that get written to Firestore — updateBook syncs the full book,
+            // and a missing field (undefined) would make Firestore reject the
+            // next update of this book.
+            rating: 0,
+            spiceRating: 0,
+            hasSpice: false,
+            isFavorite: false,
+            isOwned: false,
+            isWantToBuy: false,
+            progress: 0,
+            totalTimeRead: 0,
+            totalTimedProgress: 0,
             ...book,
             id: Date.now().toString(),
             addedAt: new Date().toISOString(),
@@ -382,9 +420,9 @@ export const BookProvider = ({ children }) => {
         if (user) {
             // Firestore Insert
             const insertData = {
-                title: newBook.title,
-                author: newBook.author,
-                cover: newBook.cover,
+                title: newBook.title || 'Untitled',
+                author: newBook.author || 'Unknown',
+                cover: newBook.cover || null,
                 isbn: newBook.isbn || null,
                 status: newBook.status || 'want-to-read',
                 progress: newBook.progress || 0,
@@ -405,7 +443,9 @@ export const BookProvider = ({ children }) => {
                 pausedAt: null,
                 dnfAt: null,
                 updatedAt: serverTimestamp(),
-                readingLogs: [],
+                // Persist the initial progress log (dates are ISO strings,
+                // Firestore-safe) so cloud and local state stay in sync.
+                readingLogs: newBook.readingLogs || [],
                 notes: [],
                 language: newBook.language || 'English',
                 hasSpice: newBook.hasSpice || false,

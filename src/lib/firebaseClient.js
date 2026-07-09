@@ -15,19 +15,32 @@ const firebaseConfig = {
     appId: env.VITE_FIREBASE_APP_ID || import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Check if Firebase config is available
+// Initialize Firebase defensively: with a missing/invalid config, getAuth()
+// throws at module load, which would white-screen the entire app. Exporting
+// null services instead lets AuthContext's `if (!auth)` guards kick in and
+// the app degrade gracefully to guest (localStorage) mode.
+let app = null;
+let auth = null;
+let googleProvider = null;
+let db = null;
+let storage = null;
+
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.warn('Missing Firebase configuration. Check .env file.');
+    console.warn('Missing Firebase configuration. Check .env file. Running in guest mode.');
+} else {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        googleProvider = new GoogleAuthProvider();
+        db = getFirestore(app);
+        storage = getStorage(app);
+    } catch (error) {
+        console.error('Firebase initialization failed. Running in guest mode.', error);
+        app = auth = googleProvider = db = storage = null;
+    }
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export { auth, googleProvider, db, storage };
 
 // Export app for other uses
 export default app;

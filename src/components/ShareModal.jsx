@@ -58,8 +58,10 @@ const ShareModal = ({ book, onClose }) => {
         const isFirebaseStorage = book.cover.includes('firebasestorage.googleapis.com');
         const coverUrl = book.cover.replace('http://', 'https://');
 
-        // Proxy URL: avoid double-encoding already-encoded chars (e.g. %2F in Firebase paths)
-        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(decodeURIComponent(coverUrl))}&w=512&output=jpg&q=85`;
+        // Proxy URL: single-encode the URL as-is. Do NOT decode first — Firebase
+        // Storage paths contain %2F-encoded slashes that must stay encoded, or
+        // Storage returns 404 and the cover silently falls back to the generic one.
+        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(coverUrl)}&w=512&output=jpg&q=85`;
 
         const tryProxy = () =>
             fetchWithTimeout(proxyUrl)
@@ -107,17 +109,22 @@ const ShareModal = ({ book, onClose }) => {
         return () => window.removeEventListener('resize', updateScale);
     }, []);
 
-    // Track card height so the wrapper can shrink to the scaled visual height
+    // Track card height so the wrapper can shrink to the scaled visual height.
+    // Re-observe when the card remounts (after "Back to preview") and ignore
+    // zero-height readings (fired while unmounting) — a stale 0 collapses the
+    // wrapper and makes the card overflow the whole modal on narrow screens.
     useEffect(() => {
-        if (!cardRef.current) return;
+        if (generatedImageUrl || !cardRef.current) return;
         const observer = new ResizeObserver(entries => {
             for (const entry of entries) {
-                setCardHeight(entry.contentRect.height + 52); // +52 accounts for padding
+                if (entry.contentRect.height > 0) {
+                    setCardHeight(entry.contentRect.height + 52); // +52 accounts for padding
+                }
             }
         });
         observer.observe(cardRef.current);
         return () => observer.disconnect();
-    }, [coverLoading]);
+    }, [coverLoading, generatedImageUrl]);
 
     const triggerDownload = (url) => {
         const link = document.createElement('a');
@@ -323,23 +330,25 @@ const ShareModal = ({ book, onClose }) => {
                             <div style={{
                                 transformOrigin: 'top center',
                                 transform: cardScale < 1 ? `scale(${cardScale})` : 'none',
-                                height: cardScale < 1 ? `${cardHeight * cardScale}px` : 'auto',
+                                height: cardScale < 1 && cardHeight > 0 ? `${cardHeight * cardScale}px` : 'auto',
                             }}>
                         <div id="capture-card" ref={cardRef} style={cardStyles}>
 
                             {/* Branding row */}
+                            {/* Pills use padding-defined height + lineHeight:1 spans: html2canvas
+                                mispositions text baselines inside fixed-height/line-height boxes,
+                                but renders padding boxes identically to the browser. */}
                             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                {/* height == lineHeight trick: single-line text is vertically centred in every renderer */}
-                                <div style={{ display: 'block', height: '38px', lineHeight: '38px', padding: '0 14px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.08)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)' }}>
                                     {logoDataUrl ? (
-                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle' }} />
+                                        <img src={logoDataUrl} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain', display: 'block' }} />
                                     ) : (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white', display: 'inline-block', verticalAlign: 'middle' }} />
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'white' }} />
                                     )}
-                                    <span style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '8px', color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
+                                    <span style={{ display: 'block', marginLeft: '8px', color: 'white', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap', letterSpacing: '0.02em', lineHeight: 1 }}>Bookea Reads</span>
                                 </div>
-                                <div style={{ display: 'block', height: '21px', lineHeight: '21px', padding: '0 14px', textAlign: 'center', whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
-                                    <span style={{ color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>MILESTONE</span>
+                                <div style={{ display: 'flex', alignItems: 'center', padding: '6px 14px', whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                                    <span style={{ display: 'block', color: 'white', fontWeight: 900, fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>MILESTONE</span>
                                 </div>
                             </div>
 
@@ -396,8 +405,8 @@ const ShareModal = ({ book, onClose }) => {
                             )}
 
                             {/* Footer */}
-                            <div style={{ marginTop: '32px', display: 'block', height: '24px', lineHeight: '24px', padding: '0 20px', textAlign: 'center', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase' }}>Reader Achievement Unlocked</span>
+                            <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', padding: '8px 20px', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ display: 'block', color: 'rgba(255,255,255,0.35)', fontWeight: 500, fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1 }}>Reader Achievement Unlocked</span>
                             </div>
                         </div> {/* end capture-card */}
                             </div> {/* end scale wrapper */}

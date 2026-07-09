@@ -76,11 +76,31 @@ export const uploadImageToStorage = async (userId, base64String) => {
     try {
         const filename = `covers/${userId}/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
         const storageRef = ref(storage, filename);
-        
+
         await uploadString(storageRef, base64String, 'data_url');
         return await getDownloadURL(storageRef);
     } catch (error) {
         console.error('Error uploading image to storage:', error);
         throw error;
+    }
+};
+
+/**
+ * Resolves the cover value to save for an uploaded image: a Firebase Storage
+ * URL for logged-in users, or the resized base64 data URL as a fallback for
+ * guests and when the upload fails (so saving a picture never breaks).
+ * @param {string | undefined} userId - The UID of the current user, if any
+ * @param {string} base64String - The resized data URL of the image
+ * @returns {Promise<string>} - Storage URL or the base64 string itself
+ */
+export const resolveCoverUpload = async (userId, base64String) => {
+    if (!userId || !storage) {
+        return base64String;
+    }
+    try {
+        return await uploadImageToStorage(userId, base64String);
+    } catch (error) {
+        console.warn('Cover upload failed, storing image locally instead:', error);
+        return base64String;
     }
 };

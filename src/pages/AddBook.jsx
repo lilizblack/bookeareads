@@ -25,7 +25,7 @@ import { generateGenericCover } from '../utils/coverGenerator';
 import { getCurrencySymbol } from '../utils/currency';
 import ChilliIcon from '../components/ChilliIcon';
 import { searchBookSuggestions, fetchBookData } from '../utils/bookApi';
-import { resizeImage, uploadImageToStorage } from '../utils/imageUtils';
+import { resizeImage, resolveCoverUpload } from '../utils/imageUtils';
 import CustomSelect from '../components/CustomSelect';
 import FormInput from '../components/FormInput';
 import FormButton from '../components/FormButton';
@@ -180,11 +180,11 @@ const AddBook = () => {
                 
                 // Resize image to max 400x600 for book covers
                 const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
-                
-                // Upload image directly to Firebase Storage
-                const storageUrl = await uploadImageToStorage(user?.uid, resizedBase64);
-                
-                setFormData(prev => ({ ...prev, cover: storageUrl }));
+
+                // Storage URL for logged-in users, base64 fallback for guests
+                const coverValue = await resolveCoverUpload(user?.uid, resizedBase64);
+
+                setFormData(prev => ({ ...prev, cover: coverValue }));
             } catch (err) {
                 console.error("Image processing error:", err);
                 setCoverError('Failed to process image. Try a different photo.');

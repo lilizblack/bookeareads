@@ -22,7 +22,7 @@ import { getCurrencySymbol } from '../utils/currency';
 import { useTranslation } from 'react-i18next';
 import CustomSelect from '../components/CustomSelect';
 import { fetchBookData } from '../utils/bookApi';
-import { resizeImage, uploadImageToStorage } from '../utils/imageUtils';
+import { resizeImage, resolveCoverUpload } from '../utils/imageUtils';
 import FormInput from '../components/FormInput';
 import FormTextarea from '../components/FormTextarea';
 import FormButton from '../components/FormButton';
@@ -32,7 +32,7 @@ const BookDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const { books, updateBook, deleteBook, checkDuplicate, logReading, activeTimer, startTimer, stopTimer, globalSpeed } = useBooks();
+    const { books, loading, updateBook, deleteBook, checkDuplicate, logReading, activeTimer, startTimer, stopTimer, globalSpeed } = useBooks();
     const { user } = useAuth();
 
     const [book, setBook] = useState(null);
@@ -78,8 +78,10 @@ const BookDetails = () => {
                 setLocalDescription(found.description || '');
             }
         }
-        else navigate('/');
-    }, [id, books, navigate, isEditing]);
+        // Only redirect once the initial load has finished — books is empty
+        // while loading, and bailing early would break deep links / reloads.
+        else if (!loading) navigate('/');
+    }, [id, books, navigate, isEditing, loading]);
 
     if (!book) return null;
 
@@ -173,8 +175,8 @@ const BookDetails = () => {
                 setCoverError('');
                 setFetchingCover(true);
                 const resizedBase64 = await resizeImage(file, 400, 600, 0.8);
-                const storageUrl = await uploadImageToStorage(user?.uid, resizedBase64);
-                setEditData(prev => ({ ...prev, cover: storageUrl }));
+                const coverValue = await resolveCoverUpload(user?.uid, resizedBase64);
+                setEditData(prev => ({ ...prev, cover: coverValue }));
             } catch (err) {
                 console.error("Image processing error:", err);
                 setCoverError('Failed to process image.');
